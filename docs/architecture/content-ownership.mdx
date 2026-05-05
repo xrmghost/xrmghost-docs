@@ -1,0 +1,38 @@
+---
+title: Content Ownership
+description: Maps each documentation section to its owning repository and team, and describes the update process for each.
+---
+
+# Content Ownership
+
+This page defines who owns each section of the public XrmGhost documentation and how updates flow through to the user portal.
+
+## Ownership Table
+
+| Docs Section | Path | Owning Repo | Owning Team | Update Process |
+|---|---|---|---|---|
+| Getting Started | `docs/getting-started.mdx` | `xrmghost-docs` | Documentation / DevRel | Edit MDX in this repo, raise PR, merge to `main` |
+| CLI Reference | `docs/cli/` | `xrmghost-docs` (narrative); `xrmghost-cli` (generated) | CLI team + Documentation | Narrative edits: PR to this repo. Generated content: future pipeline from `xrmghost-cli` — see [Generated vs Manual](./generated-vs-manual.mdx) |
+| Attributes Reference | `docs/attributes/` | `xrmghost-docs` (narrative); `xrmghost-attributes` (schema) | Attributes team + Documentation | Same split as CLI: narrative here, schema-derived content future |
+| Architecture | `docs/architecture/` | `xrmghost-docs` | Architecture / Engineering | PR to this repo; engineering review recommended |
+| Contributing Guidelines | `docs/contributing/` | `xrmghost-docs` | Engineering / Developer Experience | PR to this repo |
+
+## Update Process Detail
+
+### For narrative / manually authored content
+
+1. Author edits the relevant `.mdx` file(s) in this repo.
+2. Author opens a pull request against the `main` branch.
+3. At least one reviewer from the owning team approves.
+4. Merge to `main`.
+5. Portal team advances the submodule pointer (or runs the sync script) to publish.
+
+### For generated content (future)
+
+> **TODO**: Once `xrmghost-cli` and `xrmghost-attributes` expose generation pipelines, define the exact automation here. The generated files should land in designated sub-paths (e.g., `docs/cli/reference/`) and must not be manually edited. See [Generated vs Manual](./generated-vs-manual.mdx).
+
+## Notes
+
+- Cross-cutting changes (e.g., a rename that affects multiple sections) should be coordinated by the Documentation team.
+- If a section's owning team is unclear, default to the Documentation team as interim owner.
+- `xrmghost-user-portal`, `xrmghost-cli`, and `xrmghost-attributes` are **not** edited from this repo. Content references to those products are narrative descriptions only.

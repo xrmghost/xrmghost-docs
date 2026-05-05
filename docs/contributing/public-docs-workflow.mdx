@@ -1,0 +1,98 @@
+---
+title: How to Add a New Docs Page
+description: Step-by-step workflow for adding a new page to the XrmGhost public documentation, including frontmatter rules, folder naming conventions, and how to find the right product owner.
+---
+
+# How to Add a New Docs Page
+
+This guide covers everything you need to add a new `.mdx` page to `xrmghost-docs` and have it appear in the user portal.
+
+## 1. Find the Right Product Owner
+
+Before writing anything, confirm your change falls within your team's ownership area:
+
+1. Open [Content Ownership](../architecture/content-ownership.mdx).
+2. Locate the section that matches the content you want to add (e.g. `docs/cli/`, `docs/attributes/`).
+3. Check the **Owning Team** column.
+4. If the section does not exist yet or the owner is unclear, contact the **Documentation team** as interim owner.
+
+> If you are adding a net-new section (a new product area), align with the Documentation team first so the ownership table can be updated in the same PR.
+
+## 2. Choose the Right Folder
+
+The `docs/` folder hierarchy mirrors the site navigation. Follow these naming rules:
+
+| Rule | Example |
+|---|---|
+| Use lowercase, hyphen-separated folder names | `docs/my-product/` |
+| Each section must have an `index.mdx` as its landing page | `docs/my-product/index.mdx` |
+| Sub-sections live in nested folders | `docs/my-product/advanced/index.mdx` |
+| Do not invent deeply nested hierarchies speculatively — start flat | `docs/my-product/getting-started.mdx` |
+
+If a folder already exists for your product area, add your page there. Do not create a parallel folder.
+
+## 3. Create the File
+
+Create a new `.mdx` file in the appropriate folder. The file name should be lowercase and hyphen-separated.
+
+```
+docs/my-product/my-new-page.mdx
+```
+
+## 4. Write the Frontmatter
+
+Every `.mdx` file **must** begin with a YAML frontmatter block. Two fields are **required**:
+
+```mdx
+---
+title: My New Page
+description: A one-sentence summary of what this page covers.
+---
+```
+
+### Frontmatter Rules
+
+| Field | Required | Notes |
+|---|---|---|
+| `title` | **Yes** | Shown in navigation and browser tab. Keep it short (≤ 60 chars). |
+| `description` | **Yes** | One sentence. Used in SEO meta tags and link previews. |
+| Additional fields | No | Only add fields that the portal's MDX pipeline explicitly supports. Do not invent fields. |
+
+The build will reject any `.mdx` file that is missing `title` or `description`.
+
+## 5. Write Honest Content
+
+- If the content is not ready, use an explicit TODO marker rather than inventing placeholder content:
+
+  ```mdx
+  > **TODO:** This section will be expanded in [story/ticket reference].
+  ```
+
+- Fake or hallucinated content is harder to fix than an honest placeholder and misleads readers.
+- Cite the ADO story ID when the TODO has a known follow-up owner.
+
+## 6. Open a Pull Request
+
+1. Branch off `main` using the naming convention `docs/<short-description>` (or the swarm branch convention if operating in a swarm run).
+2. Add only the files you own or have been given permission to touch.
+3. Request a review from at least one person on the owning team (see [Content Ownership](../architecture/content-ownership.mdx)).
+4. Pass CI checks (frontmatter lint, MDX parse).
+5. Merge to `main` after approval.
+
+## 7. Publishing to the Portal
+
+Publishing is controlled by the `xrmghost-user-portal` team. After your PR merges to `main`:
+
+- The portal team advances the submodule pointer (or runs the sync script) to pick up your changes.
+- You do not need to take action in the portal repository unless you are also the portal maintainer.
+
+For details on how the portal consumes this repo, see [Source of Truth](../architecture/source-of-truth.mdx).
+
+## Summary Checklist
+
+- [ ] Confirmed correct product owner in [Content Ownership](../architecture/content-ownership.mdx)
+- [ ] File placed in the correct `docs/` subfolder
+- [ ] File name is lowercase and hyphen-separated
+- [ ] Frontmatter includes `title` and `description`
+- [ ] No fake content — used `> **TODO**:` markers where content is missing
+- [ ] PR targets `main`, reviewer from owning team assigned
