@@ -1,0 +1,53 @@
+---
+title: Source of Truth
+description: States that xrmghost-docs is the canonical public content source and how it is consumed by the user portal.
+---
+
+# Source of Truth
+
+`xrmghost-docs` is the **canonical source of truth** for all public XrmGhost documentation.
+
+## What This Means
+
+- All public-facing product documentation is authored exclusively in this repository.
+- No other repository generates or owns the narrative content that end-users read.
+- Changes to documentation content flow through this repo's review and merge process.
+
+## Consumption by the User Portal
+
+The `xrmghost-user-portal` consumes this repository in one of two supported ways:
+
+### Option A — Git Submodule (current default)
+
+The portal mounts this repo as a git submodule at `content/docs/`. The portal's build pipeline reads all `.mdx` files recursively from that mount point.
+
+```
+xrmghost-user-portal/
+  content/
+    docs/          ← git submodule pointing to xrmghost-docs
+```
+
+To update the content in the portal, advance the submodule pointer to the desired commit in `xrmghost-docs` and push the portal repo.
+
+### Option B — Sync Script (alternative)
+
+A sync script can be used to copy the contents of `xrmghost-docs` into the portal's content directory at build time. This is useful in CI/CD pipelines where submodule management is undesirable.
+
+> **TODO**: Document the exact sync script invocation once it is implemented in the portal's pipeline.
+
+## What Lives Here
+
+| Content Type | Lives in xrmghost-docs? |
+|---|---|
+| Getting Started guide | Yes |
+| CLI command reference (narrative) | Yes |
+| CLI reference (auto-generated from `--help`) | Future — see [Generated vs Manual](./generated-vs-manual.mdx) |
+| Attribute system reference | Yes |
+| Architecture documentation | Yes |
+| Contributing guidelines | Yes |
+| Changelog / release notes | No — owned by the individual product repos |
+| API reference | No — generated from OpenAPI specs in respective repos |
+
+## Governance
+
+Changes to the canonical content must be reviewed and merged into the `main` branch of this repo before they are considered authoritative. The portal's deployment is decoupled from this repo — content merges here do not automatically trigger a portal redeploy; that is the portal team's responsibility.
