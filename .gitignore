@@ -28,3 +28,6 @@ pnpm-debug.log*
 .env
 .env.local
 .env.*.local
+
+# Internal swarm/ACT/REVIEW artifacts — local only
+docs/swarm/
