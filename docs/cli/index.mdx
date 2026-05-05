@@ -1,32 +1,32 @@
 ---
-title: CLI Reference
-description: Complete reference for all XrmGhost command-line interface commands, flags, and options.
+title: CLI
+description: Overview of the XrmGhost command-line interface product, its role in the ecosystem, and links to detailed documentation.
 ---
 
-# CLI Reference
+# CLI
 
-> **TODO**: Replace this placeholder with the real CLI command reference.
+The `xrmghost` CLI is the primary tool for interacting with XrmGhost from a terminal. It provides commands for initialising projects, running workflows, managing configuration, and exporting data.
 
-This section documents all commands exposed by the `xrmghost` CLI.
+## What the CLI Does
 
-## Global Flags
+- Bootstraps new XrmGhost projects (`init`)
+- Executes run configurations against targets
+- Manages local and remote configuration
+- Exports results to supported output formats
 
-| Flag | Description |
-|------|-------------|
-| `--help` | Show help text |
-| `--version` | Print the installed version |
-| `--config <path>` | TODO: Path to config file |
+## Documentation Sections
 
-## Commands
+| Section | Description |
+|---|---|
+| [Getting Started](./getting-started.mdx) | Install the CLI and run your first command |
+| Reference | **TODO** — see below |
 
-### `xrmghost init`
+## Generated CLI Reference (TODO — ADO-1158)
 
-TODO: Document the `init` command.
+> **TODO (ADO-1158):** A complete, auto-generated CLI reference (all commands, flags, and options) will be produced from the `xrmghost-cli` repository's `--help` output as part of **ADO-1158**. That story is responsible for establishing the generation pipeline and landing the reference pages under `docs/cli/reference/`.
+>
+> Do not hand-author command reference content here. Wait for the ADO-1158 pipeline.
 
-### `xrmghost run`
+## Product Ownership
 
-TODO: Document the `run` command.
-
-### `xrmghost export`
-
-TODO: Document the `export` command.
+The CLI documentation narrative is owned by the **CLI team** in collaboration with Documentation. For the ownership table and update process, see [Content Ownership](../architecture/content-ownership.mdx).
