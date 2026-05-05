@@ -1,40 +1,24 @@
 ---
 title: Architecture
-description: An overview of XrmGhost's internal architecture, component boundaries, and data flow.
+description: Documentation architecture overview — how this repository is structured, where content lives, who owns it, and where generated content will plug in.
 ---
 
 # Architecture
 
-> **TODO**: Replace this placeholder with real architecture documentation.
+This section documents the content architecture of `xrmghost-docs`: where public documentation lives, how it is consumed, who owns each section, and the rules around manually authored versus auto-generated content.
 
-This section describes how XrmGhost is structured internally, the boundaries between components, and how data flows through the system.
+## Pages in This Section
 
-## High-Level Overview
+| Page | Description |
+|---|---|
+| [Source of Truth](./source-of-truth.mdx) | Establishes `xrmghost-docs` as the canonical public content source and explains how the user portal consumes it. |
+| [Content Ownership](./content-ownership.mdx) | Maps each documentation section to its owning repository and team, and describes the update process. |
+| [Generated vs Manual](./generated-vs-manual.mdx) | Distinguishes manually authored content from auto-generated reference content, and marks future insertion points for generated docs. |
 
-TODO: Add an architecture diagram or ASCII art overview.
+## Summary
 
-## Components
+- All public documentation content is authored in this repo and consumed by `xrmghost-user-portal`.
+- Each docs section has a defined owner and update process.
+- Auto-generated content (CLI reference, attribute schema reference) does not exist yet; placeholder locations and rules are documented for when the pipelines are built.
 
-### Core Engine
-
-TODO: Describe the core engine responsibilities.
-
-### CLI Layer
-
-TODO: Describe how the CLI layer interacts with the core engine.
-
-### Attribute Processor
-
-TODO: Describe the attribute processing pipeline.
-
-### Output Adapters
-
-TODO: Describe the output/export adapters.
-
-## Data Flow
-
-TODO: Document the end-to-end data flow with sequence or flow diagrams.
-
-## Design Decisions
-
-TODO: Document key architectural decisions and the rationale behind them.
+See [Contributing](../contributing/index.mdx) for how to add or update content.
