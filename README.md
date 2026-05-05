@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/xrmghost/xrmoghost-staticlandingpage/main/XG_Audiowide_transparent_negative.svg" alt="XrmGhost" width="320" />
+  <img src="./assets/XG_Audiowide_transparent_negative.svg" alt="XrmGhost" width="320" />
 </p>
 
 # xrmghost-docs
