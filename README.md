@@ -63,6 +63,14 @@ The portal consumes this repository as a git submodule mounted at `content/docs/
 
 All rendering concerns belong in `xrmghost-user-portal`.
 
+## Architecture & Content Model
+
+For documentation on how this repository is structured, where content ownership lives, and where auto-generated reference content will plug in, see [docs/architecture/](docs/architecture/index.mdx):
+
+- [Source of Truth](docs/architecture/source-of-truth.mdx) — canonical content source and portal consumption model
+- [Content Ownership](docs/architecture/content-ownership.mdx) — section-to-repo-and-team mapping and update process
+- [Generated vs Manual](docs/architecture/generated-vs-manual.mdx) — rules around authored vs auto-generated content
+
 ## Contributing
 
 See [docs/contributing/index.mdx](docs/contributing/index.mdx).

@@ -1,0 +1,63 @@
+---
+title: Generated vs Manual Content
+description: Explains the distinction between manually authored documentation and auto-generated reference content, and marks where generated content will be inserted in the future.
+---
+
+# Generated vs Manual Content
+
+XrmGhost documentation is divided into two categories: **manual content** and **generated content**.
+
+## Manual Content
+
+Manual content is authored directly by humans in this repository (`xrmghost-docs`). It includes narrative explanations, guides, and conceptual documentation that requires human judgment to write.
+
+All content currently in this repository is manual content:
+
+| File / Path | Type | Notes |
+|---|---|---|
+| `docs/getting-started.mdx` | Manual | Narrative first-run guide |
+| `docs/cli/index.mdx` | Manual | Narrative CLI overview |
+| `docs/attributes/index.mdx` | Manual | Narrative attributes overview |
+| `docs/architecture/` | Manual | Architecture and governance docs |
+| `docs/contributing/index.mdx` | Manual | Contribution guidelines |
+
+Manual content is version-controlled here and reviewed through pull requests before publication.
+
+## Generated Content
+
+Generated content is produced programmatically from source artifacts in other repositories (e.g., parsing `--help` output from the CLI, or reading attribute schema files). It is **not** authored by hand.
+
+### Current State
+
+> **No generated content exists yet.** All documentation is currently manual.
+
+### Future Insertion Points
+
+The following locations are reserved for generated content once the relevant pipelines are built:
+
+#### CLI Reference (`docs/cli/reference/`)
+
+> **TODO**: Auto-generate per-command reference pages from `xrmghost-cli`'s `--help` output or a structured command manifest. Files will land at `docs/cli/reference/<command>.mdx`. These files **must not** be manually edited once generation is active; edits should go to the source in `xrmghost-cli`.
+
+#### Attribute Schema Reference (`docs/attributes/schema/`)
+
+> **TODO**: Auto-generate attribute schema reference from the JSON/YAML schemas in `xrmghost-attributes`. Files will land at `docs/attributes/schema/<attribute>.mdx`. Same rule applies: do not manually edit generated files.
+
+## Rules
+
+1. **Do not mix manual and generated content in the same file.** If a page has both human narrative and machine output, split them into separate files.
+2. **Generated files must be clearly marked.** Add a frontmatter field `generated: true` and a comment at the top of the file indicating the source and generation timestamp.
+3. **Generated files are not reviewed through PR.** They are produced by the CI pipeline and land via an automated commit. The review gate is in the source repo.
+4. **Do not delete generated files manually.** Run the generation pipeline with an empty/removed source to remove them.
+
+## Example Frontmatter for a Generated File
+
+```yaml
+---
+title: "xrmghost run — CLI Reference"
+description: "Auto-generated reference for the `xrmghost run` command."
+generated: true
+generated_from: "xrmghost-cli v1.2.3 --help"
+generated_at: "2026-05-05T00:00:00Z"
+---
+```
