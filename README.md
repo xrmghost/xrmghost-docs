@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="https://raw.githubusercontent.com/xrmghost/xrmoghost-staticlandingpage/main/XG_Audiowide_transparent_negative.svg" alt="XrmGhost" width="320" />
+</p>
+
 # xrmghost-docs
 
 Pure MDX content repository for the XrmGhost documentation. This repo contains **only content** — no build toolchain, no framework, no `package.json`.
