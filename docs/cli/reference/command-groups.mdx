@@ -1,0 +1,170 @@
+---
+title: CLI Command Groups
+description: Maps every xrmghost CLI command group to its reader-facing purpose, lists known sub-commands, and describes the intended reference-page shape for each group. This is a manual IA artifact — it does not contain generated per-command reference content.
+---
+
+# CLI Command Groups
+
+This page maps each `xrmghost` CLI command group to its purpose, known sub-commands, and the intended shape of future generated reference pages. It is a **manual IA artifact**: it defines structure and intent, not executable command documentation.
+
+> **Manual IA only.** Per-command reference pages (flags, arguments, exit codes, examples) are not yet generated. They will land under `docs/cli/reference/` once the ADO-1158 generation pipeline is active. Until then, use `xrmghost <command> --help` for authoritative command-line help.
+
+---
+
+## `run`
+
+**Reader-facing purpose:** Execute a Dataverse plugin out-of-process via FrameworkHost using a scenario file.
+
+**Group type:** Top-level command (no sub-commands).
+
+**Known flags (from source — not authoritative):** `-a`/`--assembly`, `-t`/`--type`, `-s`/`--scenario`, `--data-source`, `--normal`, `--verbose`, `--debug`, `--debug-plugin-wait`, `--unsecure-config`, `--secure-config`, `--no-interactive`, `--framework-host-path`.
+
+> **Note:** The exact flag list is derived from the `xrmghost-cli` source. The authoritative surface is defined in `xrmghost-cli` — see the [CLI Generation Contract](../../architecture/generated-vs-manual.mdx) for how generated reference pages will be sourced.
+
+**Intended reference-page shape:**
+- Path: `docs/cli/reference/run.mdx`
+- Sections: Synopsis, Description, Options, Exit codes, Examples
+- Generated from: `xrmghost run --help` or structured command manifest in `xrmghost-cli`
+
+---
+
+## `generate-scenario`
+
+**Reader-facing purpose:** Generate a template JSON scenario file for a specified Dataverse plugin assembly and type, ready to use with `run`.
+
+**Group type:** Top-level command (no sub-commands).
+
+**Known flags (from source — not authoritative):** `-a`/`--assembly`, `-t`/`--type`.
+
+**Intended reference-page shape:**
+- Path: `docs/cli/reference/generate-scenario.mdx`
+- Sections: Synopsis, Description, Options, Output format, Examples
+- Generated from: `xrmghost generate-scenario --help` or structured command manifest in `xrmghost-cli`
+
+---
+
+## `doctor`
+
+**Reader-facing purpose:** Diagnose CLI configuration, FrameworkHost connectivity, AKMS reachability, and license validity. Verbose mode includes JWT subscription claims diagnostics.
+
+**Group type:** Top-level command (no sub-commands).
+
+**Known flags (from source — not authoritative):** `--verbose`.
+
+**Intended reference-page shape:**
+- Path: `docs/cli/reference/doctor.mdx`
+- Sections: Synopsis, Description, Options, Checks performed, Examples
+- Generated from: `xrmghost doctor --help` or structured command manifest in `xrmghost-cli`
+
+---
+
+## `privacy`
+
+**Reader-facing purpose:** Display information about the data collected by the tool, including telemetry scope and retention policy.
+
+**Group type:** Top-level command (no sub-commands).
+
+**Known flags (from source — not authoritative):** None documented.
+
+**Intended reference-page shape:**
+- Path: `docs/cli/reference/privacy.mdx`
+- Sections: Synopsis, Description, What data is collected, Retention, Examples
+- Generated from: `xrmghost privacy --help` or structured command manifest in `xrmghost-cli`
+
+---
+
+## `license`
+
+**Reader-facing purpose:** Manage XrmGhost license status, activation, and machine identity. All licensing operations are grouped under this command.
+
+**Group type:** Command group with sub-commands.
+
+### Sub-commands
+
+| Sub-command | Purpose |
+|---|---|
+| `license status` | Show current license tier, expiration date, and subscription claims |
+| `license activate` | Activate a license using a bootstrap key |
+| `license get-platform-id` | Display the unique machine identifier required for licensing |
+
+**Intended reference-page shape (per sub-command):**
+- Paths: `docs/cli/reference/license-status.mdx`, `docs/cli/reference/license-activate.mdx`, `docs/cli/reference/license-get-platform-id.mdx`
+- Sections per page: Synopsis, Description, Options, Examples
+- Generated from: `xrmghost license <sub-command> --help` or structured command manifest in `xrmghost-cli`
+
+> **TODO (ADO-1158 dependency):** The exact flag names for `license activate` (bootstrap key flag) and `license status` (output format flags) are not fully resolved in the current contract. Document the dependency rather than inventing signatures. Resolve against the `xrmghost-cli` source before generating reference pages.
+
+---
+
+## `env`
+
+**Reader-facing purpose:** Manage Dataverse environment configurations — add, edit, delete, list, switch, and refresh environment metadata.
+
+**Group type:** Command group with sub-commands.
+
+### Sub-commands
+
+| Sub-command | Purpose |
+|---|---|
+| `env list` | List all configured Dataverse environments |
+| `env add` | Interactive wizard to add a new Dataverse environment |
+| `env edit` | Edit an existing environment configuration |
+| `env delete` | Remove an environment configuration |
+| `env activate` | Set a specific environment as the active one |
+| `env deactivate` | Deactivate the currently active environment |
+| `env status` | Show the status of configured environments |
+| `env import` | Import environment configurations from a JSON file |
+| `env export` | Export environment configurations to a JSON file |
+| `env template` | Output a blank environment configuration template |
+| `env refresh` | Refresh the Dataverse metadata cache for an environment |
+
+**Intended reference-page shape (per sub-command):**
+- Paths: `docs/cli/reference/env-list.mdx`, `docs/cli/reference/env-add.mdx`, `docs/cli/reference/env-edit.mdx`, `docs/cli/reference/env-delete.mdx`, `docs/cli/reference/env-activate.mdx`, `docs/cli/reference/env-deactivate.mdx`, `docs/cli/reference/env-status.mdx`, `docs/cli/reference/env-import.mdx`, `docs/cli/reference/env-export.mdx`, `docs/cli/reference/env-template.mdx`, `docs/cli/reference/env-refresh.mdx`
+- Sections per page: Synopsis, Description, Options, Examples
+- Generated from: `xrmghost env <sub-command> --help` or structured command manifest in `xrmghost-cli`
+
+> **Note on `env` surface completeness:** The `xrmghost-cli` README documents 4 of 11 `env` sub-commands. The full sub-command list above is derived from the `xrmghost-cli` source Commands directory. The README is acknowledged as partial (see kb notes). The generation pipeline should be the authoritative source for the final flag list per sub-command.
+
+---
+
+## `setup`
+
+**Reader-facing purpose:** Install or update managed infrastructure components, specifically the FrameworkHost managed payload.
+
+**Group type:** Command group with sub-commands.
+
+### Sub-commands
+
+| Sub-command | Purpose |
+|---|---|
+| `setup host` | Install or update the managed FrameworkHost component |
+
+**Known flags for `setup host` (from source — not authoritative):** `--update`.
+
+**Intended reference-page shape:**
+- Path: `docs/cli/reference/setup-host.mdx`
+- Sections: Synopsis, Description, Options, Examples
+- Generated from: `xrmghost setup host --help` or structured command manifest in `xrmghost-cli`
+
+> **TODO (ADO-1158 dependency):** The `setup` group may expose additional sub-commands in future CLI versions. The current surface is limited to `setup host --update`. Reserve the `setup-` prefix namespace for future generated reference pages.
+
+---
+
+## Future Reference Page Conventions
+
+When the generation pipeline is active, per-command reference pages must follow these conventions (established by the [CLI Generation Contract](../../architecture/generated-vs-manual.mdx)):
+
+| Convention | Value |
+|---|---|
+| **File naming** | `docs/cli/reference/<command>.mdx` for top-level; `docs/cli/reference/<group>-<sub>.mdx` for sub-commands |
+| **Frontmatter** | Must include `generated: true`, `generated_from`, and `generated_at` |
+| **Do not hand-edit** | Generated files under `docs/cli/reference/` must not be manually edited once generation is active |
+| **Fix at source** | Corrections go to `xrmghost-cli`; re-run the generator to update reference pages |
+| **Manual IA pages exempt** | `index.mdx` and `command-groups.mdx` (this file) are manual and are never overwritten by the generator |
+
+## Related
+
+- [CLI Reference Landing](./index.mdx)
+- [CLI Overview](../index.mdx)
+- [Generated vs Manual Content](../../architecture/generated-vs-manual.mdx)
+- [Content Ownership](../../architecture/content-ownership.mdx)
