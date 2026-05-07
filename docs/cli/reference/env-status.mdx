@@ -1,0 +1,90 @@
+---
+title: "xg env status"
+description: Show the currently active Dataverse environment — its friendly name and organisation URL. Useful as a quick sanity-check before running a plugin or switching contexts.
+---
+
+# `xg env status`
+
+Display the friendly name and organisation URL of the Dataverse environment that is currently active. This is the environment that commands such as `xg run` will use when no explicit environment is specified.
+
+> **License requirement:** This command requires a **Pro** license tier. Run `xg license status` to verify your current tier.
+
+## Synopsis
+
+```
+xg env status
+```
+
+## Description
+
+`xg env status` reads the local environment configuration store and looks up the environment that has been marked as active. It then prints two lines:
+
+- The **Active Environment** label with the environment's friendly name.
+- The **URL** of the Dataverse / Dynamics 365 organisation.
+
+If no environment is currently active — for example, immediately after installation or after running `xg env deactivate` — the command prints an informational message and exits with code `0`. No error is raised in this case; the command simply communicates that no environment is selected.
+
+If the active marker in the store points to an environment name that no longer exists in the configuration (an inconsistent state that should not occur under normal usage), the command prints an error and exits with code `1`.
+
+> **Active vs specific:** `env status` always reflects the *globally active* environment, not a per-invocation selection. To change which environment is active, use `xg env activate <FRIENDLY_NAME>`. To see all registered environments, use `xg env list`.
+
+## Options
+
+This command has no options or flags.
+
+| Flag | Description |
+|---|---|
+| `--help` | Display help text for this command and exit. |
+
+## Exit Codes
+
+| Code | Meaning |
+|---|---|
+| `0` | Command completed successfully. This includes the case where no environment is currently active. |
+| `1` | The active environment name is set in the store but the corresponding configuration entry cannot be found (inconsistent state). |
+| `-1` | License tier insufficient — a Pro license is required. |
+
+## Examples
+
+### Active environment is set
+
+```
+$ xg env status
+
+Active Environment: Production
+  URL: https://contoso.crm.dynamics.com
+```
+
+### No environment is currently active
+
+```
+$ xg env status
+
+No environment is currently active.
+```
+
+To activate an environment, use:
+
+```
+$ xg env activate Production
+
+Environment 'Production' activated successfully.
+```
+
+### Inconsistent state (active name not found in store)
+
+This should not occur under normal usage, but may happen if the configuration file was edited manually:
+
+```
+$ xg env status
+
+Error: Active environment 'Production' not found in configuration.
+```
+
+To recover, re-register the environment with `xg env add` or import it from a backup with `xg env import`.
+
+## See Also
+
+- [xg env list](./env-list.mdx) — List all registered Dataverse environments with full connection details
+- [xg env activate](./env-activate.mdx) — Set a registered environment as the active one
+- [CLI Overview](../index.mdx) — Introduction to the XrmGhost CLI and command groups
