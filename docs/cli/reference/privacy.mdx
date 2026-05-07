@@ -1,0 +1,107 @@
+---
+title: xg privacy
+description: Display information about the data collected by XrmGhost, including Platform ID, hardware context, and telemetry scope. Prints the privacy policy URL and current machine identifiers.
+---
+
+# `xg privacy`
+
+## Synopsis
+
+```shell
+xg privacy
+```
+
+## Description
+
+`xg privacy` prints a structured summary of every category of data that XrmGhost collects, stores, or transmits. The command exits immediately after printing; it does not open a browser or make network requests.
+
+The output covers four distinct areas:
+
+### 1. Platform ID
+
+When the XrmGhost CLI is first run, it generates a unique GUID called the **Platform ID** (internally `StoredMachineGuid`). This identifier is:
+
+- stored locally in your user application data directory
+- printed to the console by this command alongside the current value
+- transmitted to XrmGhost servers for **licensing validation** and **anonymised usage analytics**
+
+The Platform ID persists across CLI updates. It is the primary key used to associate your machine with an activated license.
+
+### 2. Local Hardware Context
+
+On each startup the CLI computes a **hardware contextual salt** from:
+
+- the primary network adapter's MAC address
+- the operating system description
+- the processor count
+- the current username
+
+This value is hashed locally and used to harden activated license files against being copied to a different machine. **The salt itself is never transmitted to XrmGhost servers.**
+
+### 3. Other Information Sent Remotely
+
+For licensing, analytics, and error reporting the following additional data may be sent alongside the Platform ID:
+
+| Field | Example source |
+|---|---|
+| IP address | Inferred at connection time |
+| Machine name | `Environment.MachineName` |
+| OS description | `RuntimeInformation.OSDescription` |
+| .NET runtime description | `RuntimeInformation.FrameworkDescription` |
+| XrmGhost CLI version | Embedded assembly version |
+| Username | `Environment.UserName` |
+| User domain name | `Environment.UserDomainName` |
+
+### 4. Usage Analytics and Error Reporting
+
+XrmGhost may collect anonymised information about commands run, features used, and errors encountered. All telemetry is linked to your Platform ID. The purpose is to identify popular workflows, prioritise improvements, and diagnose bugs.
+
+For the full privacy policy visit: **https://xrmghost.com/privacy-policy**
+
+## Options
+
+This command has no flags or options.
+
+## Example
+
+```shell
+xg privacy
+```
+
+Sample output (Platform ID and machine values will differ on your machine):
+
+```
+XrmGhost Data Collection & Privacy Information
+
+1. Platform ID (Internally `StoredMachineGuid`):
+   - A unique identifier (GUID) is generated when XrmGhost CLI is first run. This is your Platform ID.
+   - This Platform ID is stored locally on your machine in your user application data directory.
+   - Your current Platform ID: 3fa85f64-5717-4562-b3fc-2c963f66afa6
+   - Purpose: This Platform ID is used to associate your machine with any activated licenses and for collecting anonymized usage analytics and error reports to help improve XrmGhost.
+   - Sent Remotely: Yes, this Platform ID is sent to XrmGhost servers for licensing and analytics.
+
+2. Local Hardware Context (`HardwareContextualSalt`):
+   ...
+   - Sent Remotely: No, this hardware salt itself is NOT sent to XrmGhost servers.
+
+3. Other Information Sent Remotely (with your Platform ID):
+   ...
+
+4. Usage Analytics & Error Reporting:
+   ...
+
+For more detailed information, please visit our online privacy policy at: https://xrmghost.com/privacy-policy
+```
+
+## Exit Codes
+
+| Code | Meaning |
+|---|---|
+| `0` | Success — privacy information printed |
+
+## See Also
+
+- [`xg license status`](./license-status.mdx) — view your current license tier and the Platform ID used for activation
+- [CLI Reference](./index.mdx) — landing page for all CLI reference pages
+- [CLI Overview](../index.mdx) — introduction to the `xg` CLI and command groups
+- [Privacy Policy](https://xrmghost.com/privacy-policy) — full online privacy policy
