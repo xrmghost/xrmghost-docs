@@ -1,0 +1,75 @@
+---
+title: xg license get-platform-id
+description: Display the unique Platform ID (machine GUID) for this machine. Used by administrators and the licensing system to bind a license key to a specific installation.
+---
+
+# `xg license get-platform-id`
+
+## Synopsis
+
+```shell
+xg license get-platform-id
+```
+
+## Description
+
+`xg license get-platform-id` prints the **Platform ID** for the current machine — a persistent UUID that uniquely identifies this XrmGhost installation. The command reads the stored identifier from local application data and writes it to the console, then exits.
+
+### What the Platform ID is
+
+When the XrmGhost CLI runs for the first time, it generates a random UUID (version 4) and persists it in the user application data directory:
+
+| Platform | Storage path |
+|---|---|
+| Windows | `%LOCALAPPDATA%\XrmGhost\XrmGhostCli\machine_id.dat` |
+| Linux | `$XDG_DATA_HOME/xrmghost/xrmghostcli/machine_id.dat` (falls back to `~/.local/share/…`) |
+| macOS | `~/Library/Application Support/xrmghost/xrmghostcli/machine_id.dat` |
+
+The Platform ID is a standard hyphenated GUID string, for example `3fa85f64-5717-4562-b3fc-2c963f66afa6`. It is stable across CLI updates as long as the application data directory is preserved. If the file is deleted the CLI generates a new GUID on the next run, which will invalidate any previously issued licenses bound to the old ID.
+
+### What the Platform ID is used for
+
+The Platform ID is the machine-side anchor of the XrmGhost licensing model:
+
+- **License activation** — `xg license activate` sends the Platform ID to the AKMS service alongside the bootstrap key to issue a machine-bound API key.
+- **License validation** — on every run the CLI verifies that the local license corresponds to the current machine's Platform ID.
+- **Administrator workflows** — when an administrator provisions a license seat they need the Platform ID to target the correct machine. Use this command to retrieve and copy it.
+
+### Cross-platform notes
+
+The value is identical in format across all supported platforms (Windows, Linux, macOS). However, the storage path differs per platform (see the table above). If the storage location is inaccessible (for example due to permission issues) the command exits with code `1` and prints an error message.
+
+## Options
+
+This command has no flags or options.
+
+## Example
+
+Retrieve the Platform ID for this machine:
+
+```shell
+xg license get-platform-id
+```
+
+Expected output:
+
+```
+Your Platform ID is: 3fa85f64-5717-4562-b3fc-2c963f66afa6
+Please provide this ID to the administrator if requested for licensing purposes.
+```
+
+The GUID value will differ on every machine. Copy the displayed value and share it with your administrator when requested.
+
+## Exit Codes
+
+| Code | Meaning |
+|---|---|
+| `0` | Success — Platform ID retrieved and printed |
+| `1` | Error — Platform ID could not be read (storage access failure or missing data) |
+
+## See Also
+
+- [`xg license activate`](./license-activate.mdx) — activate a license using a bootstrap key (requires the Platform ID)
+- [`xg license status`](./license-status.mdx) — view current license tier, expiration, and subscription details
+- [CLI Reference](./index.mdx) — landing page for all CLI reference pages
+- [CLI Overview](../index.mdx) — introduction to the `xg` CLI and command groups
