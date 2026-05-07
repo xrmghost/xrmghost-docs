@@ -1,0 +1,91 @@
+---
+title: xg license activate
+description: Activate an XrmGhost license on this machine by exchanging a bootstrap activation key for a long-lived API key via the AKMS service.
+---
+
+# xg license activate
+
+Activates an XrmGhost license on the current machine using a bootstrap activation key provided by your administrator.
+
+## Synopsis
+
+```shell
+xg license activate <ACTIVATION_KEY>
+```
+
+## Description
+
+`xg license activate` exchanges a one-time bootstrap activation key for a rotating API key issued by the XrmGhost Key Management Service (AKMS). The API key is encrypted and stored locally on the machine, where it is used for all subsequent authenticated operations.
+
+### What happens during activation
+
+1. The CLI reads the local Platform ID (machine GUID) to identify this machine to AKMS.
+2. The bootstrap key is securely stored locally as `bootstrap.lic` (encrypted via `SecureFileService`).
+3. The CLI contacts AKMS and exchanges the bootstrap key for an API key.
+4. If AKMS returns a valid API key, the key is encrypted and persisted locally; the expiry date is displayed.
+5. The bootstrap key is retained as a local fallback for automatic API-key refresh when the issued key expires.
+
+### Online vs offline behaviour
+
+| Scenario | Behaviour |
+|---|---|
+| **Online (AKMS reachable)** | Bootstrap key is exchanged for an API key immediately. The API key ID, Client ID, and expiry timestamps (UTC and local) are printed to the terminal. |
+| **AKMS unreachable** | Activation fails at the key-exchange step. The bootstrap key has already been stored locally. Re-run `license activate` once connectivity is restored — the stored bootstrap key will be used automatically by future refresh attempts. |
+| **Platform ID missing** | Activation fails before contacting AKMS. Run the CLI at least once to generate a Platform ID, or use [`xg license get-platform-id`](./license-get-platform-id.mdx) to confirm it exists. |
+
+### Arguments
+
+| Argument | Required | Description |
+|---|---|---|
+| `<ACTIVATION_KEY>` | Yes | The bootstrap activation key provided by the administrator. The key is displayed partially masked in the terminal output. |
+
+## Options
+
+The `license activate` command currently accepts no flags beyond the positional `<ACTIVATION_KEY>` argument.
+
+| Flag | Type | Default | Description |
+|---|---|---|---|
+| *(none)* | — | — | No optional flags are defined for this command. |
+
+> **Note:** A custom AKMS endpoint override flag is planned for a future release. The AKMS base URL is currently read from the compiled `AkmsBaseUrl` configuration value.
+
+## Exit Codes
+
+| Code | Meaning |
+|---|---|
+| `0` | Activation succeeded. API key obtained from AKMS and stored locally. |
+| `1` | Activation failed. Possible reasons: empty or invalid activation key, Platform ID not found, AKMS unreachable, or AKMS returned no valid API key. |
+
+## Examples
+
+### Activate with a bootstrap key
+
+```shell
+xg license activate BOOTSTRAP-KEY-1234-ABCD-5678
+```
+
+The CLI will display the Platform ID (partially), the first 4 characters of the activation key, and — on success — the issued API Key ID, Client ID, and expiry timestamps.
+
+### Verify activation succeeded
+
+After activating, confirm the license is active with:
+
+```shell
+xg license status
+```
+
+A successful activation results in `License Active` output with the tier name and expiry date.
+
+### Activate and immediately check status (script usage)
+
+```shell
+xg license activate "$BOOTSTRAP_KEY" && xg license status
+```
+
+Use `&&` to run `license status` only if activation exits with code `0`.
+
+## See Also
+
+- [xg license status](./license-status.mdx) — display current license tier, expiry, and subscription claims
+- [xg license get-platform-id](./license-get-platform-id.mdx) — display the unique machine identifier required for licensing
+- [CLI Overview](../index.mdx) — introduction to the `xg` CLI and command groups
