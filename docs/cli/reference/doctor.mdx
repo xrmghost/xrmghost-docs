@@ -1,0 +1,107 @@
+---
+title: "xg doctor"
+description: Run environment and configuration health checks to diagnose connectivity, prerequisite, and licensing issues with the XrmGhost CLI.
+---
+
+# xg doctor
+
+Runs a set of diagnostic checks against your local environment, verifying that all prerequisite components are reachable and correctly configured. The command exits with code `0` if every critical check passes, or `1` if any check fails.
+
+Use `doctor` any time the CLI behaves unexpectedly, before raising a support ticket, or as part of a scripted health verification step.
+
+## Synopsis
+
+```shell
+ghost-plugin-cli doctor [options]
+```
+
+## Description
+
+`xg doctor` walks through a fixed sequence of checks in order:
+
+1. **CLI Information** — Reports the installed CLI version, the assembly location, and the unique machine Platform ID.
+2. **Core Library** — Reports the version and location of the bundled `XrmGhost.Core` assembly.
+3. **Platform Information** — Displays OS description, OS architecture, process architecture, .NET runtime version, and framework description.
+4. **.NET SDKs** — Lists all .NET SDK versions found via `dotnet --list-sdks`. Warns if .NET 8 is absent.
+5. **FrameworkHost** — Resolves the `XrmGhost.FrameworkHost.exe` binary (managed app-data install root first, then legacy beside-CLI locations) and reports its path and version. Fails if the executable cannot be found.
+6. **Local Configuration Files** — Verifies that `bootstrap.lic` can be decrypted and that the AKMS API key is present and unexpired. Displays the license tier when the key is valid.
+7. **AKMS Connectivity** — Contacts the AKMS JWKS endpoint to confirm network reachability, then attempts a test JWT issuance if a valid local API key exists.
+8. **Subscription Claims Diagnostics** — Reads the current license status and displays subscription claims. In `--verbose` mode, also attempts a live JWT round-trip to validate claims parsing.
+
+Each check prints a pass/fail indicator. The final line summarises the overall result.
+
+:::tip
+Running `ghost-plugin-cli doctor --verbose` before reporting a bug gives you a complete diagnostic snapshot — including resolved paths, version strings, and subscription claims — that significantly speeds up support.
+:::
+
+## Options
+
+| Option | Short | Type | Default | Description |
+|---|---|---|---|---|
+| `--verbose` | `-v` | flag | `false` | Enable verbose output. Adds resolved file paths, discovery source for FrameworkHost, full subscription claims details, and a JWT round-trip test. |
+| `--framework-host-path <FRAMEWORK_HOST_PATH>` | `-f` | string | _(auto-discovered)_ | Override the path to `XrmGhost.FrameworkHost.exe`. When provided, the CLI validates that the file exists at the given path and skips auto-discovery. |
+
+## Exit Codes
+
+| Code | Meaning |
+|---|---|
+| `0` | All critical checks passed. |
+| `1` | One or more checks failed. Review the output for details. |
+
+## Examples
+
+### Run default diagnostics
+
+```shell
+ghost-plugin-cli doctor
+```
+
+Runs all checks with minimal output. Suitable for a quick health confirmation.
+
+### Run with verbose output
+
+```shell
+ghost-plugin-cli doctor --verbose
+```
+
+Includes resolved file paths, FrameworkHost discovery source, full subscription claims, and a live JWT round-trip test. Recommended when troubleshooting.
+
+### Override the FrameworkHost path
+
+```shell
+ghost-plugin-cli doctor --framework-host-path "C:\Tools\XrmGhost\XrmGhost.FrameworkHost.exe"
+```
+
+Checks a specific FrameworkHost binary instead of relying on auto-discovery. Useful in non-standard install layouts or when testing a freshly built binary.
+
+### Combine override with verbose output
+
+```shell
+ghost-plugin-cli doctor -v -f "./bin/XrmGhost.FrameworkHost.exe"
+```
+
+## Checks Performed
+
+The table below maps each check to the condition that makes it fail.
+
+| Check | Fails when |
+|---|---|
+| CLI Information | Assembly metadata cannot be read or Platform ID cannot be retrieved. |
+| Core Library | `XrmGhost.Core` assembly cannot be located or its metadata is unreadable. |
+| Platform Information | OS or .NET runtime metadata is inaccessible (rare; indicates a severely broken runtime). |
+| .NET SDKs | `dotnet --list-sdks` exits with a non-zero code or the process cannot be started. A warning (not a failure) is printed if .NET 8 is absent. |
+| FrameworkHost | The executable cannot be resolved at the managed app-data root, legacy beside-CLI locations, or the path given with `--framework-host-path`. |
+| Local Configuration Files | `bootstrap.lic` is missing or cannot be decrypted **and** the AKMS API key is missing or expired. |
+| AKMS Connectivity | The JWKS endpoint is unreachable or returns no keys, **or** the test JWT issuance fails when a valid API key is present. |
+| Subscription Claims Diagnostics | An unhandled exception occurs while reading or displaying license claims. |
+
+:::note
+A warning on the `.NET 8 SDK` check does not cause an overall failure. The check still returns `true` so that the final status reflects only hard failures.
+:::
+
+## See Also
+
+- [CLI Reference](./index.mdx) — overview of the reference area and command groups
+- [CLI Command Groups](./command-groups.mdx) — all command groups and their intended reference-page shape
+- [Getting Started with the CLI](../getting-started.mdx) — first-time orientation and safe exploration path
+- [CLI Overview](../index.mdx) — role of the CLI in the XrmGhost ecosystem
