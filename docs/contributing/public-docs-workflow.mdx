@@ -71,6 +71,15 @@ The build will reject any `.mdx` file that is missing `title` or `description`.
 - Fake or hallucinated content is harder to fix than an honest placeholder and misleads readers.
 - Cite the ADO story ID when the TODO has a known follow-up owner.
 
+## 5.1 Template Learnings from the First Real Docs Slice
+
+The first repo-level public docs slice for `docs/attributes/` exposed a few reusable lessons for future work:
+
+- **Start from a real package surface, not the template headings.** Pull examples and terminology from the source package README or code so the first draft is anchored in what actually exists.
+- **Separate narrative guidance from generated reference early.** If exhaustive schema pages are not available yet, document the package purpose and usage shape now, and reserve a future location such as `docs/<area>/schema/` for generated content later.
+- **Use bounded TODOs only for missing reference material.** Narrative basics such as purpose, audience, and a starter example should be written as soon as they are known; TODO markers should remain limited to honestly missing generated or machine-derived content.
+- **Record template gaps when they appear.** If a placeholder page required extra explanation about source-of-truth boundaries or future generated content, add that guidance here so the next team does not rediscover it from scratch.
+
 ## 6. Open a Pull Request
 
 1. Branch off `main` using the naming convention `docs/<short-description>` (or the swarm branch convention if operating in a swarm run).

@@ -1,31 +1,51 @@
 ---
 title: Attributes
-description: Overview of the XrmGhost attribute system, its role in describing entities, and links to detailed reference documentation.
+description: Overview of the XrmGhost.Attributes package, what it declares on plugin classes, and where to start with the narrative docs.
 ---
 
 # Attributes
 
-The XrmGhost attribute system provides a structured way to describe entities, their properties, and the rules that govern them. Attributes are defined in configuration and consumed by the runtime, the CLI, and the user portal.
+`XrmGhost.Attributes` is the shared metadata package used to describe Dataverse plugin behavior with .NET attributes instead of handwritten registration or scenario scaffolding metadata.
 
-## What Attributes Do
+These docs are for engineers who want to understand what the package is for, how to apply it to plugin classes, and where the current narrative guidance stops.
 
-- Describe the shape and type of data attached to XrmGhost entities
-- Enforce validation rules at ingestion and execution time
-- Drive UI rendering in the user portal (labels, input types, visibility conditions)
-- Serve as the contract between `xrmghost-attributes` and downstream consumers
+## What the Package Does
 
-## Documentation Sections
+- Declares plugin execution context on a class with repeatable .NET attributes
+- Captures message, entity, image, parameter, configuration, and solution metadata in code
+- Gives reflection-based tools a stable surface to inspect without parsing plugin logic
+- Supplies the metadata used by other XrmGhost components such as the CLI scenario generator and the framework host
+
+## Who This Is For
+
+- Plugin authors who want a declarative way to describe Dataverse execution context
+- Teams using `xrmghost-cli generate-scenario` to seed scenario files from plugin metadata
+- Engineers building tooling or tests that read plugin attributes via reflection
+
+## Current Public Surface
+
+Today the package exposes class-level attributes for these jobs:
+
+- **Execution registration** via `PluginExecutionConfigAttribute` and `HandlesMessageAttribute`
+- **Scenario seed data** via `InputParameterAttribute`, `OutputParameterAttribute`, and `SharedVariableAttribute`
+- **Entity image metadata** via `PreImageAttribute` and `PostImageAttribute`
+- **Configuration defaults** via `SecureConfigurationAttribute` and `UnsecureConfigurationAttribute`
+- **Registration grouping** via `SolutionComponentAttribute`
+
+The package itself is intentionally small: it defines attribute classes and lightweight constructor/property validation, then leaves richer behavior to consumers that read the metadata.
+
+## Read This Section In Order
 
 | Section | Description |
 |---|---|
-| [Getting Started](./getting-started.mdx) | Define your first attribute |
-| Reference | **TODO** — see below |
+| [Getting Started](./getting-started.mdx) | Learn the core concepts, see a concrete plugin example, and understand the current validation boundary. |
+| Future schema reference | The generated reference is planned for `docs/attributes/schema/` when the schema pipeline exists. |
 
-## Full Attribute Reference (TODO — ADO-1156)
+## Narrative Docs vs. Future Generated Reference
 
-> **TODO (ADO-1156):** A complete attribute reference (all built-in attributes, schema format, type system, and extension points) will be produced as part of **ADO-1156**. That story is responsible for expanding this section with real content derived from the `xrmghost-attributes` schema.
->
-> Do not hand-author attribute listings here. Wait for ADO-1156.
+This section is intentionally narrative first. It explains how the package fits into XrmGhost and how to use it safely without pretending that exhaustive reference pages already exist.
+
+When generated reference content becomes available, `docs/attributes/schema/` is the planned location for exhaustive attribute-by-attribute detail. Until then, these pages focus on package purpose, usage shape, and the limits of what is public today.
 
 ## Product Ownership
 
