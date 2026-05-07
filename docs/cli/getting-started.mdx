@@ -1,25 +1,101 @@
 ---
 title: Getting Started with the CLI
-description: Install the XrmGhost CLI and run your first command. Placeholder page pending the full installation guide in ADO-1158.
+description: Orient yourself with the XrmGhost CLI, discover available commands, and learn how to begin using it safely for the first time.
 ---
 
 # Getting Started with the CLI
 
-> **TODO (ADO-1158):** This page is a placeholder. Full installation instructions, prerequisites, and a first-run walkthrough will be written as part of **ADO-1158** — the story responsible for the CLI documentation expansion.
->
-> Do not add installation steps here until ADO-1158 is in progress. Fake content is worse than an honest placeholder.
+The `xrmghost` CLI (invoked as `ghost-plugin-cli`) is the primary way to run Dataverse plugins, manage environments, and interact with the XrmGhost ecosystem from a terminal.
 
-## What Will Be Here
+This guide helps you orient yourself after obtaining the CLI binary — covering how to explore available commands, confirm your setup, and find your way into the main workflows.
 
-Once ADO-1158 lands, this page will cover:
+:::info Before you begin
+This guide assumes you already have the CLI binary available in your `PATH`. Installation and platform-specific prerequisites are covered in your distribution's release notes or onboarding instructions.
+:::
 
-1. **Prerequisites** — supported operating systems, required runtime versions
-2. **Installation** — package manager instructions (e.g. `npm install -g xrmghost`, Homebrew tap, or direct binary download)
-3. **Verify the installation** — `xrmghost --version`
-4. **First command** — a minimal working example
-5. **Next steps** — links into the generated CLI reference
+## Confirm the CLI is available
 
-## Related
+Once the binary is in place, verify it responds:
 
-- [CLI Overview](./index.mdx)
-- [ADO-1158 follow-up story] — expands this section with real content and the generated reference pipeline
+```bash
+ghost-plugin-cli --version
+```
+
+You should see a version header showing the CLI version and the bundled Core version. If the command is not found, ensure the binary is on your `PATH`.
+
+## Discover available commands
+
+The fastest way to understand what the CLI can do is to ask it:
+
+```bash
+ghost-plugin-cli --help
+```
+
+This prints the top-level command tree. For any command or subcommand, you can append `--help` to drill deeper:
+
+```bash
+ghost-plugin-cli env --help
+ghost-plugin-cli license --help
+ghost-plugin-cli run --help
+```
+
+The `--help` surface is always up to date with the installed version, so it is the most reliable reference while you orient yourself.
+
+## Main command areas
+
+The CLI organises its functionality into the following top-level areas:
+
+| Command | Purpose |
+|---|---|
+| `run` | Execute a Dataverse plugin using a scenario file |
+| `generate-scenario` | Create a template JSON scenario file for a plugin |
+| `env` | Add, list, switch between, and manage environment configurations |
+| `license` | Activate a license, check status, and retrieve your machine ID |
+| `doctor` | Run health checks to diagnose configuration or connectivity issues |
+| `privacy` | Display information about data collected by the tool |
+
+These areas are stable entry points. Each has its own `--help` page.
+
+## A safe first exploration path
+
+If you are new to the CLI, the following sequence lets you explore without making any changes:
+
+1. **Check your license status** — understand what tier and features are available to you:
+   ```bash
+   ghost-plugin-cli license status
+   ```
+
+2. **List configured environments** — see what Dataverse environments (if any) are already set up:
+   ```bash
+   ghost-plugin-cli env list
+   ```
+
+3. **Run diagnostics** — confirm connectivity and configuration are healthy:
+   ```bash
+   ghost-plugin-cli doctor
+   ```
+   Use `--verbose` for detailed diagnostic output:
+   ```bash
+   ghost-plugin-cli doctor --verbose
+   ```
+
+None of the commands above modify state. They are read-only discovery steps.
+
+## When you are ready to act
+
+Once you are oriented, typical next actions are:
+
+- **Add an environment** — use `ghost-plugin-cli env add` to start the interactive wizard for connecting a Dataverse environment.
+- **Generate a scenario file** — use `ghost-plugin-cli generate-scenario` to create a JSON template for the plugin you want to test.
+- **Run a plugin** — once a scenario file is prepared and an environment is active, use `ghost-plugin-cli run` to execute the plugin out-of-process.
+
+## Getting detailed command reference
+
+Full reference documentation for every command, flag, and option is being generated as part of the ADO-1158 documentation pipeline and will appear under the **Reference** section of the CLI docs.
+
+Until that reference lands, `ghost-plugin-cli <command> --help` is the definitive source.
+
+## Next steps
+
+- [CLI Overview](./index.mdx) — the role of the CLI in the XrmGhost ecosystem
+- **CLI Reference** _(coming soon)_ — auto-generated documentation for all commands
