@@ -1,0 +1,106 @@
+---
+title: "xg env template"
+description: Generate a blank environment configuration template JSON file, ready to be populated and imported with `xg env import`.
+---
+
+# `xg env template`
+
+Generates a blank **environment configuration template** as a JSON file. The template contains a single sample `D365EnvironmentConfiguration` entry pre-filled with placeholder values, along with an empty `ActiveEnvironmentFriendlyName` field. You can edit the template manually and feed it directly to [`xg env import`](./env-import.mdx) to bootstrap one or more environment entries.
+
+> **License requirement:** This sub-command requires an active **Pro** (or higher) subscription. Running it without a valid Pro licence returns a non-zero exit code.
+
+---
+
+## Synopsis
+
+```shell
+xg env template --output <FILE_PATH>
+```
+
+---
+
+## Description
+
+`xg env template` produces a JSON scaffold that mirrors the structure expected by [`xg env import`](./env-import.mdx). The generated file contains:
+
+- A single `Environments` array with one placeholder entry.
+- Key fields (`FriendlyName`, `EnvironmentUrl`, `AuthenticationMethod`, `ClientId`, `MetadataCacheLifecycle`) set to sensible default values.
+- `ClientSecret` is intentionally **omitted** from the output (the field is `[JsonIgnore]`-decorated in the CLI source). Supply the secret interactively when running `xg env import`, or add it to the JSON manually before importing in a secure, non-version-controlled location.
+- `ActiveEnvironmentFriendlyName` set to `null` — activate an environment after import with [`xg env activate`](./env-activate.mdx) or via the interactive `xg env add` wizard.
+
+If the parent directory of the output path does not exist, the CLI creates it automatically.
+
+### Output format
+
+The generated file is **indented JSON** (not YAML). Null fields are omitted (`DefaultIgnoreCondition = WhenWritingNull`).
+
+Example of generated content:
+
+```json
+{
+  "Environments": [
+    {
+      "FriendlyName": "MY-ENV-NAME",
+      "EnvironmentUrl": "https://myorg.crm.dynamics.com",
+      "AuthenticationMethod": "ClientSecret",
+      "ClientId": "YOUR_CLIENT_ID_GUID",
+      "MetadataCacheLifecycle": "7.00:00:00"
+    }
+  ]
+}
+```
+
+---
+
+## Options
+
+| Flag | Type | Default | Description |
+|---|---|---|---|
+| `-o` / `--output <FILE_PATH>` | `string` | *(required)* | Destination path for the generated JSON template. If the directory does not exist, the CLI creates it. The command fails with exit code `1` if this flag is omitted or empty. |
+
+---
+
+## Exit Codes
+
+| Code | Meaning |
+|---|---|
+| `0` | Template written successfully. |
+| `1` | Missing or empty `--output` path; I/O error writing the file; licence insufficient (non-Pro). |
+
+---
+
+## Examples
+
+### Generate a template to the current directory
+
+```shell
+xg env template --output ./env-template.json
+```
+
+### Generate a template to a specific path (creating the directory if needed)
+
+```shell
+xg env template --output ~/.config/xrmghost/environments/template.json
+```
+
+### Generate a template and immediately import it (after manual edits)
+
+```shell
+# 1. Create the template
+xg env template --output ./my-envs.json
+
+# 2. Edit my-envs.json: replace placeholder values with your real environment details
+#    (FriendlyName, EnvironmentUrl, ClientId, etc.)
+
+# 3. Import the edited file — the CLI will prompt for ClientSecret interactively
+xg env import ./my-envs.json
+```
+
+---
+
+## See Also
+
+- [`xg env import`](./env-import.mdx) — Import environment configurations from a JSON file (accepts the format produced by this command).
+- [`xg env add`](./env-add.mdx) — Interactive wizard to add a single environment without editing a JSON file.
+- [CLI Reference landing page](./index.mdx) — Full list of available commands and reference structure.
+- [CLI Overview](../index.mdx) — Introduction to the `xg` CLI and its command groups.
