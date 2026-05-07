@@ -1,0 +1,116 @@
+---
+title: xg setup host
+description: Install or update the Plugin Framework Host component required to run Dataverse plugins out-of-process with the XrmGhost CLI.
+---
+
+# `xg setup host`
+
+Installs or updates the **Plugin Framework Host** (`XrmGhost.Framework.Host`) — the managed runtime component that the `xg run` command launches in the background to execute Dataverse plugins out-of-process.
+
+## Synopsis
+
+```shell
+xg setup host [OPTIONS]
+```
+
+When called without any option, `setup host` inspects the current installation state and prints a status message. It automatically performs an install if the Framework Host is missing from the expected location.
+
+## Description
+
+The Plugin Framework Host is a .NET Framework 4.7.2 Windows process that XrmGhost uses to host Dataverse plugin assemblies in an isolated, out-of-process environment. The `xg run` command requires the Framework Host to be present and compatible before it can execute a plugin. If it is not found, `run` will prompt you to install it first.
+
+`setup host` manages the entire bootstrap lifecycle:
+
+- **Check** (`--check`): reads the current installation state and reports it without making any changes.
+- **Install / Update** (`--update`): downloads the latest compatible `XrmGhost.Framework.Host` NuGet package from the configured feed and extracts the executable to the managed install root under the XrmGhost user-data directory.
+
+The managed install root is located at:
+
+- **Windows:** `%LOCALAPPDATA%\xrmghost\framework-host\current\`
+- **Linux / macOS:** `~/.local/share/xrmghost/framework-host/current/` (or `~/xrmghost/framework-host/current/` as fallback)
+
+:::note
+The Framework Host executable (`XrmGhost.Framework.Host.exe`) targets the `net472/win-x86` runtime payload. Running or installing it on non-Windows hosts is not supported — see [Prerequisites](#prerequisites).
+:::
+
+## Prerequisites
+
+| Requirement | Notes |
+|---|---|
+| **Windows only** | The Framework Host is a `net472 win-x86` executable. `setup host` must be run on Windows. |
+| **Write access to the user-data directory** | The install writes to `%LOCALAPPDATA%\xrmghost\`. No system-wide write access is required. If your environment restricts access to `%LOCALAPPDATA%`, rerun from an elevated terminal or adjust directory permissions. |
+| **NuGet feed reachable** | The CLI resolves and downloads the Framework Host from the configured NuGet sources. Ensure `nuget.org` (or your private feed) is accessible from the machine. |
+
+## Options
+
+| Flag | Default | Description |
+|---|---|---|
+| `--check` | `false` | Inspect the current Framework Host installation state and print a status message. Does **not** modify the local installation. Cannot be combined with `--update`. |
+| `--update` | `false` | Download and install the latest compatible Framework Host package from the configured NuGet feed. Also triggered automatically when the Framework Host is missing and no flag is specified. Cannot be combined with `--check`. |
+
+> **Mutual exclusion:** `--check` and `--update` cannot be specified together. The command returns a validation error if both are provided.
+
+## Exit Codes
+
+| Code | Meaning |
+|---|---|
+| `0` | Success — either the status was printed or the install completed without errors. |
+| `1` | Install failed — see the error message printed to the console for details. |
+
+## Examples
+
+### Check the current Framework Host status
+
+Report the installed version and whether an update is available, without changing anything:
+
+```shell
+xg setup host --check
+```
+
+Example output when the Framework Host is up to date:
+
+```
+Framework Host is current (1.4.0).
+```
+
+Example output when an update is available:
+
+```
+Framework Host 1.3.0 is installed. 1.4.0 is available. Run 'xg setup host --update'.
+```
+
+### Install or update to the latest Framework Host
+
+Download and install the latest compatible Framework Host from the configured NuGet feed:
+
+```shell
+xg setup host --update
+```
+
+Example output on success:
+
+```
+Framework Host installed (1.4.0).
+```
+
+### First-run install (no flag required)
+
+If the Framework Host is missing, running `setup host` without any flag also triggers an automatic install:
+
+```shell
+xg setup host
+```
+
+## Troubleshooting
+
+| Symptom | Likely cause | Resolution |
+|---|---|---|
+| `Failed to install XrmGhost.Framework.Host` | The current user cannot write to the managed install root, or another process is locking the directory | Verify write permissions under `%LOCALAPPDATA%\xrmghost\`. Close any tools that may be locking the directory, or rerun from an elevated terminal. |
+| `All configured NuGet sources were unreachable` | Network or feed connectivity issue | Check that the NuGet feed (`nuget.org` or your private feed) is reachable from the machine. |
+| `Framework Host is incompatible or corrupted` | The installed version is not compatible with the current CLI | Run `xg setup host --update` to replace the installation, or run `xg doctor --verbose` to inspect the resolved host path. |
+
+## See Also
+
+- [`xg run`](./run.mdx) — execute a Dataverse plugin using the Framework Host
+- [`xg doctor`](./doctor.mdx) — diagnose Framework Host connectivity, license validity, and configuration health
+- [CLI Reference](../index.mdx) — overview of the CLI reference area
