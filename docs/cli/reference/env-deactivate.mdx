@@ -1,0 +1,94 @@
+---
+title: "xg env deactivate"
+description: Deactivate the currently active Dataverse environment, leaving no environment active. Exits cleanly if no environment is currently active.
+---
+
+# `xg env deactivate`
+
+Clears the currently active Dataverse environment from the local XrmGhost configuration. After a successful deactivation, no environment is set as active — subsequent commands that require an active environment (such as `xg run`) will prompt you to activate one first.
+
+If no environment is currently active, the command reports that fact and exits successfully without making any changes.
+
+> **License requirement:** This sub-command requires an active **Pro** (or higher) subscription. Run `xg license status` to verify your current tier.
+
+---
+
+## Synopsis
+
+```shell
+xg env deactivate
+```
+
+---
+
+## Description
+
+`xg env deactivate` reads the current active environment from the local configuration store (`d365_environments.json`). It then does one of the following:
+
+- **No environment is active** — Prints a warning message (`No environment is currently active.`) and exits with code `0`. This is a safe no-op; nothing is modified.
+- **An environment is active** — Clears the active environment pointer in the store and prints a confirmation message: `Environment '<FRIENDLY_NAME>' deactivated successfully. No environment is active.`
+
+The command takes no arguments and no flags beyond the standard `--help` global option. There is no confirmation prompt.
+
+---
+
+## Options
+
+`xg env deactivate` accepts no flags or arguments.
+
+| Flag | Type | Default | Description |
+|---|---|---|---|
+| `--help` | `bool` | `false` | Display help text for this command and exit. |
+
+---
+
+## Exit Codes
+
+| Code | Meaning |
+|---|---|
+| `0` | Command completed successfully — either the active environment was cleared, or no environment was active (no-op). |
+| `1` | License tier insufficient (Pro required), or an unexpected internal error occurred. |
+
+---
+
+## Examples
+
+### Deactivate the currently active environment
+
+```shell
+$ xg env deactivate
+
+Environment 'Production' deactivated successfully. No environment is active.
+```
+
+### Run when no environment is active (no-op)
+
+```shell
+$ xg env deactivate
+
+No environment is currently active.
+```
+
+The exit code is `0` in both cases. You can use this command in scripts without first checking whether an environment is active.
+
+### Typical workflow: deactivate, switch, re-activate
+
+```shell
+# Deactivate the current environment
+xg env deactivate
+
+# Verify no environment is active
+xg env status
+
+# Activate a different environment
+xg env activate Staging
+```
+
+---
+
+## See Also
+
+- [`xg env activate`](./env-activate.mdx) — Set a specific Dataverse environment as the active one.
+- [`xg env list`](./env-list.mdx) — List all registered Dataverse environments and see which one is currently active.
+- [`xg env status`](./env-status.mdx) — Show the active environment URL and name.
+- [CLI Overview](../index.mdx) — Introduction to the XrmGhost CLI and its command groups.
