@@ -1,0 +1,38 @@
+---
+title: PreImageAttribute
+description: Manual reference for the PreImageAttribute public contract in XrmGhost.Attributes.
+---
+
+# PreImageAttribute
+
+`PreImageAttribute` describes a default pre-operation entity image for a plugin execution context.
+
+## Manual Reference Note
+
+This is a **manual** reference page based on the current public contract in `xrmghost-attributes`, which remains the source of truth until any future generated reference exists.
+
+## Usage Shape
+
+```csharp
+[PreImageAttribute("primary", "{ \"__entityName\": \"account\", \"name\": \"Old Name\" }", Attributes = new[] { "name" })]
+```
+
+## Constructor
+
+- `PreImageAttribute(string name, string entityJson)`
+
+## Public Members
+
+- `Name` — image alias.
+- `EntityJson` — JSON-shaped entity payload.
+- `Attributes` — optional column list used by automated registration tools for filtering.
+
+## Validation and Limits
+
+- The current public constructor stores the provided values directly.
+- `Attributes` is optional and defaults to `null`, which the contract describes as including all attributes in image registration.
+- The attribute does not validate that `entityJson` is well-formed or that the named columns exist.
+
+## When to Use It
+
+Use this attribute when downstream tooling should have a representative pre-image payload or a known pre-image registration shape.

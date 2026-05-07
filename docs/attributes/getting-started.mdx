@@ -1,26 +1,93 @@
 ---
 title: Getting Started with Attributes
-description: Define and use your first XrmGhost attribute. Placeholder page pending the full usage guide in ADO-1156.
+description: Learn the core XrmGhost.Attributes concepts, see a concrete plugin example, and understand the package's current validation boundary.
 ---
 
 # Getting Started with Attributes
 
-> **TODO (ADO-1156):** This page is a placeholder. A complete usage guide — including how to define attributes, supported types, validation rules, and integration with the CLI and portal — will be written as part of **ADO-1156**.
->
-> Do not add attribute definitions or usage examples here until ADO-1156 is in progress. Fake content is worse than an honest placeholder.
+`XrmGhost.Attributes` lets you declare plugin metadata on the plugin class itself. The attributes are ordinary .NET attributes: they do nothing on their own until a tool or runtime host reads them via reflection.
 
-## What Will Be Here
+## Core Concepts
 
-Once ADO-1156 lands, this page will cover:
+Before you write attributes, keep these boundaries in mind:
 
-1. **Concepts** — what an attribute is in XrmGhost terms
-2. **Defining an attribute** — minimal YAML/JSON example
-3. **Supported types** — string, number, boolean, enum, reference, …
-4. **Validation rules** — required, min/max, pattern, custom validators
-5. **Using attributes in the CLI** — how to reference attributes in run configurations
-6. **Next steps** — links into the full generated attribute reference
+1. **Class-level metadata only.** The package's public attributes target plugin classes, not individual properties or methods.
+2. **JSON-shaped seed values.** Parameter values and entity images are passed as strings, often containing JSON payloads that downstream tooling can reuse.
+3. **Consumers provide behavior.** The package describes intent; tools such as `xrmghost-cli generate-scenario` and `xrmghost-framework-host` decide how to interpret it.
+
+## A Reusable Example
+
+The example below shows a realistic starting point for a plugin that handles `account` updates and wants both a target entity and a pre-image available to downstream tooling.
+
+```csharp
+using Microsoft.Xrm.Sdk;
+using XrmGhost.Attributes;
+
+[PluginExecutionConfigAttribute("account", "Update", Stage = 20, Mode = 0)]
+[PreImageAttribute(
+    "primary",
+    "{ \"__entityName\": \"account\", \"accountid\": \"00000000-0000-0000-0000-000000000001\", \"name\": \"Old Name\" }",
+    Attributes = new[] { "accountid", "name" })]
+[InputParameterAttribute(
+    "Target",
+    "{ \"__entityName\": \"account\", \"accountid\": \"00000000-0000-0000-0000-000000000001\", \"name\": \"New Name\" }")]
+[SharedVariableAttribute("CorrelationHint", "\"account-update\"")]
+public class AccountUpdatePlugin : IPlugin
+{
+    public void Execute(IServiceProvider serviceProvider)
+    {
+    }
+}
+```
+
+Why this example is reusable:
+
+- `PluginExecutionConfigAttribute` declares the primary entity, message, and optional stage/mode metadata.
+- `PreImageAttribute` shows how to give tools a named entity snapshot plus an optional filtered attribute list.
+- `InputParameterAttribute` seeds the `Target` input with JSON that looks like the Dataverse entity shape consumers expect.
+- `SharedVariableAttribute` shows that not every seeded value has to be an entity payload.
+
+## Supported Shape, at a High Level
+
+The package currently supports a small, explicit set of metadata shapes:
+
+- **Execution metadata** such as primary entity name, handled messages, stage, mode, and impersonating user ID
+- **Entity JSON payloads** for pre-images and post-images
+- **Parameter JSON payloads** for input and output parameters
+- **Configuration strings** for secure and unsecure configuration
+- **Solution names** for registration grouping
+
+The exact JSON contract is not yet documented as generated reference content. For now, follow the examples shipped with the package README and keep payloads aligned with the Dataverse object shape your consumer expects.
+
+## Validation Expectations
+
+Be conservative about what this package validates for you.
+
+- Some attributes validate obvious required inputs such as non-empty entity names, message names, or solution names.
+- Many attributes simply store the string values you provide, including JSON payloads.
+- The package does **not** act as a full schema validator for Dataverse entities, parameters, or configuration payloads.
+- If a payload is malformed, the failure usually appears later in the consumer that reads it rather than when the attribute is compiled.
+
+That means the safest workflow is to treat these attributes as a metadata contract and verify the contract with the tool that consumes it.
+
+## Relationship to `generate-scenario`
+
+`xrmghost-cli generate-scenario` is one of the most important consumers of this package.
+
+- It inspects plugin classes for XrmGhost attributes.
+- It uses the declared entity images, parameters, and configuration values as starting data for generated scenarios.
+- If the attributes are missing, the command can still inspect the assembly, but it has less information to pre-populate and falls back to a thinner result.
+
+In practice, that makes attribute coverage a documentation and tooling benefit: the more accurately you describe the plugin's execution context, the more useful the generated scenario scaffolding becomes.
+
+## Next Steps
+
+- Return to the [Attributes overview](./index.mdx) for the section map and package boundary.
+- Use the [manual attribute reference](./reference/index.mdx) for one page per current public attribute, backed by the current public contract in `xrmghost-attributes` as the source of truth.
+- Watch for future generated reference content under `docs/attributes/schema/`; that is the intended home for exhaustive schema-level documentation, not these narrative pages.
 
 ## Related
 
 - [Attributes Overview](./index.mdx)
-- [ADO-1156 follow-up story] — expands this section with real content and the full reference
+- [Manual Attribute Reference](./reference/index.mdx)
+- `docs/attributes/schema/` — planned future location for generated reference content

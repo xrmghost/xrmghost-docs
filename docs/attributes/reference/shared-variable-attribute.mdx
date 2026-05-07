@@ -1,0 +1,37 @@
+---
+title: SharedVariableAttribute
+description: Manual reference for the SharedVariableAttribute public contract in XrmGhost.Attributes.
+---
+
+# SharedVariableAttribute
+
+`SharedVariableAttribute` seeds a shared variable value as class-level metadata.
+
+## Manual Reference Note
+
+This is a **manual** reference page based on the current public contract in `xrmghost-attributes`, which remains the source of truth until any future generated reference exists.
+
+## Usage Shape
+
+```csharp
+[SharedVariableAttribute("CorrelationHint", "\"account-update\"")]
+```
+
+## Constructor
+
+- `SharedVariableAttribute(string name, string valueJson)`
+
+## Public Members
+
+- `Name` — shared variable name.
+- `ValueJson` — JSON-shaped value.
+
+## Validation and Limits
+
+- The current public constructor stores the provided values directly.
+- The attribute does not validate JSON structure or whether the name matches a consumer's expectations.
+- Interpretation of the value belongs to the consuming runtime or tool.
+
+## When to Use It
+
+Use this attribute when reflection-based tooling needs a seeded shared-variable payload as part of a plugin execution scenario.

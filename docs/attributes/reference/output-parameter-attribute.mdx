@@ -1,0 +1,37 @@
+---
+title: OutputParameterAttribute
+description: Manual reference for the OutputParameterAttribute public contract in XrmGhost.Attributes.
+---
+
+# OutputParameterAttribute
+
+`OutputParameterAttribute` declares an expected output parameter value that downstream tooling can use as metadata.
+
+## Manual Reference Note
+
+This is a **manual** reference page based on the current public contract in `xrmghost-attributes`, which remains the source of truth until any future generated reference exists.
+
+## Usage Shape
+
+```csharp
+[OutputParameterAttribute("Result", "true")]
+```
+
+## Constructor
+
+- `OutputParameterAttribute(string name, string expectedValueJson)`
+
+## Public Members
+
+- `Name` — output parameter name.
+- `ExpectedValueJson` — JSON-shaped expected value.
+
+## Validation and Limits
+
+- The current public constructor stores the provided values directly.
+- The attribute describes an expected result shape; it does not enforce that a plugin actually produces that value.
+- Schema validation is left to whichever consumer reads the metadata.
+
+## When to Use It
+
+Use this attribute when tests or generated scenarios benefit from a predeclared expected output payload.

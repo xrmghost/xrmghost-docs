@@ -1,0 +1,37 @@
+---
+title: SolutionComponentAttribute
+description: Manual reference for the SolutionComponentAttribute public contract in XrmGhost.Attributes.
+---
+
+# SolutionComponentAttribute
+
+`SolutionComponentAttribute` declares which Dataverse solution or solutions should receive a plugin component during automated registration.
+
+## Manual Reference Note
+
+This is a **manual** reference page based on the current public contract in `xrmghost-attributes`, which remains the source of truth until any future generated reference exists.
+
+## Usage Shape
+
+```csharp
+[SolutionComponentAttribute("CoreBusinessLogic", IsDefault = true)]
+[SolutionComponentAttribute("ExtendedFeatures")]
+```
+
+## Constructor
+
+- `SolutionComponentAttribute(string solutionUniqueName)`
+
+## Public Members
+
+- `SolutionUniqueName` — required solution unique name.
+- `IsDefault` — optional boolean flag, defaulting to `false`, for the primary solution choice when multiple attributes are present.
+
+## Validation and Limits
+
+- The constructor throws when `solutionUniqueName` is null, empty, or whitespace.
+- The attribute stores grouping metadata only; the registration order and behavior remain consumer responsibilities.
+
+## When to Use It
+
+Use this attribute when registration tooling needs explicit solution grouping for a plugin component.
