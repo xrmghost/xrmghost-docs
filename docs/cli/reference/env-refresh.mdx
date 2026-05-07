@@ -1,0 +1,99 @@
+---
+title: "xg env refresh"
+description: Forces an immediate refresh of the Dataverse metadata cache for the currently active environment, bypassing lifecycle expiry checks.
+---
+
+# `xg env refresh`
+
+Forces an immediate refresh of the Dataverse metadata cache for the currently active environment.
+
+> **Pro tier required.** `env refresh` is a feature-gated command available on the XrmGhost Pro plan and above. Run `xg license status` to check your current tier.
+
+## Description
+
+`xg env refresh` connects to the Dataverse instance of the **currently active** environment and re-fetches the full entity metadata set. The refreshed data is serialised to a local cache file and replaces any previously cached content.
+
+Unlike the automatic cache update that occurs during `xg env activate`, this command always bypasses the configured `MetadataCacheLifecycle` expiry window. It is equivalent to calling the internal cache update with `forceRefresh: true` — the cache is rebuilt unconditionally, even if the existing cache is still within its validity period.
+
+The command targets only the active environment. To refresh a different environment's cache, first activate it with `xg env activate <FRIENDLY_NAME>`, then run `xg env refresh`.
+
+### When to use `env refresh`
+
+| Scenario | Recommended action |
+|---|---|
+| Dataverse schema has changed (new entities, attributes added or removed) and the local cache is stale | Run `xg env refresh` |
+| Plugin run fails with "entity not found" errors despite the environment being active | Run `xg env refresh` to rebuild the cache |
+| You activated an environment with `--no-cache` and now need metadata | Run `xg env refresh` to populate the cache |
+| You want to pre-warm the cache without deactivating and re-activating the environment | Run `xg env refresh` |
+
+## Synopsis
+
+```shell
+xg env refresh
+```
+
+## Options
+
+`env refresh` takes no arguments and no flags.
+
+| Option | Type | Default | Description |
+|---|---|---|---|
+| *(none)* | — | — | This command has no configurable options. The target environment is always the currently active one. |
+
+## Exit Codes
+
+| Code | Meaning |
+|---|---|
+| `0` | Refresh completed successfully, or no environment was active (informational, not an error). |
+| `1` | An unexpected error occurred (e.g., Dataverse connectivity failure, file I/O error). |
+
+## Examples
+
+### Refresh the active environment's metadata cache
+
+```shell
+xg env refresh
+```
+
+Expected output when an environment is active:
+
+```
+Attempting to refresh metadata for the active environment: MyDevEnvironment...
+Starting metadata cache update for 'MyDevEnvironment'...
+Successfully connected to Dataverse for 'MyDevEnvironment'. Fetching metadata...
+Retrieved metadata for 312 entities for 'MyDevEnvironment'. Serializing and caching...
+Metadata cache for 'MyDevEnvironment' updated successfully at 2026-05-07T18:54:00Z. Path: ...
+```
+
+### Refresh after activating without cache
+
+```shell
+# Activate quickly without waiting for the initial cache build
+xg env activate MyDevEnvironment --no-cache
+
+# Later, populate the cache on demand
+xg env refresh
+```
+
+### Check which environment will be refreshed before running
+
+```shell
+# Confirm the active environment first
+xg env status
+
+# Then refresh
+xg env refresh
+```
+
+## Notes
+
+- If no environment is currently active, the command prints an informational message and exits with code `0`. It does not treat this as an error.
+- The cache is stored locally under the XrmGhost data directory at `metadata_cache/<sanitised-friendly-name>/metadata.json`.
+- Large Dataverse organisations with many custom entities may take several seconds to complete the refresh. The command prints progress messages to standard output.
+- The cache file is a plain JSON serialisation of the Dataverse entity metadata array. Do not edit it manually; it will be overwritten on the next refresh.
+
+## See Also
+
+- [`xg env activate`](./env-activate.mdx) — activate an environment and optionally pre-warm the metadata cache
+- [`xg env status`](./env-status.mdx) — display the currently active environment
+- [CLI Reference](../index.mdx) — full index of available commands
