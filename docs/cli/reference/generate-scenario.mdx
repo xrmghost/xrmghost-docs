@@ -1,0 +1,137 @@
+---
+title: "generate-scenario"
+description: Generate a template JSON scenario file for a Dataverse plugin assembly and type, ready to be used with the `run` command.
+---
+
+# `xg generate-scenario`
+
+Inspects a compiled Dataverse plugin assembly and emits a ready-to-use scenario JSON file that can be passed directly to [`xg run`](./run.mdx). The command launches XrmGhost.FrameworkHost to interrogate the plugin's metadata — attribute decorations, message handlers, entity configuration — and wires that information into a fully-populated execution context with sensible defaults.
+
+Use `generate-scenario` as the starting point of your local plugin testing workflow: generate a scaffold once, adjust the generated JSON to match your test data, then pass it to `run`.
+
+---
+
+## Synopsis
+
+```shell
+xg generate-scenario -p <PLUGIN_ASSEMBLY_PATH> -t <PLUGIN_TYPE_NAME> [options]
+```
+
+---
+
+## Options
+
+| Flag | Short | Type | Default | Description |
+|---|---|---|---|---|
+| `--plugin-assembly-path` | `-p` | `string` | *(required)* | Path to the compiled plugin assembly DLL. The file must exist at the specified path. |
+| `--plugin-type` | `-t` | `string` | *(required)* | Fully-qualified name of the plugin class to introspect (e.g. `MyPlugins.MyPluginClass`). |
+| `--output` | `-o` | `string` | Same directory as the assembly | Path where the generated scenario JSON file is written. If omitted, or if only a filename is given, the file is placed alongside the plugin DLL. When multiple messages are generated, the filename is suffixed with `_<MessageName>_Scenario.json`. |
+| `--framework-host-path` | `-f` | `string` | Auto-resolved | Path to `XrmGhost.FrameworkHost.exe`. When not provided the CLI checks the managed application-data install root first, then falls back to legacy beside-the-CLI locations (`bin`, then the CLI directory). |
+| `--debug-mode` | `-d` | `bool` | `false` | Emits detailed verbose output, including FrameworkHost startup information, gRPC health-check status, and per-field scaffold decisions. |
+| `--no-default-user-settings` | — | `bool` | `false` | Suppresses the automatic insertion of a default `usersettings` mock (Retrieve response) for the calling user context. |
+| `--no-default-owner` | — | `bool` | `false` | Suppresses the automatic insertion of a default `ownerid` (EntityReference to `systemuser`) in the generated `Target` entity. |
+| `--online` | — | `bool` | `false` | Enables online mode, which activates live Dataverse metadata integration. Requires an active **Pro** license. |
+| `--no-interactive` | — | `bool` | `false` | Exits immediately if FrameworkHost is not installed instead of prompting the user to download it. Useful in CI pipelines. |
+
+---
+
+## Description
+
+### How the scaffold is built
+
+`generate-scenario` connects to a short-lived FrameworkHost process over gRPC, sends the plugin assembly path and type name, and receives the plugin's inferred metadata. From that metadata the command builds an `ExecutionContextDefinition` that includes:
+
+- **Message name** — taken from `[HandlesMessage]` attributes on the plugin class. If no attributes are present, the scaffold defaults to `Create`.
+- **Primary entity name and ID** — derived from `ExecutionConfig` on the plugin, or left empty when the plugin carries no metadata.
+- **`Target` input parameter** — auto-generated as an `EntityDefinition` with a `name` sample attribute. Skipped for Custom API messages (those whose `MessageName` begins with `custom_`).
+- **`ownerid` attribute** — an `EntityReference` pointing to the context's `UserId` as a `systemuser`. Suppressed by `--no-default-owner`.
+- **Default UserSettings mock** — a Retrieve response that returns a realistic `usersettings` entity for the calling user. Suppressed by `--no-default-user-settings`.
+
+### Multiple message handlers
+
+When a plugin implements `[HandlesMessage]` for more than one message, the command generates one scenario file per message, each named `<PluginTypeName>_<MessageName>_Scenario.json`.
+
+### Partial scaffold warning
+
+If required metadata is missing (e.g. no `[HandlesMessage]` attribute and no `PrimaryEntityName` set), the command emits a warning after writing the file:
+
+```
+Warning (Message: Create): Generated a partial scenario scaffold because required
+XrmGhost metadata was missing or incomplete (executionContext.primaryEntityName,
+inputParameters.Target.logicalName). Before using this scenario, fill those values manually.
+```
+
+This warning does not prevent the file from being written. It flags that you need to review and complete the scaffold before running it.
+
+### Online mode
+
+With `--online` the command can integrate live Dataverse metadata (entity definitions, option sets). This feature requires an active **Pro** license; the command validates the license tier before proceeding and returns exit code `1` if the check fails.
+
+---
+
+## Exit Codes
+
+| Code | Meaning |
+|---|---|
+| `0` | All scenario files generated successfully. |
+| `1` | An error occurred: assembly not found, type load failure, license check failed (online mode), or FrameworkHost startup failure. |
+
+---
+
+## Examples
+
+### Minimal — generate a scenario for a single plugin type
+
+```shell
+xg generate-scenario \
+  --plugin-assembly-path ./bin/Debug/net8.0/MyCompany.Plugins.dll \
+  --plugin-type MyCompany.Plugins.AccountCreatePlugin
+```
+
+The scenario file is written to `./bin/Debug/net8.0/MyCompany.Plugins.AccountCreatePlugin_Create_Scenario.json`.
+
+### Specify an explicit output path
+
+```shell
+xg generate-scenario \
+  -p ./bin/Debug/net8.0/MyCompany.Plugins.dll \
+  -t MyCompany.Plugins.AccountCreatePlugin \
+  -o ./test-scenarios/account-create.json
+```
+
+### Generate without the default owner and user-settings mock
+
+```shell
+xg generate-scenario \
+  -p ./bin/Debug/net8.0/MyCompany.Plugins.dll \
+  -t MyCompany.Plugins.AccountCreatePlugin \
+  --no-default-owner \
+  --no-default-user-settings
+```
+
+### Non-interactive mode (CI pipeline)
+
+```shell
+xg generate-scenario \
+  -p ./artifacts/MyCompany.Plugins.dll \
+  -t MyCompany.Plugins.AccountCreatePlugin \
+  --no-interactive
+```
+
+### Enable debug output to diagnose FrameworkHost startup
+
+```shell
+xg generate-scenario \
+  -p ./bin/Debug/net8.0/MyCompany.Plugins.dll \
+  -t MyCompany.Plugins.AccountCreatePlugin \
+  --debug-mode
+```
+
+---
+
+## See Also
+
+- [`xg run`](./run.mdx) — Execute a scenario file produced by `generate-scenario`
+- [CLI Overview](../index.mdx) — Introduction to the `xg` CLI and command groups
+- [Getting Started with the CLI](../getting-started.mdx) — Installation, verification, and your first command
+- [CLI Reference](./index.mdx) — Full reference index for all CLI commands
