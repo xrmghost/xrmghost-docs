@@ -1,0 +1,37 @@
+---
+title: InputParameterAttribute
+description: Manual reference for the InputParameterAttribute public contract in XrmGhost.Attributes.
+---
+
+# InputParameterAttribute
+
+`InputParameterAttribute` seeds a plugin execution context input parameter as metadata on the plugin class.
+
+## Manual Reference Note
+
+This is a **manual** reference page based on the current public contract in `xrmghost-attributes`, which remains the source of truth until any future generated reference exists.
+
+## Usage Shape
+
+```csharp
+[InputParameterAttribute("Target", "{ \"__entityName\": \"account\" }")]
+```
+
+## Constructor
+
+- `InputParameterAttribute(string name, string valueJson)`
+
+## Public Members
+
+- `Name` — input parameter name, such as `Target`.
+- `ValueJson` — JSON-shaped string value for the parameter.
+
+## Validation and Limits
+
+- The current public constructor stores the provided values directly.
+- The attribute does not validate that `valueJson` matches a Dataverse schema.
+- Consumers decide whether the JSON represents a simple scalar, an entity-like payload, or another complex object.
+
+## When to Use It
+
+Use this attribute when scenario generators or other reflection-based tooling need a starting input parameter payload.

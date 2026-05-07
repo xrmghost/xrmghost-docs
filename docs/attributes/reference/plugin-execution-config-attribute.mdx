@@ -1,0 +1,41 @@
+---
+title: PluginExecutionConfigAttribute
+description: Manual reference for the PluginExecutionConfigAttribute public contract in XrmGhost.Attributes.
+---
+
+# PluginExecutionConfigAttribute
+
+`PluginExecutionConfigAttribute` is the main execution-registration attribute for declaring primary entity, handled messages, and optional execution settings.
+
+## Manual Reference Note
+
+This is a **manual** reference page based on the current public contract in `xrmghost-attributes`, which remains the source of truth until any future generated reference exists.
+
+## Usage Shape
+
+```csharp
+[PluginExecutionConfigAttribute("account", "Update", Stage = 20, Mode = 0)]
+```
+
+## Constructor
+
+- `PluginExecutionConfigAttribute(string primaryEntityName, params string[]? messages)`
+
+## Public Members
+
+- `PrimaryEntityName` — required Dataverse logical name for the primary entity.
+- `Messages` — optional array of handled messages; when omitted, the contract says the configuration applies to all messages for the entity.
+- `Stage` — optional stage integer, defaulting to `-1` when not assigned.
+- `Mode` — optional execution mode integer, defaulting to `-1` when not assigned.
+- `ImpersonatingUserId` — optional user ID string for registration tools to use as impersonation metadata.
+
+## Validation and Limits
+
+- The constructor throws when `primaryEntityName` is null, empty, or whitespace.
+- The constructor also throws when any provided message entry is null, empty, or whitespace.
+- The public contract documents stage values `10`, `20`, and `40`, and mode values `0` and `1`, but the attribute does not enforce those ranges itself.
+- The attribute stores registration metadata; consumer behavior still belongs to the tool that reads it.
+
+## When to Use It
+
+Use this attribute when a plugin needs explicit execution registration metadata that reflection-based tooling can read without inspecting plugin logic.
