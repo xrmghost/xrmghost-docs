@@ -1,32 +1,54 @@
 ---
 title: CLI
-description: Overview of the XrmGhost command-line interface product, its role in the ecosystem, and links to detailed documentation.
+description: Introduction to the XrmGhost command-line interface — what it does, who it is for, and how this documentation slice is organised.
 ---
 
-# CLI
+# XrmGhost CLI
 
-The `xrmghost` CLI is the primary tool for interacting with XrmGhost from a terminal. It provides commands for initialising projects, running workflows, managing configuration, and exporting data.
+The `xrmghost` CLI (`ghost-plugin-cli`) is the primary developer interface for the XrmGhost ecosystem. It runs on Windows, macOS, and Linux and gives you terminal access to every major workflow: executing Dataverse plugins out-of-process, managing environment configurations, handling licensing, and diagnosing problems.
+
+## Who the CLI Is For
+
+The CLI is aimed at developers who:
+
+- write and test Dataverse plugins locally before deploying to a Power Platform environment
+- need scriptable, repeatable runs as part of a CI workflow
+- prefer a terminal-first experience over a GUI
 
 ## What the CLI Does
 
-- Bootstraps new XrmGhost projects (`init`)
-- Executes run configurations against targets
-- Manages local and remote configuration
-- Exports results to supported output formats
-
-## Documentation Sections
-
-| Section | Description |
+| Command group | Purpose |
 |---|---|
-| [Getting Started](./getting-started.mdx) | Install the CLI and run your first command |
-| Reference | **TODO** — see below |
+| `run` | Execute a Dataverse plugin using a scenario file, with the Framework Host running in the background |
+| `generate-scenario` | Create a template scenario JSON for a given plugin, ready to pass to `run` |
+| `env` | Add, edit, delete, list, activate, and switch Dataverse environment configurations |
+| `license` | Activate your licence, view its status and tier, and retrieve your machine's platform ID |
+| `doctor` | Run environment and configuration health checks to diagnose connectivity or setup issues |
+| `privacy` | Display information about telemetry data collection and local storage |
+| `setup host` | Install or update the Framework Host component used by `run` |
 
-## Generated CLI Reference (TODO — ADO-1158)
+For the full flag-level detail of every command and sub-command, see the [CLI Reference](./reference/) section — generated automatically from the CLI's `--help` output.
 
-> **TODO (ADO-1158):** A complete, auto-generated CLI reference (all commands, flags, and options) will be produced from the `xrmghost-cli` repository's `--help` output as part of **ADO-1158**. That story is responsible for establishing the generation pipeline and landing the reference pages under `docs/cli/reference/`.
->
-> Do not hand-author command reference content here. Wait for the ADO-1158 pipeline.
+## How This Documentation Slice Is Organised
 
-## Product Ownership
+The CLI documentation is split into two complementary layers, following the project-wide [generated vs manual content model](../architecture/generated-vs-manual.mdx):
 
-The CLI documentation narrative is owned by the **CLI team** in collaboration with Documentation. For the ownership table and update process, see [Content Ownership](../architecture/content-ownership.mdx).
+**Narrative guidance (manual, this slice)**
+Pages authored by humans that explain concepts, walk through workflows, and provide context you cannot get from a help string alone.
+
+| Page | What you will find |
+|---|---|
+| [Getting Started](./getting-started.mdx) | Installation, verification, and your first command |
+| This page | Overview, orientation, and navigation |
+
+**Generated reference (auto-produced from the CLI source)**
+Per-command reference pages built from the CLI's `--help` output and placed under `docs/cli/reference/`. These pages are owned by the generation pipeline in `xrmghost-cli` and **must not be hand-edited** once generation is active.
+
+> The generated reference pipeline is tracked separately. Until it is live, run `ghost-plugin-cli <command> --help` directly for flag-level detail.
+
+## Where to Go Next
+
+- **New to XrmGhost?** Start with [Getting Started](./getting-started.mdx) to install the CLI and run your first plugin scenario.
+- **Looking for a specific flag or option?** Go to [CLI Reference](./reference/) for the generated per-command reference.
+- **Wondering how docs are structured?** Read [Generated vs Manual Content](../architecture/generated-vs-manual.mdx) for a full explanation of the two-layer model.
+- **Want to contribute?** See [Contributing](../contributing/index.mdx) for guidelines on updating narrative docs or the generation pipeline.
