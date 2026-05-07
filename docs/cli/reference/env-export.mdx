@@ -1,0 +1,113 @@
+---
+title: "xg env export"
+description: Export one or all registered Dataverse environment configurations to a JSON file. Client secrets are never included in the export.
+---
+
+# `xg env export`
+
+Export registered Dataverse environment configurations from the local XrmGhost store to a portable JSON file. Use this command to back up your environment definitions, share them with teammates, or seed a fresh machine before running [`xg env import`](./env-import.mdx).
+
+> **Pro tier required.** `env export` is a feature-gated command. A valid XrmGhost Pro licence is required to run it. See [`xg license status`](./license-status.mdx) to check your current tier.
+
+## Synopsis
+
+```shell
+xg env export [FRIENDLY_NAME] [options]
+```
+
+## Description
+
+When called without arguments, `env export` serialises the **entire environment store** — every configured Dataverse environment — to a single JSON file. Pass a `FRIENDLY_NAME` to export only that specific environment.
+
+The output format is always **indented JSON**. The file contains the environment's connection metadata (URL, tenant ID, client ID, etc.) but **never the client secret**: the `ClientSecret` field is unconditionally excluded from all exports at the model level.
+
+If the target output path does not exist, the command creates the necessary directory structure before writing.
+
+### Default output path
+
+When `--output` is omitted, the file is written to the user's `Downloads` folder with an auto-generated name:
+
+```
+~/Downloads/XrmGhost_env_<sanitized_name>_<yyyyMMddHHmmss>.json
+```
+
+For a full-store export the placeholder `all_environments` is used in place of a friendly name:
+
+```
+~/Downloads/XrmGhost_env_all_environments_20260507153042.json
+```
+
+## Options
+
+| Flag | Argument | Required | Description |
+|---|---|---|---|
+| `[FRIENDLY_NAME]` | `string` | No | The friendly name of the environment to export. When omitted, **all** registered environments are exported. |
+| `-o`, `--output` | `<FILE_PATH>` | No | Full path of the destination JSON file. If not specified, the file is saved to the `Downloads` folder with an auto-generated timestamped name. |
+
+## Exit codes
+
+| Code | Meaning |
+|---|---|
+| `0` | Export completed successfully (or no environments registered — nothing to export). |
+| `1` | The specified `FRIENDLY_NAME` was not found, or an unexpected error occurred during export. |
+
+## Examples
+
+### Export all environments (default path)
+
+```shell
+xg env export
+```
+
+Writes all registered environments to `~/Downloads/XrmGhost_env_all_environments_<timestamp>.json`.
+
+### Export all environments to a custom path
+
+```shell
+xg env export --output ./backups/environments.json
+```
+
+### Export a single environment by friendly name
+
+```shell
+xg env export MyDevEnvironment
+```
+
+Writes only the `MyDevEnvironment` configuration to `~/Downloads/XrmGhost_env_MyDevEnvironment_<timestamp>.json`.
+
+### Export a single environment to a specific file
+
+```shell
+xg env export MyDevEnvironment --output ./exports/my-dev-env.json
+```
+
+### Use the export in a CI pipeline
+
+```shell
+xg env export --output /tmp/xg-environments.json
+# ... transfer file to the target machine ...
+xg env import /tmp/xg-environments.json
+```
+
+## Output format
+
+The export produces a JSON file whose shape mirrors the internal `D365EnvironmentsStore` (full-store export) or a single `D365EnvironmentConfiguration` (single-environment export). Example excerpt for a single environment:
+
+```json
+{
+  "FriendlyName": "MyDevEnvironment",
+  "Url": "https://myorg.crm4.dynamics.com",
+  "TenantId": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+  "ClientId": "yyyyyyyy-yyyy-yyyy-yyyy-yyyyyyyyyyyy",
+  "IsActive": true
+}
+```
+
+> **Note:** `ClientSecret` is always absent from exported files regardless of what is stored locally. When importing on another machine, you will be required to supply the secret again.
+
+## See Also
+
+- [`xg env import`](./env-import.mdx) — Import environment configurations from a JSON file
+- [`xg env list`](./env-list.mdx) — List all currently registered environments
+- [CLI Reference](../index.mdx) — Full CLI reference landing page
+- [CLI Overview](../../cli/index.mdx) — Introduction to the XrmGhost CLI

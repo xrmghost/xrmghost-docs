@@ -1,0 +1,95 @@
+---
+title: "xg env list"
+description: List all Dataverse environment configurations registered with XrmGhost, showing connection details and which environment is currently active.
+---
+
+# `xg env list`
+
+Display a table of all Dataverse environment configurations registered with the XrmGhost CLI. For each environment the command shows its friendly name, environment URL, authentication method, client application ID, metadata cache lifecycle, and whether it is currently active.
+
+> **License requirement:** This command requires a **Pro** license tier. Running it with a lower-tier license prints an error and exits with code `-1`.
+
+## Synopsis
+
+```
+xg env list
+```
+
+## Description
+
+`xg env list` reads the local environment configuration store (`d365_environments.json`) and renders a rich console table with one row per registered environment. The environments are sorted alphabetically by friendly name.
+
+The currently active environment — the one used automatically by commands such as `xg run` when no explicit environment is specified — is highlighted with a green `*` marker in the **Active** column.
+
+If no environments are registered yet, the command prints an informational message and exits with code `0`.
+
+### Output columns
+
+| Column | Description |
+|---|---|
+| **Active** | `*` (green) for the currently active environment; empty otherwise |
+| **Friendly Name** | Human-readable label assigned when the environment was added |
+| **Environment URL** | The Dynamics 365 / Dataverse organisation URL (e.g., `https://myorg.crm.dynamics.com`) |
+| **Auth Method** | Authentication method configured for this environment (currently `ClientSecret`) |
+| **Client ID** | Azure AD application (client) ID used to authenticate |
+| **Cache Lifecycle** | How long the local Dataverse metadata cache is considered valid before a refresh is triggered |
+
+## Options
+
+This command has no options or flags.
+
+## Exit codes
+
+| Code | Meaning |
+|---|---|
+| `0` | Command completed successfully (including the empty-list case) |
+| `-1` | License tier insufficient (Pro license required) |
+
+## Examples
+
+### List all environments (two environments registered, one active)
+
+```
+$ xg env list
+
+                 Registered Dynamics 365 Environments
+ ┌────────┬──────────────────┬─────────────────────────────────────────┬───────────────┬──────────────────────────────────────┬─────────────────┐
+ │ Active │ Friendly Name    │ Environment URL                         │ Auth Method   │ Client ID                            │ Cache Lifecycle │
+ ├────────┼──────────────────┼─────────────────────────────────────────┼───────────────┼──────────────────────────────────────┼─────────────────┤
+ │      * │ Production       │ https://contoso.crm.dynamics.com        │ ClientSecret  │ a1b2c3d4-0000-0000-0000-111122223333  │ 7 day(s)        │
+ │        │ UAT              │ https://contoso-uat.crm.dynamics.com    │ ClientSecret  │ a1b2c3d4-0000-0000-0000-444455556666  │ 1 day(s)        │
+ └────────┴──────────────────┴─────────────────────────────────────────┴───────────────┴──────────────────────────────────────┴─────────────────┘
+
+* Indicates the currently active environment: Production
+```
+
+### No environments registered
+
+```
+$ xg env list
+
+No Dynamics 365 environments are registered yet.
+You can add one using the 'XrmGhost env add' command.
+```
+
+### No active environment set
+
+```
+$ xg env list
+
+                 Registered Dynamics 365 Environments
+ ┌────────┬──────────────────┬─────────────────────────────────────────┬───────────────┬──────────────────────────────────────┬─────────────────┐
+ │ Active │ Friendly Name    │ Environment URL                         │ Auth Method   │ Client ID                            │ Cache Lifecycle │
+ ├────────┼──────────────────┼─────────────────────────────────────────┼───────────────┼──────────────────────────────────────┼─────────────────┤
+ │        │ Dev              │ https://contoso-dev.crm.dynamics.com    │ ClientSecret  │ a1b2c3d4-0000-0000-0000-777788889999  │ 1 hour(s)       │
+ └────────┴──────────────────┴─────────────────────────────────────────┴───────────────┴──────────────────────────────────────┴─────────────────┘
+
+No environment is currently active.
+You can activate one using 'XrmGhost env activate <FRIENDLY_NAME>'.
+```
+
+## See Also
+
+- [xg env add](./env-add.mdx) — Add a new Dataverse environment through the interactive wizard
+- [xg env status](./env-status.mdx) — Show the status of configured environments
+- [CLI Overview](../index.mdx) — Introduction to the XrmGhost CLI and command groups

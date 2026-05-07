@@ -1,0 +1,99 @@
+---
+title: xg env activate
+description: Set a Dataverse environment as the active one for all subsequent XrmGhost CLI operations.
+---
+
+# xg env activate
+
+Sets the named Dataverse environment as the **active environment** for the current user. After activation, all CLI operations that require an environment context — such as `run`, `doctor`, and `env refresh` — will use the selected environment without requiring explicit environment flags.
+
+By default, `env activate` also triggers a background metadata cache update so that entity and attribute information for the environment is ready locally. You can skip this step with the `--no-cache` flag if you need a fast switch and do not require an up-to-date local schema.
+
+## Requirements
+
+- The environment must already be registered. Use [`xg env add`](./env-add.mdx) to register a new environment before activating it.
+- The environment must have a valid Client ID and Client Secret stored. Authentication is required for the metadata cache update that runs at activation time (unless `--no-cache` is passed).
+- License tier: **Pro** or higher. Attempting to run this command with a lower tier will produce a feature-gated error.
+
+## Synopsis
+
+```
+xg env activate <FRIENDLY_NAME> [OPTIONS]
+```
+
+## Arguments
+
+| Argument | Required | Description |
+|---|---|---|
+| `FRIENDLY_NAME` | Yes | The friendly name of the Dataverse environment to activate, as registered with `xg env add`. Names are case-insensitive. |
+
+## Options
+
+| Flag | Default | Description |
+|---|---|---|
+| `--no-cache` | `false` | Skip the metadata caching process during activation. The environment is still set as active; only the Dataverse metadata fetch is bypassed. |
+
+## Where the Active Environment State Is Persisted
+
+The active environment selection is stored in the XrmGhost local configuration file `d365_environments.json` under the platform-specific application data directory:
+
+| Platform | Path |
+|---|---|
+| **Windows** | `%LOCALAPPDATA%\XrmGhost\XrmGhostCli\d365_environments.json` |
+| **Linux** | `$XDG_DATA_HOME/xrmghost/xrmghostcli/d365_environments.json` (falls back to `~/.local/share/xrmghost/xrmghostcli/d365_environments.json`) |
+| **macOS** | `~/Library/Application Support/xrmghost/xrmghostcli/d365_environments.json` |
+
+The file stores an `ActiveEnvironmentFriendlyName` field that points to the currently active environment. Only one environment can be active at a time. To clear the active selection without switching to another environment, use [`xg env deactivate`](./env-deactivate.mdx).
+
+> **Risk note:** If you activate an environment on a machine that stores credentials locally, any process with access to the application data directory can identify which environment is currently selected. Credentials (client secrets) are stored separately in encrypted form under `environments_secure/` in the same base path.
+
+## Metadata Cache
+
+Unless `--no-cache` is passed, `env activate` connects to Dataverse using the stored Client ID and Client Secret and fetches full entity metadata (entities, attributes, relationships, and privileges) via a `RetrieveAllEntities` request. The result is serialised to:
+
+```
+<app-data-path>/metadata_cache/<FRIENDLY_NAME>/metadata.json
+```
+
+On subsequent activations, the CLI checks whether the cached metadata is still within the environment's configured `MetadataCacheLifecycle` window (default: 7 days). If the cache is still valid, the fetch is skipped automatically.
+
+## Exit Codes
+
+| Code | Meaning |
+|---|---|
+| `0` | Environment activated successfully |
+| `1` | Activation failed — environment not found, empty friendly name, or Dataverse connection error |
+
+## Examples
+
+### Activate an environment (with metadata cache update)
+
+```shell
+xg env activate my-dev-env
+```
+
+Connects to the Dataverse environment registered as `my-dev-env`, sets it as active, and updates the local metadata cache if the existing cache is stale or absent.
+
+### Activate an environment without updating the metadata cache
+
+```shell
+xg env activate my-dev-env --no-cache
+```
+
+Sets `my-dev-env` as the active environment immediately, bypassing the Dataverse metadata fetch. Useful when you want a fast context switch and the local cache is already adequate.
+
+### Check which environment is currently active after activation
+
+```shell
+xg env activate staging-eu
+xg env status
+```
+
+Activates `staging-eu` and then prints the current active environment status to confirm the switch.
+
+## See Also
+
+- [`xg env list`](./env-list.mdx) — List all registered Dataverse environments
+- [`xg env deactivate`](./env-deactivate.mdx) — Deactivate the currently active environment
+- [`xg env status`](./env-status.mdx) — Show the active environment and connection status
+- [CLI Overview](../index.mdx) — Introduction to the XrmGhost CLI and command groups

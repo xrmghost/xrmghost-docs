@@ -1,0 +1,121 @@
+---
+title: "xg license status"
+description: Display the current XrmGhost license status, including tier, expiration date, and active subscription claims.
+---
+
+# xg license status
+
+Display the current license status for this machine. The command contacts the AKMS licensing backend, resolves the active API key, and prints the tier, expiration date, and any subscription claims associated with the license.
+
+## Synopsis
+
+```
+xg license status [OPTIONS]
+```
+
+## Description
+
+`xg license status` queries the local API key store and the AKMS (API Key Management Service) backend to determine whether the machine holds a valid, active license.
+
+When a license is found the command prints:
+
+- **Status** — `License Active` (green) or `No Active License Found` (red).
+- **Tier** — the highest active subscription tier: `Free`, `Basic`, `Premium`, `Pro`, or `Enterprise`.
+- **Expires** — the UTC expiration timestamp of the license (`yyyy-MM-dd HH:mm:ss K` format).
+- **Expiration warning** — an amber warning if the license expires within 30 days; a red warning if it expires within 7 days.
+- **Subscription claims** — one entry per active subscription parsed from the JWT entitlement token (program name, tier, expiry). Shown in verbose mode only (see `--verbose`).
+
+When no valid license is found the command prints the `Unlicensed` / `Free` tier state and shows the activation hint.
+
+### License states
+
+| State | Condition | Tier shown |
+|---|---|---|
+| **Active** | API key present, AKMS validation succeeds, expiration date in the future | Resolved from subscription claims (`Basic`, `Premium`, `Pro`, `Enterprise`) |
+| **Unlicensed** | No API key stored, or AKMS validation fails | `Free` |
+| **Expiring soon** | Active license expires within 30 days | Same as Active, with amber warning |
+| **Expiring critically** | Active license expires within 7 days | Same as Active, with red warning |
+
+> **Note:** The license status is cached in-process for up to 2 minutes. If you just activated a license, run `xg license status` again after a few seconds to pick up the refreshed state.
+
+## Options
+
+| Option | Short | Type | Default | Description |
+|---|---|---|---|---|
+| `--verbose` | `-v` | flag | `false` | Print extended output including subscription claim details (program name, tier, expiry) parsed from the JWT entitlement token. |
+
+## Exit codes
+
+| Code | Meaning |
+|---|---|
+| `0` | License information retrieved successfully (regardless of license validity). |
+| `1` | An error occurred while contacting AKMS or reading the local API key store. |
+
+## Examples
+
+### Check license status (standard output)
+
+```
+$ xg license status
+
+XrmGhost License Status
+
+Retrieving license information...
+License Active
+  Tier: Pro
+  Expires: 2027-01-15 00:00:00 +00:00
+```
+
+### Check license status with verbose subscription claims
+
+```
+$ xg license status --verbose
+
+XrmGhost License Status
+
+Retrieving license information...
+License Active
+  Tier: Pro
+  Expires: 2027-01-15 00:00:00 +00:00
+
+Subscription Claims:
+  XrmGhost Pro (Active) - Expires: 2027-01-15
+```
+
+### Unlicensed machine
+
+```
+$ xg license status
+
+XrmGhost License Status
+
+Retrieving license information...
+No Active License Found
+  Status: Unlicensed
+  Tier: Free
+  Description: No active license was found on this machine.
+
+To activate a license, use: xg license activate <bootstrap-key>
+```
+
+### License expiring within 30 days
+
+```
+$ xg license status
+
+XrmGhost License Status
+
+Retrieving license information...
+License Active
+  Tier: Enterprise
+  Expires: 2026-05-25 00:00:00 +00:00
+
+⚠️  License expires in 18 days
+Consider renewing your license before it expires.
+```
+
+## See Also
+
+- [xg license activate](./license-activate.mdx) — Activate a license using a bootstrap key.
+- [xg license get-platform-id](./license-get-platform-id.mdx) — Display the unique machine identifier required for licensing.
+- [CLI Overview](../index.mdx) — Introduction to the `xg` command-line interface.

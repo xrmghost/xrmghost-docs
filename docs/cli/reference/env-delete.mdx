@@ -1,0 +1,103 @@
+---
+title: "xg env delete"
+description: Permanently remove a Dataverse environment configuration from the local XrmGhost environment store by its friendly name.
+---
+
+# `xg env delete`
+
+Permanently removes a Dataverse environment configuration from the local XrmGhost environment store. The command identifies the target environment by its **friendly name** and, before proceeding, interactively asks you to confirm the operation.
+
+> **Destructive operation — this cannot be undone.** Once deleted, the environment configuration (URL, client ID, cache settings) and its associated credential are removed from the local store. You would need to re-add the environment with [`xg env add`](./env-add.mdx) or re-import it with [`xg env import`](./env-import.mdx) to recover it.
+
+> **License requirement:** This command requires an active **Pro** (or higher) subscription. Run `xg license status` to verify your current tier.
+
+---
+
+## Synopsis
+
+```shell
+xg env delete <FRIENDLY_NAME>
+```
+
+---
+
+## Arguments
+
+| Argument | Required | Description |
+|---|---|---|
+| `<FRIENDLY_NAME>` | Yes | The friendly name of the environment to delete, exactly as it appears in `xg env list`. |
+
+---
+
+## Options
+
+`xg env delete` accepts no optional flags beyond the required positional argument above. Global options (e.g. `--help`) apply as normal.
+
+| Flag | Type | Default | Description |
+|---|---|---|---|
+| `--help` | `bool` | `false` | Display help text for this command and exit. |
+
+> **Note:** There is no `--force` flag. The confirmation prompt is always shown and cannot be bypassed from the command line. Press **Enter** (or type `n`) to cancel; type `y` to confirm deletion.
+
+---
+
+## Description
+
+`xg env delete` looks up the environment identified by `<FRIENDLY_NAME>` in the local configuration store (`d365_environments.json`). If the name is not found, the command prints an error message and exits with code `1`.
+
+When the environment is found, the command displays a confirmation prompt:
+
+```
+Are you sure you want to delete the environment '<FRIENDLY_NAME>'? This action cannot be undone. [y/n] (n):
+```
+
+The default answer is **no** (`n`). You must explicitly type `y` and press Enter to proceed. Any other input cancels the operation gracefully with a message and exit code `0`.
+
+After a confirmed deletion the environment entry is permanently removed from the store and the success message is printed in green.
+
+---
+
+## Exit Codes
+
+| Code | Meaning |
+|---|---|
+| `0` | Command completed successfully — either the environment was deleted, or the user cancelled the confirmation prompt. |
+| `1` | Environment not found (no matching friendly name); or license tier insufficient (Pro required). |
+
+---
+
+## Examples
+
+### Delete an environment (interactive confirmation)
+
+```shell
+$ xg env delete Production
+
+Are you sure you want to delete the environment 'Production'? This action cannot be undone. [y/n] (n): y
+Environment 'Production' has been successfully deleted.
+```
+
+### Cancel deletion at the confirmation prompt
+
+```shell
+$ xg env delete UAT
+
+Are you sure you want to delete the environment 'UAT'? This action cannot be undone. [y/n] (n): n
+Deletion cancelled by user.
+```
+
+### Attempt to delete a non-existent environment
+
+```shell
+$ xg env delete NonExistent
+
+Error: Environment 'NonExistent' not found.
+```
+
+---
+
+## See Also
+
+- [`xg env list`](./env-list.mdx) — List all registered Dataverse environments and see which one is currently active.
+- [`xg env add`](./env-add.mdx) — Add a new Dataverse environment through the interactive wizard.
+- [CLI Overview](../index.mdx) — Introduction to the XrmGhost CLI and its command groups.
