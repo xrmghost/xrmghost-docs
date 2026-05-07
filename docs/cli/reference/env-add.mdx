@@ -1,0 +1,91 @@
+---
+title: "xg env add"
+description: Launch the interactive wizard to register a new Dataverse environment configuration in XrmGhost.
+---
+
+# `xg env add`
+
+## Synopsis
+
+```shell
+xg env add
+```
+
+## Description
+
+`xg env add` opens an interactive wizard that collects all the information needed to register a new Dataverse environment with XrmGhost.
+
+The wizard prompts you for the following details in sequence:
+
+1. **Friendly name** — a short, unique label used to reference this environment in other `xg env` commands (e.g. `activate`, `delete`, `refresh`). Must not be empty; uniqueness is enforced by the service layer.
+2. **Environment URL** — the full HTTPS URL of your Dynamics 365 / Dataverse organisation (e.g. `https://myorg.crm.dynamics.com`). Must be a valid absolute HTTP/HTTPS URL.
+3. **Authentication method** — currently fixed to **Client Secret** (the only supported method). Displayed for informational purposes.
+4. **Client ID** — the Application (Client) ID of the Azure AD app registration used for authentication.
+5. **Client Secret** — the client secret for the Azure AD app registration. Input is masked. Must not be empty.
+6. **Metadata cache lifecycle** — how long XrmGhost keeps Dataverse metadata cached for this environment. Choose from a preset list or enter a custom duration.
+
+After the wizard completes, the environment configuration is saved and the client secret is stored securely in the platform credential store (Windows Credential Manager on Windows, or an equivalent secure store on other platforms).
+
+> **License requirement:** `xg env add` requires a **Pro** license tier. Running it without a valid Pro subscription will produce an error before the wizard starts.
+
+### Interactive-only mode
+
+`xg env add` is fully interactive — there are no non-interactive flags to pre-fill values. All inputs must be entered at the terminal prompt. Scripted or CI usage is not supported for this command.
+
+### Metadata cache lifecycle presets
+
+The wizard offers the following preset durations. Select **Custom** to enter a value manually.
+
+| Preset | Duration |
+|---|---|
+| `1 hour` | 1 hour |
+| `4 hours` | 4 hours |
+| `1 day` | 24 hours |
+| `1 week` *(default)* | 7 days |
+| `2 weeks` | 14 days |
+| `1 month` | ~30 days |
+| `Custom` | User-specified (see format below) |
+
+**Custom duration format:** a positive integer followed by a unit suffix — `m` (minutes), `h` (hours), or `d` (days). Examples: `30m`, `12h`, `3d`.
+
+## Options
+
+`xg env add` accepts no command-line flags or arguments. The entire configuration is gathered through the interactive wizard.
+
+| Flag | Type | Description |
+|---|---|---|
+| *(none)* | — | This command has no flags. All input is interactive. |
+
+## Exit Codes
+
+| Code | Meaning |
+|---|---|
+| `0` | Environment added successfully. |
+| `1` | Wizard cancelled, required information was missing, or a duplicate friendly name was supplied. |
+| `-1` | License tier check failed (Pro license required). |
+
+## Examples
+
+### Add a new environment (basic)
+
+```shell
+xg env add
+```
+
+Launch the wizard and follow the prompts to register a new Dataverse environment. After completing all steps, the environment is available immediately for use with other `xg env` commands.
+
+### Add an environment and verify it was registered
+
+```shell
+xg env add
+xg env list
+```
+
+Run `xg env add` to register the environment, then run `xg env list` to confirm it appears in the list of configured environments.
+
+## See Also
+
+- [`xg env list`](./env-list.mdx) — list all registered Dataverse environments
+- [`xg env edit`](./env-edit.mdx) — update the configuration of an existing environment
+- [`xg env delete`](./env-delete.mdx) — remove a registered environment
+- [CLI Overview](../index.mdx)
