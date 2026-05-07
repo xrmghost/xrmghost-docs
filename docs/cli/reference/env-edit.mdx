@@ -1,0 +1,118 @@
+---
+title: "xg env edit"
+description: Edit an existing Dynamics 365 environment configuration interactively. Launches a wizard that allows you to update the friendly name, environment URL, Client ID, Client Secret, and metadata cache lifecycle of a registered environment.
+---
+
+# `xg env edit`
+
+Edit an existing Dynamics 365 environment configuration interactively.
+
+:::info Pro licence required
+`env edit` is a **Pro-tier** feature. Ensure your licence is active and at the Pro level before running this command. Use [`xg license status`](../reference/license-status.mdx) to verify.
+:::
+
+## Synopsis
+
+```
+ghost-plugin-cli env edit <FRIENDLY_NAME>
+```
+
+## Description
+
+`xg env edit` opens an interactive wizard that lets you modify the settings of a previously registered Dataverse environment. The environment is identified by its **friendly name** — a short human-readable label you assigned when the environment was first added.
+
+Once invoked, the wizard pre-populates every prompt with the current value of the field. Press **Enter** to accept the existing value, or type a replacement to overwrite it.
+
+### What the wizard edits
+
+The wizard walks you through the following fields in order:
+
+1. **Friendly name** — the human-readable label used to identify the environment in all other commands.
+2. **Environment URL** — the Dataverse organisation URL (e.g., `https://myorg.crm.dynamics.com`). Must be a valid absolute `https://` URL.
+3. **Client ID** — the Azure AD application (client) ID used for authentication.
+4. **Client Secret** — the Azure AD application secret. Leave blank to keep the existing secret without changing it.
+5. **Metadata cache lifecycle** — how long the Dataverse metadata cache is considered fresh before an automatic refresh is triggered. Select from a preset list or enter a custom duration.
+
+### Secret handling
+
+The Client Secret is stored separately from the environment configuration file. When editing:
+
+- If you enter a new secret, it replaces the stored secret.
+- If you leave the secret prompt blank, the existing stored secret is preserved.
+- If you also change the friendly name, the secret is automatically migrated to use the new name as its identifier. The old secret entry is removed.
+
+### Metadata cache lifecycle presets
+
+The wizard offers the following preset durations for the metadata cache lifecycle:
+
+| Option | Duration |
+|---|---|
+| `1 hour` | 1 hour |
+| `4 hours` | 4 hours |
+| `1 day` | 24 hours |
+| `1 week` | 7 days _(default)_ |
+| `2 weeks` | 14 days |
+| `1 month` | 30 days (approximate) |
+| `Custom` | User-defined — enter a value such as `30m`, `2h`, or `3d` |
+
+Custom durations use the suffix `m` (minutes), `h` (hours), or `d` (days).
+
+## Arguments
+
+| Argument | Required | Description |
+|---|---|---|
+| `<FRIENDLY_NAME>` | Yes | The friendly name of the environment configuration to edit. Must match an existing registered environment exactly. |
+
+## Options
+
+`env edit` has no additional flags beyond the required positional argument. All editable fields are collected interactively by the wizard after invocation.
+
+| Option | Description |
+|---|---|
+| `--help` | Display help information for this command and exit. |
+
+## Exit codes
+
+| Code | Meaning |
+|---|---|
+| `0` | Environment updated successfully. |
+| `1` | Error — environment not found, wizard cancelled, or an unexpected failure occurred. |
+
+## Examples
+
+### Edit an environment interactively
+
+```shell
+ghost-plugin-cli env edit "My Dev Org"
+```
+
+Launches the interactive wizard for the environment registered as `My Dev Org`. Each prompt is pre-populated with the current value; press Enter to keep it or type a new value to replace it.
+
+### Rename an environment and update the Client Secret
+
+```shell
+ghost-plugin-cli env edit staging-old
+```
+
+Run the wizard, change the friendly name from `staging-old` to `staging-v2`, enter a new Client Secret when prompted, and confirm all other fields. The secret is automatically migrated to the new name.
+
+### Change only the metadata cache lifecycle
+
+```shell
+ghost-plugin-cli env edit "Production"
+```
+
+Accept every prompt with its current value (press Enter) until you reach the metadata cache lifecycle selection. Choose `Custom`, then enter `1d` to set the cache to expire after 1 day.
+
+## Non-interactive usage
+
+`env edit` always launches an interactive wizard — it cannot be driven entirely from CLI flags in the current version. To automate environment management, consider exporting the configuration with [`env export`](./env-export.mdx), editing the JSON file, and re-importing it with [`env import`](./env-import.mdx).
+
+If the terminal is non-interactive (e.g., a CI pipeline), the wizard prompts will fail to receive input and the command will exit with code `1`. Use scripted `env import` workflows for non-interactive environments.
+
+## See Also
+
+- [`env list`](./env-list.mdx) — list all registered environments and see which one is active
+- [`env add`](./env-add.mdx) — add a new environment configuration using the same interactive wizard
+- [`env delete`](./env-delete.mdx) — remove a registered environment configuration
+- [CLI Overview](../index.mdx) — overview of the `xrmghost` CLI and its command groups
