@@ -1,0 +1,131 @@
+---
+title: xg env import
+description: Import one or more Dataverse environment configurations from a JSON file into the local XrmGhost environment store.
+---
+
+# xg env import
+
+Import environment configurations from a JSON file into the local XrmGhost environment store. Supports both a single environment object and a bulk import file (array wrapped in an `environments` key). When an imported environment already exists by `FriendlyName`, the command interactively prompts to **Skip** or **Overwrite** the conflict.
+
+> **License requirement:** `env import` requires a **Pro** license tier. Run `xg license status` to verify your tier.
+
+---
+
+## Synopsis
+
+```shell
+xg env import <FILE_PATH>
+```
+
+---
+
+## Arguments
+
+| Argument | Required | Description |
+|---|---|---|
+| `<FILE_PATH>` | Yes | Path to the JSON file containing the environment configuration(s) to import. |
+
+---
+
+## Options
+
+`env import` has no optional flags beyond the required positional argument above. Global options (e.g. `--help`) apply as normal.
+
+| Flag | Type | Default | Description |
+|---|---|---|---|
+| `--help` | `bool` | `false` | Display help text for this command and exit. |
+
+---
+
+## Input File Format
+
+The command accepts two JSON shapes:
+
+### Single environment object
+
+```json
+{
+  "FriendlyName": "My Dev Environment",
+  "EnvironmentUrl": "https://myorg.crm.dynamics.com",
+  "AuthenticationMethod": "ClientSecret",
+  "ClientId": "00000000-0000-0000-0000-000000000001",
+  "MetadataCacheLifecycle": "7.00:00:00"
+}
+```
+
+### Bulk import file (array wrapped in `environments`)
+
+```json
+{
+  "environments": [
+    {
+      "FriendlyName": "Dev",
+      "EnvironmentUrl": "https://dev.crm.dynamics.com",
+      "AuthenticationMethod": "ClientSecret",
+      "ClientId": "00000000-0000-0000-0000-000000000001",
+      "MetadataCacheLifecycle": "7.00:00:00"
+    },
+    {
+      "FriendlyName": "QA",
+      "EnvironmentUrl": "https://qa.crm.dynamics.com",
+      "AuthenticationMethod": "ClientSecret",
+      "ClientId": "00000000-0000-0000-0000-000000000002",
+      "MetadataCacheLifecycle": "7.00:00:00"
+    }
+  ]
+}
+```
+
+> **Client secret handling:** The `ClientSecret` field is deliberately excluded from files produced by `xg env export` (it is marked `[JsonIgnore]` during export). If the import file does not contain a `ClientSecret` and the environment uses `ClientSecret` authentication, the command will interactively prompt you to enter it. To automate imports, pre-populate the field in the JSON before running the command in a non-interactive context.
+
+---
+
+## Conflict Resolution
+
+If an environment with the same `FriendlyName` already exists in the local store, the command presents an interactive prompt with the following choices:
+
+| Choice | Behaviour |
+|---|---|
+| **Skip** | The conflicting environment is left unchanged. The import counter increments `skipped`. |
+| **Overwrite** | The existing configuration is replaced with the imported one. The import counter increments `overwritten`. |
+
+A third option, **Rename**, is currently shown in the prompt but is not yet implemented — selecting it results in a skip.
+
+---
+
+## Exit Codes
+
+| Code | Meaning |
+|---|---|
+| `0` | Command completed (may include skipped entries). |
+| `1` | Fatal error: file not found, file read failure, or JSON parse error. |
+
+---
+
+## Examples
+
+### Import a single environment from a file
+
+```shell
+xg env import ./environments/dev.json
+```
+
+### Import multiple environments from a bulk export
+
+```shell
+xg env import ./all_environments.json
+```
+
+### Import from an absolute path
+
+```shell
+xg env import /home/user/configs/xrmghost-envs.json
+```
+
+---
+
+## See Also
+
+- [`xg env template`](./env-template.mdx) — Generate a blank environment configuration JSON ready to fill in and import.
+- [`xg env list`](./env-list.mdx) — List all currently registered Dataverse environments.
+- [CLI Overview](../index.mdx) — Introduction to the `xg` CLI, command groups, and how this documentation is organised.
