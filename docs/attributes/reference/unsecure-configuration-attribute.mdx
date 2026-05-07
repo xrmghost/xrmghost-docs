@@ -1,0 +1,36 @@
+---
+title: UnsecureConfigurationAttribute
+description: Manual reference for the UnsecureConfigurationAttribute public contract in XrmGhost.Attributes.
+---
+
+# UnsecureConfigurationAttribute
+
+`UnsecureConfigurationAttribute` stores a default unsecure configuration string on the plugin class for XrmGhost consumers.
+
+## Manual Reference Note
+
+This is a **manual** reference page based on the current public contract in `xrmghost-attributes`, which remains the source of truth until any future generated reference exists.
+
+## Usage Shape
+
+```csharp
+[UnsecureConfigurationAttribute("public-cfg")]
+```
+
+## Constructor
+
+- `UnsecureConfigurationAttribute(string configuration)`
+
+## Public Members
+
+- `Configuration` — unsecure configuration string.
+
+## Validation and Limits
+
+- The current public constructor stores the provided configuration directly.
+- The attribute does not add extra schema or secret-handling validation.
+- Consumers decide how and when the configuration value is used.
+
+## When to Use It
+
+Use this attribute when local tooling or scenario setup needs an explicit default unsecure configuration value.

@@ -1,0 +1,35 @@
+---
+title: HandlesMessageAttribute
+description: Manual reference for the HandlesMessageAttribute public contract in XrmGhost.Attributes.
+---
+
+# HandlesMessageAttribute
+
+`HandlesMessageAttribute` declares that a plugin class handles a specific Dataverse message such as `Create` or `Update`.
+
+## Manual Reference Note
+
+This is a **manual** reference page based on the current public contract in `xrmghost-attributes`, which remains the source of truth until any future generated reference exists.
+
+## Usage Shape
+
+```csharp
+[HandlesMessageAttribute("Update")]
+```
+
+## Constructor
+
+- `HandlesMessageAttribute(string messageName)`
+
+## Public Members
+
+- `MessageName` — required message name stored on the attribute instance.
+
+## Validation and Limits
+
+- The constructor throws when `messageName` is null, empty, or whitespace.
+- The attribute only records the declared message name; downstream tools decide how to interpret it.
+
+## When to Use It
+
+Use this attribute when message-level intent should be explicit on the plugin class, especially when tooling reads attributes via reflection.

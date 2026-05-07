@@ -1,0 +1,36 @@
+---
+title: SecureConfigurationAttribute
+description: Manual reference for the SecureConfigurationAttribute public contract in XrmGhost.Attributes.
+---
+
+# SecureConfigurationAttribute
+
+`SecureConfigurationAttribute` stores a default secure configuration string on the plugin class for XrmGhost consumers.
+
+## Manual Reference Note
+
+This is a **manual** reference page based on the current public contract in `xrmghost-attributes`, which remains the source of truth until any future generated reference exists.
+
+## Usage Shape
+
+```csharp
+[SecureConfigurationAttribute("secret-cfg")]
+```
+
+## Constructor
+
+- `SecureConfigurationAttribute(string configuration)`
+
+## Public Members
+
+- `Configuration` — secure configuration string.
+
+## Validation and Limits
+
+- The current public constructor stores the provided configuration directly.
+- The source comments explicitly note that real Dataverse secure configuration is platform-managed; this attribute exists for simulation, testing, and scenario generation within XrmGhost.
+- Sensitive values should still be handled carefully even when the attribute is only metadata.
+
+## When to Use It
+
+Use this attribute when a consumer needs a default secure configuration value for local tooling, simulation, or generated scenario setup.

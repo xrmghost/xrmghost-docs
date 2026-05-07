@@ -39,13 +39,16 @@ The package itself is intentionally small: it defines attribute classes and ligh
 | Section | Description |
 |---|---|
 | [Getting Started](./getting-started.mdx) | Learn the core concepts, see a concrete plugin example, and understand the current validation boundary. |
-| Future schema reference | The generated reference is planned for `docs/attributes/schema/` when the schema pipeline exists. |
+| [Manual Attribute Reference](./reference/index.mdx) | Browse one manual reference page per current public attribute while generated exports do not yet exist. |
+| Future schema reference | The generated reference is still planned separately once the schema pipeline exists. |
 
 ## Narrative Docs vs. Future Generated Reference
 
-This section is intentionally narrative first. It explains how the package fits into XrmGhost and how to use it safely without pretending that exhaustive reference pages already exist.
+This section is intentionally narrative first. It explains how the package fits into XrmGhost and how to use it safely without pretending that exhaustive generated reference pages already exist.
 
-When generated reference content becomes available, `docs/attributes/schema/` is the planned location for exhaustive attribute-by-attribute detail. Until then, these pages focus on package purpose, usage shape, and the limits of what is public today.
+The current public contract in `xrmghost-attributes` is the source of truth. The new [manual attribute reference](./reference/index.mdx) is authored by hand from that contract today, and it can later be replaced or supplemented by generated output when the schema pipeline exists.
+
+When generated reference content becomes available, `docs/attributes/schema/` remains the planned location for exhaustive schema-level detail. Until then, these pages focus on package purpose, usage shape, and the limits of what is public today.
 
 ## Product Ownership
 
