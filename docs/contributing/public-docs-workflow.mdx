@@ -1,6 +1,6 @@
 ---
 title: How to Add a New Docs Page
-description: Step-by-step workflow for adding a new page to the XrmGhost public documentation, including frontmatter rules, folder naming conventions, and how to find the right product owner.
+description: Step-by-step workflow for adding a new page to the XrmGhost public documentation, including frontmatter rules, folder naming conventions, CLI docs decision path, and how to find the right product owner.
 ---
 
 # How to Add a New Docs Page
@@ -79,6 +79,40 @@ The first repo-level public docs slice for `docs/attributes/` exposed a few reus
 - **Separate narrative guidance from generated reference early.** If exhaustive schema pages are not available yet, document the package purpose and usage shape now, and reserve a future location such as `docs/<area>/schema/` for generated content later.
 - **Use bounded TODOs only for missing reference material.** Narrative basics such as purpose, audience, and a starter example should be written as soon as they are known; TODO markers should remain limited to honestly missing generated or machine-derived content.
 - **Record template gaps when they appear.** If a placeholder page required extra explanation about source-of-truth boundaries or future generated content, add that guidance here so the next team does not rediscover it from scratch.
+
+## 5.2 CLI Docs Contributor Decision Path
+
+When making CLI-related documentation changes, choose your path based on what you are changing:
+
+### Path A — Narrative-only change (stays in `xrmghost-docs`)
+
+You are editing the conceptual overview, getting-started guide, or any human-written explanation of the CLI.
+
+- **Files:** `docs/cli/index.mdx`, `docs/cli/getting-started.mdx` (or other narrative files outside `docs/cli/reference/`).
+- **Where to work:** This repository (`xrmghost-docs`).
+- **PR target:** `xrmghost-docs` `main`.
+- **Reviewer:** Documentation team or CLI team.
+- **Do not** touch `docs/cli/reference/` files in this PR.
+
+### Path B — Generator or source-driven change (starts in `xrmghost-cli`)
+
+You are changing a CLI command, its `--help` text, its flags, or the command manifest that feeds the reference generator.
+
+- **Where to work:** `xrmghost-cli` repository.
+- **PR target:** `xrmghost-cli` (its own review and merge process).
+- **Effect on `xrmghost-docs`:** After the `xrmghost-cli` change merges and the generator runs, updated files land under `docs/cli/reference/` automatically. **Do not** manually replicate those changes in `xrmghost-docs`.
+- **Reviewer:** CLI team in `xrmghost-cli`. Approval in `xrmghost-docs` does not substitute for approval in `xrmghost-cli`.
+
+### Path C — Coordinated docs-plus-generator change (linked workstream or single shared PR)
+
+You need to update both the CLI source/generator in `xrmghost-cli` **and** narrative or contract documentation in `xrmghost-docs` as part of the same logical change (for example, a new command that also needs a narrative walkthrough, or a generator contract change that also updates architecture docs).
+
+- **Acceptable approach:** A single shared PR or coordinated workstream that touches both repositories is acceptable when both sides must move together.
+- **Required:** The PR or workstream description must clearly identify which changes are narrative (owned by `xrmghost-docs`) and which are source/generator changes (owned by `xrmghost-cli`), with appropriate reviewers from each team.
+- **Not acceptable:** Using a shared PR as a bypass to skip `xrmghost-cli` review for generator or source changes, or to manually edit generated files in `docs/cli/reference/` without running the generator.
+- **Do not** let the shared PR scope drift into editing generated reference files directly. Generated content under `docs/cli/reference/` must always originate from the generator run, not from hand edits.
+
+> See [Content Ownership — CLI Ownership Boundary](../architecture/content-ownership.mdx) for the authoritative ownership split, and [Generated vs Manual — CLI Generation Contract](../architecture/generated-vs-manual.mdx) for the full generation rules.
 
 ## 6. Open a Pull Request
 
