@@ -10,7 +10,7 @@ desktop.ini
 *.swo
 *~
 
-# Build output from downstream tooling (should never live here, but guard anyway)
+# Build output
 dist/
 .astro/
 .next/
@@ -18,7 +18,7 @@ dist/
 out/
 build/
 
-# Node (should never live here, but guard anyway)
+# Node
 node_modules/
 npm-debug.log*
 yarn-error.log*
@@ -31,3 +31,6 @@ pnpm-debug.log*
 
 # Internal swarm/ACT/REVIEW artifacts — local only
 docs/swarm/
+
+# Windows NTFS alternate data stream artifacts
+*:Zone.Identifier

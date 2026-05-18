@@ -1,0 +1,12 @@
+:root {
+  /* default Starlight: --sl-content-width: 45rem; */
+  --sl-content-width: 60rem;     /* contenuto centrale più largo */
+  
+  /* default Starlight: --sl-sidebar-width: 18.75rem (sidebar sx) */
+  /* la sidebar di destra eredita da questa o ha sua var dedicata, dipende dalla versione */
+}
+
+/* "On this page" più stretto */
+.right-sidebar-panel {
+  --sl-sidebar-width: 14rem;
+}
