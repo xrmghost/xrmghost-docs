@@ -11,7 +11,7 @@ This page defines who owns each section of the public XrmGhost documentation and
 
 | Docs Section | Path | Owning Repo | Owning Team | Update Process |
 |---|---|---|---|---|
-| Getting Started | `docs/getting-started.mdx` | `xrmghost-docs` | Documentation / DevRel | Edit MDX in this repo, raise PR, merge to `main` |
+| Getting Started | `docs/getting-started.mdx` | `xrmghost-docs` | Documentation / DevRel | Edit MDX in this repo, raise PR, merge to `dev` |
 | CLI Narrative | `docs/cli/index.mdx`, `docs/cli/getting-started.mdx` | `xrmghost-docs` | Documentation / CLI team | Edit MDX in this repo, raise PR to `xrmghost-docs` |
 | CLI Reference (generated) | `docs/cli/reference/` | `xrmghost-cli` (source); `xrmghost-docs` (output) | CLI team | Changes go to `xrmghost-cli`; generator publishes output here — see [Generated vs Manual](./generated-vs-manual.mdx) |
 | Attributes Reference | `docs/attributes/` | `xrmghost-docs` (narrative); `xrmghost-attributes` (schema) | Attributes team + Documentation | Same split as CLI: narrative here, schema-derived content future |
@@ -37,16 +37,16 @@ The CLI docs surface has two distinct ownership zones that must not be conflated
 
 ### xrmghost-user-portal Role
 
-`xrmghost-user-portal` **consumes** the documentation from `xrmghost-docs`. It is **not** an authoring surface. The portal team advances its submodule pointer or runs a sync script after changes merge to `main` in `xrmghost-docs`. The portal never becomes the source of truth for any documentation content.
+`xrmghost-user-portal` **consumes** the documentation from `xrmghost-docs`. It is **not** an authoring surface. The portal team advances its submodule pointer or runs a sync script after changes merge to `dev` in `xrmghost-docs`. The portal never becomes the source of truth for any documentation content.
 
 ## Update Process Detail
 
 ### For narrative / manually authored content
 
 1. Author edits the relevant `.mdx` file(s) in this repo.
-2. Author opens a pull request against the `main` branch.
+2. Author opens a pull request against the `dev` branch.
 3. At least one reviewer from the owning team approves.
-4. Merge to `main`.
+4. Merge to `dev`.
 5. Portal team advances the submodule pointer (or runs the sync script) to publish.
 
 ### For generated CLI reference content (future)
@@ -57,7 +57,7 @@ The CLI docs surface has two distinct ownership zones that must not be conflated
 2. Generation pipeline runs against the updated `xrmghost-cli` artifact.
 3. Generated MDX files land under `docs/cli/reference/` in `xrmghost-docs` via an automated commit or PR.
 4. Generated files are **not** manually edited. If the output is wrong, fix the source in `xrmghost-cli`.
-5. Portal team advances submodule pointer after generated content lands in `main`.
+5. Portal team advances submodule pointer after generated content lands in `dev`.
 
 See [Generated vs Manual](./generated-vs-manual.mdx) for the full CLI generation contract.
 

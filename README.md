@@ -56,7 +56,7 @@ npm run preview  # previews the production build locally
 
 ## Deployment
 
-The deployment target is GitHub Pages on pushes to `main`, with `.github/workflows/deploy.yml` as the expected repository workflow entry point.
+The deployment target is GitHub Pages on pushes to `dev`, with `.github/workflows/deploy.yml` as the expected repository workflow entry point.
 
 The public site is served from `https://docs.xrmghost.tech`. The custom domain should be kept aligned through a DNS CNAME record and the repository `public/CNAME` file.
 

@@ -90,7 +90,7 @@ You are editing the conceptual overview, getting-started guide, or any human-wri
 
 - **Files:** `docs/cli/index.mdx`, `docs/cli/getting-started.mdx` (or other narrative files outside `docs/cli/reference/`).
 - **Where to work:** This repository (`xrmghost-docs`).
-- **PR target:** `xrmghost-docs` `main`.
+- **PR target:** `xrmghost-docs` `dev`.
 - **Reviewer:** Documentation team or CLI team.
 - **Do not** touch `docs/cli/reference/` files in this PR.
 
@@ -116,15 +116,15 @@ You need to update both the CLI source/generator in `xrmghost-cli` **and** narra
 
 ## 6. Open a Pull Request
 
-1. Branch off `main` using the naming convention `docs/<short-description>` (or the swarm branch convention if operating in a swarm run).
+1. Branch off `dev` using the naming convention `docs/<short-description>` (or the swarm branch convention if operating in a swarm run).
 2. Add only the files you own or have been given permission to touch.
 3. Request a review from at least one person on the owning team (see [Content Ownership](../architecture/content-ownership.mdx)).
 4. Pass CI checks (frontmatter lint, MDX parse).
-5. Merge to `main` after approval.
+5. Merge to `dev` after approval.
 
 ## 7. Publishing to the Portal
 
-Publishing is controlled by the `xrmghost-user-portal` team. After your PR merges to `main`:
+Publishing is controlled by the `xrmghost-user-portal` team. After your PR merges to `dev`:
 
 - The portal team advances the submodule pointer (or runs the sync script) to pick up your changes.
 - You do not need to take action in the portal repository unless you are also the portal maintainer.
@@ -138,4 +138,4 @@ For details on how the portal consumes this repo, see [Source of Truth](../archi
 - [ ] File name is lowercase and hyphen-separated
 - [ ] Frontmatter includes `title` and `description`
 - [ ] No fake content — used `> **TODO**:` markers where content is missing
-- [ ] PR targets `main`, reviewer from owning team assigned
+- [ ] PR targets `dev`, reviewer from owning team assigned
