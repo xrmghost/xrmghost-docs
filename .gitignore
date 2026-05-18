@@ -34,3 +34,5 @@ docs/swarm/
 
 # Windows NTFS alternate data stream artifacts
 *:Zone.Identifier
+.opencode/
+search_results.txt

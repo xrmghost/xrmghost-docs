@@ -12,7 +12,7 @@ This guide covers everything you need to add a new `.mdx` page to `xrmghost-docs
 Before writing anything, confirm your change falls within your team's ownership area:
 
 1. Open [Content Ownership](../architecture/content-ownership.mdx).
-2. Locate the section that matches the content you want to add (e.g. `docs/cli/`, `docs/attributes/`).
+2. Locate the section that matches the content you want to add (e.g. `src/content/docs/cli/`, `src/content/docs/attributes/`).
 3. Check the **Owning Team** column.
 4. If the section does not exist yet or the owner is unclear, contact the **Documentation team** as interim owner.
 
@@ -20,14 +20,14 @@ Before writing anything, confirm your change falls within your team's ownership 
 
 ## 2. Choose the Right Folder
 
-The `docs/` folder hierarchy mirrors the site navigation. Follow these naming rules:
+The `src/content/docs/` folder hierarchy mirrors the site navigation. Follow these naming rules:
 
 | Rule | Example |
 |---|---|
-| Use lowercase, hyphen-separated folder names | `docs/my-product/` |
-| Each section must have an `index.mdx` as its landing page | `docs/my-product/index.mdx` |
-| Sub-sections live in nested folders | `docs/my-product/advanced/index.mdx` |
-| Do not invent deeply nested hierarchies speculatively — start flat | `docs/my-product/getting-started.mdx` |
+| Use lowercase, hyphen-separated folder names | `src/content/docs/my-product/` |
+| Each section must have an `index.mdx` as its landing page | `src/content/docs/my-product/index.mdx` |
+| Sub-sections live in nested folders | `src/content/docs/my-product/advanced/index.mdx` |
+| Do not invent deeply nested hierarchies speculatively — start flat | `src/content/docs/my-product/getting-started.mdx` |
 
 If a folder already exists for your product area, add your page there. Do not create a parallel folder.
 
@@ -36,7 +36,7 @@ If a folder already exists for your product area, add your page there. Do not cr
 Create a new `.mdx` file in the appropriate folder. The file name should be lowercase and hyphen-separated.
 
 ```
-docs/my-product/my-new-page.mdx
+src/content/docs/my-product/my-new-page.mdx
 ```
 
 ## 4. Write the Frontmatter
@@ -73,10 +73,10 @@ The build will reject any `.mdx` file that is missing `title` or `description`.
 
 ## 5.1 Template Learnings from the First Real Docs Slice
 
-The first repo-level public docs slice for `docs/attributes/` exposed a few reusable lessons for future work:
+The first repo-level public docs slice for `src/content/docs/attributes/` exposed a few reusable lessons for future work:
 
 - **Start from a real package surface, not the template headings.** Pull examples and terminology from the source package README or code so the first draft is anchored in what actually exists.
-- **Separate narrative guidance from generated reference early.** If exhaustive schema pages are not available yet, document the package purpose and usage shape now, and reserve a future location such as `docs/<area>/schema/` for generated content later.
+- **Separate narrative guidance from generated reference early.** If exhaustive schema pages are not available yet, document the package purpose and usage shape now, and reserve a future location such as `src/content/docs/<area>/schema/` for generated content later.
 - **Use bounded TODOs only for missing reference material.** Narrative basics such as purpose, audience, and a starter example should be written as soon as they are known; TODO markers should remain limited to honestly missing generated or machine-derived content.
 - **Record template gaps when they appear.** If a placeholder page required extra explanation about source-of-truth boundaries or future generated content, add that guidance here so the next team does not rediscover it from scratch.
 
@@ -88,11 +88,11 @@ When making CLI-related documentation changes, choose your path based on what yo
 
 You are editing the conceptual overview, getting-started guide, or any human-written explanation of the CLI.
 
-- **Files:** `docs/cli/index.mdx`, `docs/cli/getting-started.mdx` (or other narrative files outside `docs/cli/reference/`).
+- **Files:** `src/content/docs/cli/index.mdx`, `src/content/docs/cli/getting-started.mdx` (or other narrative files outside `src/content/docs/cli/reference/`).
 - **Where to work:** This repository (`xrmghost-docs`).
 - **PR target:** `xrmghost-docs` `dev`.
 - **Reviewer:** Documentation team or CLI team.
-- **Do not** touch `docs/cli/reference/` files in this PR.
+- **Do not** touch `src/content/docs/cli/reference/` files in this PR.
 
 ### Path B — Generator or source-driven change (starts in `xrmghost-cli`)
 
@@ -100,7 +100,7 @@ You are changing a CLI command, its `--help` text, its flags, or the command man
 
 - **Where to work:** `xrmghost-cli` repository.
 - **PR target:** `xrmghost-cli` (its own review and merge process).
-- **Effect on `xrmghost-docs`:** After the `xrmghost-cli` change merges and the generator runs, updated files land under `docs/cli/reference/` automatically. **Do not** manually replicate those changes in `xrmghost-docs`.
+- **Effect on `xrmghost-docs`:** After the `xrmghost-cli` change merges and the generator runs, updated files land under `src/content/docs/cli/reference/` automatically. **Do not** manually replicate those changes in `xrmghost-docs`.
 - **Reviewer:** CLI team in `xrmghost-cli`. Approval in `xrmghost-docs` does not substitute for approval in `xrmghost-cli`.
 
 ### Path C — Coordinated docs-plus-generator change (linked workstream or single shared PR)
@@ -109,8 +109,8 @@ You need to update both the CLI source/generator in `xrmghost-cli` **and** narra
 
 - **Acceptable approach:** A single shared PR or coordinated workstream that touches both repositories is acceptable when both sides must move together.
 - **Required:** The PR or workstream description must clearly identify which changes are narrative (owned by `xrmghost-docs`) and which are source/generator changes (owned by `xrmghost-cli`), with appropriate reviewers from each team.
-- **Not acceptable:** Using a shared PR as a bypass to skip `xrmghost-cli` review for generator or source changes, or to manually edit generated files in `docs/cli/reference/` without running the generator.
-- **Do not** let the shared PR scope drift into editing generated reference files directly. Generated content under `docs/cli/reference/` must always originate from the generator run, not from hand edits.
+- **Not acceptable:** Using a shared PR as a bypass to skip `xrmghost-cli` review for generator or source changes, or to manually edit generated files in `src/content/docs/cli/reference/` without running the generator.
+- **Do not** let the shared PR scope drift into editing generated reference files directly. Generated content under `src/content/docs/cli/reference/` must always originate from the generator run, not from hand edits.
 
 > See [Content Ownership — CLI Ownership Boundary](../architecture/content-ownership.mdx) for the authoritative ownership split, and [Generated vs Manual — CLI Generation Contract](../architecture/generated-vs-manual.mdx) for the full generation rules.
 
@@ -134,7 +134,7 @@ For details on how the portal consumes this repo, see [Source of Truth](../archi
 ## Summary Checklist
 
 - [ ] Confirmed correct product owner in [Content Ownership](../architecture/content-ownership.mdx)
-- [ ] File placed in the correct `docs/` subfolder
+- [ ] File placed in the correct `src/content/docs/` subfolder
 - [ ] File name is lowercase and hyphen-separated
 - [ ] Frontmatter includes `title` and `description`
 - [ ] No fake content — used `> **TODO**:` markers where content is missing

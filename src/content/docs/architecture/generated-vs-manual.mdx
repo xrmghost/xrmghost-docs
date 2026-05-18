@@ -15,12 +15,12 @@ All content currently in this repository is manual content:
 
 | File / Path | Type | Notes |
 |---|---|---|
-| `docs/getting-started.mdx` | Manual | Narrative first-run guide |
-| `docs/cli/index.mdx` | Manual | Narrative CLI overview |
-| `docs/cli/getting-started.mdx` | Manual | Narrative CLI getting-started guide |
-| `docs/attributes/index.mdx` | Manual | Narrative attributes overview |
-| `docs/architecture/` | Manual | Architecture and governance docs |
-| `docs/contributing/index.mdx` | Manual | Contribution guidelines |
+| `src/content/docs/getting-started.mdx` | Manual | Narrative first-run guide |
+| `src/content/docs/cli/index.mdx` | Manual | Narrative CLI overview |
+| `src/content/docs/cli/getting-started.mdx` | Manual | Narrative CLI getting-started guide |
+| `src/content/docs/attributes/index.mdx` | Manual | Narrative attributes overview |
+| `src/content/docs/architecture/` | Manual | Architecture and governance docs |
+| `src/content/docs/contributing/index.mdx` | Manual | Contribution guidelines |
 
 Manual content is version-controlled here and reviewed through pull requests before publication.
 
@@ -36,7 +36,7 @@ Generated content is produced programmatically from source artifacts in other re
 
 The following locations are reserved for generated content once the relevant pipelines are built:
 
-#### CLI Reference (`docs/cli/reference/`)
+#### CLI Reference (`src/content/docs/cli/reference/`)
 
 > **TODO** (ADO-1175): Implement per-command reference page generation once the generator is built in `xrmghost-cli`.
 
@@ -48,16 +48,16 @@ The following terms govern how future CLI reference content is sourced, placed, 
 |---|---|
 | **Source repository** | `xrmghost-cli` |
 | **Source artifact** | Structured command manifest or `--help` output exposed by the CLI tool |
-| **Destination path** | `docs/cli/reference/` within `xrmghost-docs` |
-| **File naming** | `docs/cli/reference/<command>.mdx` (one file per top-level or sub-command) |
+| **Destination path** | `src/content/docs/cli/reference/` within `xrmghost-docs` |
+| **File naming** | `src/content/docs/cli/reference/<command>.mdx` (one file per top-level or sub-command) |
 | **Generation trigger** | CI pipeline or automation run against a tagged `xrmghost-cli` release |
-| **Do not hand-edit** | Files under `docs/cli/reference/` **must not** be manually edited once generation is active |
+| **Do not hand-edit** | Files under `src/content/docs/cli/reference/` **must not** be manually edited once generation is active |
 | **Review authority** | Changes to CLI reference output are reviewed in `xrmghost-cli` at the source; ad hoc edits to generated files in `xrmghost-docs` are not accepted |
 | **Conflict resolution** | If a generated file needs correction, fix the source in `xrmghost-cli` and re-run the generator |
 
-#### Attribute Schema Reference (`docs/attributes/schema/`)
+#### Attribute Schema Reference (`src/content/docs/attributes/schema/`)
 
-> **TODO**: Auto-generate attribute schema reference from the JSON/YAML schemas in `xrmghost-attributes`. Files will land at `docs/attributes/schema/<attribute>.mdx`. Same rule applies: do not manually edit generated files.
+> **TODO**: Auto-generate attribute schema reference from the JSON/YAML schemas in `xrmghost-attributes`. Files will land at `src/content/docs/attributes/schema/<attribute>.mdx`. Same rule applies: do not manually edit generated files.
 
 ## Rules
 
@@ -65,7 +65,7 @@ The following terms govern how future CLI reference content is sourced, placed, 
 2. **Generated files must be clearly marked.** Add a frontmatter field `generated: true` and a comment at the top of the file indicating the source and generation timestamp.
 3. **Generated files are not reviewed through PR in this repo.** The review gate is in the source repo (`xrmghost-cli` for CLI reference). Generated files land via an automated pipeline commit, not a manual PR.
 4. **Do not delete generated files manually.** Run the generation pipeline with an empty/removed source to remove them.
-5. **Narrative CLI pages are never generated.** `docs/cli/index.mdx` and `docs/cli/getting-started.mdx` remain manual content regardless of whether CLI reference generation is active.
+5. **Narrative CLI pages are never generated.** `src/content/docs/cli/index.mdx` and `src/content/docs/cli/getting-started.mdx` remain manual content regardless of whether CLI reference generation is active.
 
 ## Example Frontmatter for a Generated File
 

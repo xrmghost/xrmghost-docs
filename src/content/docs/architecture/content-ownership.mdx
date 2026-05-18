@@ -11,29 +11,29 @@ This page defines who owns each section of the public XrmGhost documentation and
 
 | Docs Section | Path | Owning Repo | Owning Team | Update Process |
 |---|---|---|---|---|
-| Getting Started | `docs/getting-started.mdx` | `xrmghost-docs` | Documentation / DevRel | Edit MDX in this repo, raise PR, merge to `dev` |
-| CLI Narrative | `docs/cli/index.mdx`, `docs/cli/getting-started.mdx` | `xrmghost-docs` | Documentation / CLI team | Edit MDX in this repo, raise PR to `xrmghost-docs` |
-| CLI Reference (generated) | `docs/cli/reference/` | `xrmghost-cli` (source); `xrmghost-docs` (output) | CLI team | Changes go to `xrmghost-cli`; generator publishes output here — see [Generated vs Manual](./generated-vs-manual.mdx) |
-| Attributes Reference | `docs/attributes/` | `xrmghost-docs` (narrative); `xrmghost-attributes` (schema) | Attributes team + Documentation | Same split as CLI: narrative here, schema-derived content future |
-| Architecture | `docs/architecture/` | `xrmghost-docs` | Architecture / Engineering | PR to this repo; engineering review recommended |
-| Contributing Guidelines | `docs/contributing/` | `xrmghost-docs` | Engineering / Developer Experience | PR to this repo |
+| Getting Started | `src/content/docs/getting-started.mdx` | `xrmghost-docs` | Documentation / DevRel | Edit MDX in this repo, raise PR, merge to `dev` |
+| CLI Narrative | `src/content/docs/cli/index.mdx`, `src/content/docs/cli/getting-started.mdx` | `xrmghost-docs` | Documentation / CLI team | Edit MDX in this repo, raise PR to `xrmghost-docs` |
+| CLI Reference (generated) | `src/content/docs/cli/reference/` | `xrmghost-cli` (source); `xrmghost-docs` (output) | CLI team | Changes go to `xrmghost-cli`; generator publishes output here — see [Generated vs Manual](./generated-vs-manual.mdx) |
+| Attributes Reference | `src/content/docs/attributes/` | `xrmghost-docs` (narrative); `xrmghost-attributes` (schema) | Attributes team + Documentation | Same split as CLI: narrative here, schema-derived content future |
+| Architecture | `src/content/docs/architecture/` | `xrmghost-docs` | Architecture / Engineering | PR to this repo; engineering review recommended |
+| Contributing Guidelines | `src/content/docs/contributing/` | `xrmghost-docs` | Engineering / Developer Experience | PR to this repo |
 
 ## CLI Ownership Boundary
 
 The CLI docs surface has two distinct ownership zones that must not be conflated:
 
-### CLI Narrative Content (`docs/cli/index.mdx`, `docs/cli/getting-started.mdx`)
+### CLI Narrative Content (`src/content/docs/cli/index.mdx`, `src/content/docs/cli/getting-started.mdx`)
 
 - **Owned by:** Documentation team in `xrmghost-docs`.
 - **Change process:** Open a PR against `xrmghost-docs`. At least one reviewer from the Documentation or CLI team approves.
-- **Do not:** Touch `docs/cli/reference/` files from a narrative-only PR. Narrative and generated paths are separate surfaces.
+- **Do not:** Touch `src/content/docs/cli/reference/` files from a narrative-only PR. Narrative and generated paths are separate surfaces.
 
-### Generated CLI Reference (`docs/cli/reference/`)
+### Generated CLI Reference (`src/content/docs/cli/reference/`)
 
 - **Owned by:** CLI team in `xrmghost-cli` (the source of truth). The files that appear under `docs/cli/reference/` are outputs, not the authoritative source.
-- **Change process:** Raise a PR or workstream in `xrmghost-cli` to change the CLI command, its `--help` output, or the command manifest. The generator then re-publishes updated reference files to `docs/cli/reference/`.
+- **Change process:** Raise a PR or workstream in `xrmghost-cli` to change the CLI command, its `--help` output, or the command manifest. The generator then re-publishes updated reference files to `src/content/docs/cli/reference/`.
 - **Approval authority:** Review and approval live in `xrmghost-cli`. Approving a change to a generated file in `xrmghost-docs` directly is **not** a valid review path.
-- **Do not:** Manually edit files under `docs/cli/reference/`. See [Generated vs Manual](./generated-vs-manual.mdx) for the full CLI generation contract.
+- **Do not:** Manually edit files under `src/content/docs/cli/reference/`. See [Generated vs Manual](./generated-vs-manual.mdx) for the full CLI generation contract.
 
 ### xrmghost-user-portal Role
 
@@ -55,7 +55,7 @@ The CLI docs surface has two distinct ownership zones that must not be conflated
 
 1. CLI team makes source changes (command definition, `--help` text, or manifest) in `xrmghost-cli` and merges through that repo's review process.
 2. Generation pipeline runs against the updated `xrmghost-cli` artifact.
-3. Generated MDX files land under `docs/cli/reference/` in `xrmghost-docs` via an automated commit or PR.
+3. Generated MDX files land under `src/content/docs/cli/reference/` in `xrmghost-docs` via an automated commit or PR.
 4. Generated files are **not** manually edited. If the output is wrong, fix the source in `xrmghost-cli`.
 5. Portal team advances submodule pointer after generated content lands in `dev`.
 
