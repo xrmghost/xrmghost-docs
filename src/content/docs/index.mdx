@@ -3,6 +3,38 @@ title: XrmGhost Documentation
 description: Official documentation for the XrmGhost framework.
 ---
 
-Welcome to the XrmGhost documentation.
+# XrmGhost
 
-Start from [Getting Started](/getting-started/) or jump into the [CLI reference](/cli/).
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="./assets/XG_Audiowide_transparent_negative.svg">
+    <source media="(prefers-color-scheme: light)" srcset="./assets/XG_Audiowide_transparent.svg">
+    <img alt="Xrm Ghost" src="./assets/XG_Audiowide_transparent_negative.svg" width="300">
+  </picture>
+</p>
+
+**Local-first development for Microsoft Dataverse and Dynamics 365.**
+
+The Dynamics development loop is broken. You write code, you deploy, you wait, you test against the cloud, you find the bug, you do it again. XrmGhost runs your plugins and your tests on your machine, so the loop closes in seconds instead of minutes.
+
+This is the documentation hub. It's where you find out what each piece of XrmGhost does and where to go next.
+
+## Why XrmGhost exists
+
+- **Run plugins locally.** Stop deploying to find out if your code works. Execute against Dataverse from your own machine and see the result now, not after the next deploy.
+- **Build reproducible test scenarios.** Capture a bug, an edge case, or a regression as a scenario you can replay on demand — no more "works on the cloud, fails for the customer."
+- **Close the loop in seconds.** Iterate at the speed you write code, not at the speed Dataverse deploys it.
+
+## How this documentation is organized
+
+XrmGhost is not a single tool. It's a set of repositories — a CLI, a runtime host, core libraries, security, infrastructure, and more — each one owning a clear slice of the system.
+
+That's why **each repository README is the source of truth** for its own scope, maturity, and usage. This hub orients you; the individual repos go deep.
+
+We're opening the organization progressively: some repos are already public, others are still being prepared. Maturity varies by repo, and each README states its own.
+
+## Start breaking the loop
+
+The fastest way to understand XrmGhost is to run it. → **[Getting Started](/getting-started/) or jump into the [CLI reference](/cli/)**
+
+---
