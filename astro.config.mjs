@@ -13,7 +13,7 @@ export default defineConfig({
 				replacesTitle: true
 			},
 			social: [
-				{ icon: 'github', label: 'GitHub', href: 'https://github.com/xrmghost' },
+				{ icon: 'github', label: 'GitHub', href: 'https://github.com/xrmghost/xrmghost' },
 			],
 			customCss: ['./src/styles/custom.css'],
 			sidebar: [

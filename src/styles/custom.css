@@ -10,3 +10,24 @@
 .right-sidebar-panel {
   --sl-sidebar-width: 14rem;
 }
+
+/* Astro/Starlight: nascondi fallback GitHub e mostra logo in base al tema del sito */
+.xg-hero-logo .xg-logo-gh {
+  display: none;
+}
+
+.xg-hero-logo .xg-logo-dark {
+  display: inline-block !important;
+}
+
+.xg-hero-logo .xg-logo-light {
+  display: none !important;
+}
+
+:root[data-theme='light'] .xg-hero-logo .xg-logo-dark {
+  display: none !important;
+}
+
+:root[data-theme='light'] .xg-hero-logo .xg-logo-light {
+  display: inline-block !important;
+}
