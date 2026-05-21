@@ -11,7 +11,7 @@ This guide covers everything you need to add a new `.mdx` page to `xrmghost-docs
 
 Before writing anything, confirm your change falls within your team's ownership area:
 
-1. Open [Content Ownership](../architecture/content-ownership.mdx).
+1. Open [Content Ownership](/architecture/content-ownership/).
 2. Locate the section that matches the content you want to add (e.g. `src/content/docs/cli/`, `src/content/docs/attributes/`).
 3. Check the **Owning Team** column.
 4. If the section does not exist yet or the owner is unclear, contact the **Documentation team** as interim owner.
@@ -112,13 +112,13 @@ You need to update both the CLI source/generator in `xrmghost-cli` **and** narra
 - **Not acceptable:** Using a shared PR as a bypass to skip `xrmghost-cli` review for generator or source changes, or to manually edit generated files in `src/content/docs/cli/reference/` without running the generator.
 - **Do not** let the shared PR scope drift into editing generated reference files directly. Generated content under `src/content/docs/cli/reference/` must always originate from the generator run, not from hand edits.
 
-> See [Content Ownership — CLI Ownership Boundary](../architecture/content-ownership.mdx) for the authoritative ownership split, and [Generated vs Manual — CLI Generation Contract](../architecture/generated-vs-manual.mdx) for the full generation rules.
+> See [Content Ownership — CLI Ownership Boundary](/architecture/content-ownership/) for the authoritative ownership split, and [Generated vs Manual — CLI Generation Contract](/architecture/generated-vs-manual/) for the full generation rules.
 
 ## 6. Open a Pull Request
 
 1. Branch off `dev` using the naming convention `docs/<short-description>` (or the swarm branch convention if operating in a swarm run).
 2. Add only the files you own or have been given permission to touch.
-3. Request a review from at least one person on the owning team (see [Content Ownership](../architecture/content-ownership.mdx)).
+3. Request a review from at least one person on the owning team (see [Content Ownership](/architecture/content-ownership/)).
 4. Pass CI checks (frontmatter lint, MDX parse).
 5. Merge to `dev` after approval.
 
@@ -129,11 +129,11 @@ Publishing is controlled by the `xrmghost-user-portal` team. After your PR merge
 - The portal team advances the submodule pointer (or runs the sync script) to pick up your changes.
 - You do not need to take action in the portal repository unless you are also the portal maintainer.
 
-For details on how the portal consumes this repo, see [Source of Truth](../architecture/source-of-truth.mdx).
+For details on how the portal consumes this repo, see [Source of Truth](/architecture/source-of-truth/).
 
 ## Summary Checklist
 
-- [ ] Confirmed correct product owner in [Content Ownership](../architecture/content-ownership.mdx)
+- [ ] Confirmed correct product owner in [Content Ownership](/architecture/content-ownership/)
 - [ ] File placed in the correct `src/content/docs/` subfolder
 - [ ] File name is lowercase and hyphen-separated
 - [ ] Frontmatter includes `title` and `description`

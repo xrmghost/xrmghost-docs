@@ -7,7 +7,7 @@ description: Permanently remove a Dataverse environment configuration from the l
 
 Permanently removes a Dataverse environment configuration from the local XrmGhost environment store. The command identifies the target environment by its **friendly name** and, before proceeding, interactively asks you to confirm the operation.
 
-> **Destructive operation — this cannot be undone.** Once deleted, the environment configuration (URL, client ID, cache settings) and its associated credential are removed from the local store. You would need to re-add the environment with [`xg env add`](./env-add.mdx) or re-import it with [`xg env import`](./env-import.mdx) to recover it.
+> **Destructive operation — this cannot be undone.** Once deleted, the environment configuration (URL, client ID, cache settings) and its associated credential are removed from the local store. You would need to re-add the environment with [`xg env add`](/cli/reference/env-add/) or re-import it with [`xg env import`](/cli/reference/env-import/) to recover it.
 
 > **License requirement:** This command requires an active **Pro** (or higher) subscription. Run `xg license status` to verify your current tier.
 
@@ -98,6 +98,6 @@ Error: Environment 'NonExistent' not found.
 
 ## See Also
 
-- [`xg env list`](./env-list.mdx) — List all registered Dataverse environments and see which one is currently active.
-- [`xg env add`](./env-add.mdx) — Add a new Dataverse environment through the interactive wizard.
-- [CLI Overview](../index.mdx) — Introduction to the XrmGhost CLI and its command groups.
+- [`xg env list`](/cli/reference/env-list/) — List all registered Dataverse environments and see which one is currently active.
+- [`xg env add`](/cli/reference/env-add/) — Add a new Dataverse environment through the interactive wizard.
+- [CLI Overview](/cli/) — Introduction to the XrmGhost CLI and its command groups.

@@ -1,24 +1,35 @@
 ---
 title: Architecture
-description: Documentation architecture overview — how this repository is structured, where content lives, who owns it, and where generated content will plug in.
+description: Documentation architecture overview — how this repository is structured, where content lives, and how it flows to the user portal.
 ---
 
 # Architecture
 
-This section documents the content architecture of `xrmghost-docs`: where public documentation lives, how it is consumed, who owns each section, and the rules around manually authored versus auto-generated content.
+This section documents the content architecture of `xrmghost-docs`: where public documentation lives, how it is consumed, and the rules around manually authored versus auto-generated content.
 
 ## Pages in This Section
 
 | Page | Description |
 |---|---|
-| [Source of Truth](./source-of-truth.mdx) | Establishes `xrmghost-docs` as the canonical public content source and explains how the user portal consumes it. |
-| [Content Ownership](./content-ownership.mdx) | Maps each documentation section to its owning repository and team, and describes the update process. |
-| [Generated vs Manual](./generated-vs-manual.mdx) | Distinguishes manually authored content from auto-generated reference content, and marks future insertion points for generated docs. |
+| [Source of Truth](/architecture/source-of-truth/) | Establishes `xrmghost-docs` as the canonical public content source and explains how the user portal consumes it. |
 
-## Summary
+## Overview
 
-- All public documentation content is authored in this repo and consumed by `xrmghost-user-portal`.
-- Each docs section has a defined owner and update process.
-- Auto-generated content (CLI reference, attribute schema reference) does not exist yet; placeholder locations and rules are documented for when the pipelines are built.
+All public documentation for XrmGhost is authored and maintained in this repository. The content architecture is designed to:
 
-See [Contributing](../contributing/index.mdx) for how to add or update content.
+- **Centralize documentation** — All content lives here and flows to the user portal
+- **Support auto-generated content** — CLI reference and other generated docs plug in through well-defined integration points
+- **Enable collaboration** — Contributors can raise PRs against `dev` with confidence about what they're editing
+
+## How Documentation Flows
+
+1. **Authors edit** `.mdx` files in this repo
+2. **PR review** by the Documentation or product team
+3. **Merge to `dev`** branch
+4. **Portal publishes** by advancing its submodule pointer
+
+For details on how content is sourced and structured, see [Source of Truth](/architecture/source-of-truth/).
+
+## Contributing
+
+See [Contributing](/contributing/) for guidelines on how to add or update documentation.

@@ -8,13 +8,13 @@ description: Edit an existing Dynamics 365 environment configuration interactive
 Edit an existing Dynamics 365 environment configuration interactively.
 
 :::info Pro licence required
-`env edit` is a **Pro-tier** feature. Ensure your licence is active and at the Pro level before running this command. Use [`xg license status`](../reference/license-status.mdx) to verify.
+`env edit` is a **Pro-tier** feature. Ensure your licence is active and at the Pro level before running this command. Use [`xg license status`](/cli/reference/license-status/) to verify.
 :::
 
 ## Synopsis
 
 ```
-ghost-plugin-cli env edit <FRIENDLY_NAME>
+xg env edit <FRIENDLY_NAME>
 ```
 
 ## Description
@@ -83,7 +83,7 @@ Custom durations use the suffix `m` (minutes), `h` (hours), or `d` (days).
 ### Edit an environment interactively
 
 ```shell
-ghost-plugin-cli env edit "My Dev Org"
+xg env edit "My Dev Org"
 ```
 
 Launches the interactive wizard for the environment registered as `My Dev Org`. Each prompt is pre-populated with the current value; press Enter to keep it or type a new value to replace it.
@@ -91,7 +91,7 @@ Launches the interactive wizard for the environment registered as `My Dev Org`. 
 ### Rename an environment and update the Client Secret
 
 ```shell
-ghost-plugin-cli env edit staging-old
+xg env edit staging-old
 ```
 
 Run the wizard, change the friendly name from `staging-old` to `staging-v2`, enter a new Client Secret when prompted, and confirm all other fields. The secret is automatically migrated to the new name.
@@ -99,20 +99,20 @@ Run the wizard, change the friendly name from `staging-old` to `staging-v2`, ent
 ### Change only the metadata cache lifecycle
 
 ```shell
-ghost-plugin-cli env edit "Production"
+xg env edit "Production"
 ```
 
 Accept every prompt with its current value (press Enter) until you reach the metadata cache lifecycle selection. Choose `Custom`, then enter `1d` to set the cache to expire after 1 day.
 
 ## Non-interactive usage
 
-`env edit` always launches an interactive wizard — it cannot be driven entirely from CLI flags in the current version. To automate environment management, consider exporting the configuration with [`env export`](./env-export.mdx), editing the JSON file, and re-importing it with [`env import`](./env-import.mdx).
+`env edit` always launches an interactive wizard — it cannot be driven entirely from CLI flags in the current version. To automate environment management, consider exporting the configuration with [`env export`](/cli/reference/env-export/), editing the JSON file, and re-importing it with [`env import`](/cli/reference/env-import/).
 
 If the terminal is non-interactive (e.g., a CI pipeline), the wizard prompts will fail to receive input and the command will exit with code `1`. Use scripted `env import` workflows for non-interactive environments.
 
 ## See Also
 
-- [`env list`](./env-list.mdx) — list all registered environments and see which one is active
-- [`env add`](./env-add.mdx) — add a new environment configuration using the same interactive wizard
-- [`env delete`](./env-delete.mdx) — remove a registered environment configuration
-- [CLI Overview](../index.mdx) — overview of the `xrmghost` CLI and its command groups
+- [`env list`](/cli/reference/env-list/) — list all registered environments and see which one is active
+- [`env add`](/cli/reference/env-add/) — add a new environment configuration using the same interactive wizard
+- [`env delete`](/cli/reference/env-delete/) — remove a registered environment configuration
+- [CLI Overview](/cli/) — overview of the `xrmghost` CLI and its command groups

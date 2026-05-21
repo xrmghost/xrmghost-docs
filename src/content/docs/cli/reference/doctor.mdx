@@ -12,7 +12,7 @@ Use `doctor` any time the CLI behaves unexpectedly, before raising a support tic
 ## Synopsis
 
 ```shell
-ghost-plugin-cli doctor [options]
+xg doctor [options]
 ```
 
 ## Description
@@ -31,7 +31,7 @@ ghost-plugin-cli doctor [options]
 Each check prints a pass/fail indicator. The final line summarises the overall result.
 
 :::tip
-Running `ghost-plugin-cli doctor --verbose` before reporting a bug gives you a complete diagnostic snapshot — including resolved paths, version strings, and subscription claims — that significantly speeds up support.
+Running `xg doctor --verbose` before reporting a bug gives you a complete diagnostic snapshot — including resolved paths, version strings, and subscription claims — that significantly speeds up support.
 :::
 
 ## Options
@@ -53,7 +53,7 @@ Running `ghost-plugin-cli doctor --verbose` before reporting a bug gives you a c
 ### Run default diagnostics
 
 ```shell
-ghost-plugin-cli doctor
+xg doctor
 ```
 
 Runs all checks with minimal output. Suitable for a quick health confirmation.
@@ -61,7 +61,7 @@ Runs all checks with minimal output. Suitable for a quick health confirmation.
 ### Run with verbose output
 
 ```shell
-ghost-plugin-cli doctor --verbose
+xg doctor --verbose
 ```
 
 Includes resolved file paths, FrameworkHost discovery source, full subscription claims, and a live JWT round-trip test. Recommended when troubleshooting.
@@ -69,7 +69,7 @@ Includes resolved file paths, FrameworkHost discovery source, full subscription 
 ### Override the FrameworkHost path
 
 ```shell
-ghost-plugin-cli doctor --framework-host-path "C:\Tools\XrmGhost\XrmGhost.FrameworkHost.exe"
+xg doctor --framework-host-path "C:\Tools\XrmGhost\XrmGhost.FrameworkHost.exe"
 ```
 
 Checks a specific FrameworkHost binary instead of relying on auto-discovery. Useful in non-standard install layouts or when testing a freshly built binary.
@@ -77,7 +77,7 @@ Checks a specific FrameworkHost binary instead of relying on auto-discovery. Use
 ### Combine override with verbose output
 
 ```shell
-ghost-plugin-cli doctor -v -f "./bin/XrmGhost.FrameworkHost.exe"
+xg doctor -v -f "./bin/XrmGhost.FrameworkHost.exe"
 ```
 
 ## Checks Performed
@@ -101,7 +101,7 @@ A warning on the `.NET 8 SDK` check does not cause an overall failure. The check
 
 ## See Also
 
-- [CLI Reference](./index.mdx) — overview of the reference area and command groups
-- [CLI Command Groups](./command-groups.mdx) — all command groups and their intended reference-page shape
-- [Getting Started with the CLI](../getting-started.mdx) — first-time orientation and safe exploration path
-- [CLI Overview](../index.mdx) — role of the CLI in the XrmGhost ecosystem
+- [CLI Reference](/cli/reference/) — overview of the reference area and command groups
+- [CLI Command Groups](/cli/reference/command-groups/) — all command groups and their intended reference-page shape
+- [Getting Started with the CLI](/cli/getting-started/) — first-time orientation and safe exploration path
+- [CLI Overview](/cli/) — role of the CLI in the XrmGhost ecosystem

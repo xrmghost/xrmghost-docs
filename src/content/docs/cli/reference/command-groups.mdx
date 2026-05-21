@@ -7,8 +7,6 @@ description: Maps every xrmghost CLI command group to its reader-facing purpose,
 
 This page maps each `xrmghost` CLI command group to its purpose, known sub-commands, and the intended shape of future generated reference pages. It is a **manual IA artifact**: it defines structure and intent, not executable command documentation.
 
-> **Manual IA only.** Per-command reference pages (flags, arguments, exit codes, examples) are not yet generated. They will land under `docs/cli/reference/` once the ADO-1158 generation pipeline is active. Until then, use `xrmghost <command> --help` for authoritative command-line help.
-
 ---
 
 ## `run`
@@ -18,8 +16,6 @@ This page maps each `xrmghost` CLI command group to its purpose, known sub-comma
 **Group type:** Top-level command (no sub-commands).
 
 **Known flags (from source — not authoritative):** `-a`/`--assembly`, `-t`/`--type`, `-s`/`--scenario`, `--data-source`, `--normal`, `--verbose`, `--debug`, `--debug-plugin-wait`, `--unsecure-config`, `--secure-config`, `--no-interactive`, `--framework-host-path`.
-
-> **Note:** The exact flag list is derived from the `xrmghost-cli` source. The authoritative surface is defined in `xrmghost-cli` — see the [CLI Generation Contract](../../architecture/generated-vs-manual.mdx) for how generated reference pages will be sourced.
 
 **Intended reference-page shape:**
 - Path: `docs/cli/reference/run.mdx`
@@ -123,8 +119,6 @@ This page maps each `xrmghost` CLI command group to its purpose, known sub-comma
 - Sections per page: Synopsis, Description, Options, Examples
 - Generated from: `xrmghost env <sub-command> --help` or structured command manifest in `xrmghost-cli`
 
-> **Note on `env` surface completeness:** The `xrmghost-cli` README documents 4 of 11 `env` sub-commands. The full sub-command list above is derived from the `xrmghost-cli` source Commands directory. The README is acknowledged as partial (see kb notes). The generation pipeline should be the authoritative source for the final flag list per sub-command.
-
 ---
 
 ## `setup`
@@ -146,25 +140,11 @@ This page maps each `xrmghost` CLI command group to its purpose, known sub-comma
 - Sections: Synopsis, Description, Options, Examples
 - Generated from: `xrmghost setup host --help` or structured command manifest in `xrmghost-cli`
 
-> **TODO (ADO-1158 dependency):** The `setup` group may expose additional sub-commands in future CLI versions. The current surface is limited to `setup host --update`. Reserve the `setup-` prefix namespace for future generated reference pages.
-
 ---
-
-## Future Reference Page Conventions
-
-When the generation pipeline is active, per-command reference pages must follow these conventions (established by the [CLI Generation Contract](../../architecture/generated-vs-manual.mdx)):
-
-| Convention | Value |
-|---|---|
-| **File naming** | `docs/cli/reference/<command>.mdx` for top-level; `docs/cli/reference/<group>-<sub>.mdx` for sub-commands |
-| **Frontmatter** | Must include `generated: true`, `generated_from`, and `generated_at` |
-| **Do not hand-edit** | Generated files under `docs/cli/reference/` must not be manually edited once generation is active |
-| **Fix at source** | Corrections go to `xrmghost-cli`; re-run the generator to update reference pages |
-| **Manual IA pages exempt** | `index.mdx` and `command-groups.mdx` (this file) are manual and are never overwritten by the generator |
 
 ## Related
 
-- [CLI Reference Landing](./index.mdx)
-- [CLI Overview](../index.mdx)
-- [Generated vs Manual Content](../../architecture/generated-vs-manual.mdx)
-- [Content Ownership](../../architecture/content-ownership.mdx)
+- [CLI Reference Landing](/cli/reference/)
+- [CLI Overview](/cli/)
+- [Generated vs Manual Content](/architecture/generated-vs-manual/)
+- [Content Ownership](/architecture/content-ownership/)

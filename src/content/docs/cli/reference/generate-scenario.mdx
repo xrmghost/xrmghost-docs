@@ -5,7 +5,7 @@ description: Generate a template JSON scenario file for a Dataverse plugin assem
 
 # `xg generate-scenario`
 
-Inspects a compiled Dataverse plugin assembly and emits a ready-to-use scenario JSON file that can be passed directly to [`xg run`](./run.mdx). The command launches XrmGhost.FrameworkHost to interrogate the plugin's metadata — attribute decorations, message handlers, entity configuration — and wires that information into a fully-populated execution context with sensible defaults.
+Inspects a compiled Dataverse plugin assembly and emits a ready-to-use scenario JSON file that can be passed directly to [`xg run`](/cli/reference/run/). The command launches XrmGhost.FrameworkHost to interrogate the plugin's metadata — attribute decorations, message handlers, entity configuration — and wires that information into a fully-populated execution context with sensible defaults.
 
 Use `generate-scenario` as the starting point of your local plugin testing workflow: generate a scaffold once, adjust the generated JSON to match your test data, then pass it to `run`.
 
@@ -131,7 +131,7 @@ xg generate-scenario \
 
 ## See Also
 
-- [`xg run`](./run.mdx) — Execute a scenario file produced by `generate-scenario`
-- [CLI Overview](../index.mdx) — Introduction to the `xg` CLI and command groups
-- [Getting Started with the CLI](../getting-started.mdx) — Installation, verification, and your first command
-- [CLI Reference](./index.mdx) — Full reference index for all CLI commands
+- [`xg run`](/cli/reference/run/) — Execute a scenario file produced by `generate-scenario`
+- [CLI Overview](/cli/) — Introduction to the `xg` CLI and command groups
+- [Getting Started with the CLI](/cli/getting-started/) — Installation, verification, and your first command
+- [CLI Reference](/cli/reference/) — Full reference index for all CLI commands

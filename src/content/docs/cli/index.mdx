@@ -5,7 +5,7 @@ description: Introduction to the XrmGhost command-line interface — what it doe
 
 # XrmGhost CLI
 
-The `xrmghost` CLI (`ghost-plugin-cli`) is the primary developer interface for the XrmGhost ecosystem. It runs on Windows, macOS, and Linux and gives you terminal access to every major workflow: executing Dataverse plugins out-of-process, managing environment configurations, handling licensing, and diagnosing problems.
+The `xrmghost` CLI is the primary developer interface for the XrmGhost ecosystem. It runs on Windows, macOS, and Linux and gives you terminal access to every major workflow: executing Dataverse plugins out-of-process, managing environment configurations, handling licensing, and diagnosing problems.
 
 ## Who the CLI Is For
 
@@ -13,7 +13,7 @@ The CLI is aimed at developers who:
 
 - write and test Dataverse plugins locally before deploying to a Power Platform environment
 - need scriptable, repeatable runs as part of a CI workflow
-- prefer a terminal-first experience over a GUI
+- prefer an AI agent first approach or prefer a terminal-first experience over a GUI
 
 ## What the CLI Does
 
@@ -27,28 +27,19 @@ The CLI is aimed at developers who:
 | `privacy` | Display information about telemetry data collection and local storage |
 | `setup host` | Install or update the Framework Host component used by `run` |
 
-For the full flag-level detail of every command and sub-command, see the [CLI Reference](./reference/) section — generated automatically from the CLI's `--help` output.
+For the full flag-level detail of every command and sub-command, see the [CLI Reference](/cli/reference/) section — generated automatically from the CLI's `--help` output.
 
 ## How This Documentation Slice Is Organised
 
-The CLI documentation is split into two complementary layers, following the project-wide [generated vs manual content model](../architecture/generated-vs-manual.mdx):
-
-**Narrative guidance (manual, this slice)**
-Pages authored by humans that explain concepts, walk through workflows, and provide context you cannot get from a help string alone.
-
 | Page | What you will find |
 |---|---|
-| [Getting Started](./getting-started.mdx) | Installation, verification, and your first command |
 | This page | Overview, orientation, and navigation |
+| [Getting Started](/cli/getting-started/) | Installation, verification, and your first command |
+| Reference section | CLI explanation and flags details |
 
-**Generated reference (auto-produced from the CLI source)**
-Per-command reference pages built from the CLI's `--help` output and placed under `docs/cli/reference/`. These pages are owned by the generation pipeline in `xrmghost-cli` and **must not be hand-edited** once generation is active.
-
-> The generated reference pipeline is tracked separately. Until it is live, run `ghost-plugin-cli <command> --help` directly for flag-level detail.
 
 ## Where to Go Next
 
-- **New to XrmGhost?** Start with [Getting Started](./getting-started.mdx) to install the CLI and run your first plugin scenario.
-- **Looking for a specific flag or option?** Go to [CLI Reference](./reference/) for the generated per-command reference.
-- **Wondering how docs are structured?** Read [Generated vs Manual Content](../architecture/generated-vs-manual.mdx) for a full explanation of the two-layer model.
-- **Want to contribute?** See [Contributing](../contributing/index.mdx) for guidelines on updating narrative docs or the generation pipeline.
+- **New to XrmGhost?** Start with [Getting Started](/cli/getting-started/) to install the CLI and run your first plugin scenario.
+- **Looking for a specific flag or option?** Go to [CLI Reference](/cli/reference/) for the generated per-command reference.
+- **Want to contribute?** See [Contributing](/contributing/) for guidelines on updating narrative docs or the generation pipeline.

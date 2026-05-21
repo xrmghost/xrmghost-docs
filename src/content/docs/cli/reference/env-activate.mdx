@@ -11,7 +11,7 @@ By default, `env activate` also triggers a background metadata cache update so t
 
 ## Requirements
 
-- The environment must already be registered. Use [`xg env add`](./env-add.mdx) to register a new environment before activating it.
+- The environment must already be registered. Use [`xg env add`](/cli/reference/env-add/) to register a new environment before activating it.
 - The environment must have a valid Client ID and Client Secret stored. Authentication is required for the metadata cache update that runs at activation time (unless `--no-cache` is passed).
 - License tier: **Pro** or higher. Attempting to run this command with a lower tier will produce a feature-gated error.
 
@@ -43,7 +43,7 @@ The active environment selection is stored in the XrmGhost local configuration f
 | **Linux** | `$XDG_DATA_HOME/xrmghost/xrmghostcli/d365_environments.json` (falls back to `~/.local/share/xrmghost/xrmghostcli/d365_environments.json`) |
 | **macOS** | `~/Library/Application Support/xrmghost/xrmghostcli/d365_environments.json` |
 
-The file stores an `ActiveEnvironmentFriendlyName` field that points to the currently active environment. Only one environment can be active at a time. To clear the active selection without switching to another environment, use [`xg env deactivate`](./env-deactivate.mdx).
+The file stores an `ActiveEnvironmentFriendlyName` field that points to the currently active environment. Only one environment can be active at a time. To clear the active selection without switching to another environment, use [`xg env deactivate`](/cli/reference/env-deactivate/).
 
 > **Risk note:** If you activate an environment on a machine that stores credentials locally, any process with access to the application data directory can identify which environment is currently selected. Credentials (client secrets) are stored separately in encrypted form under `environments_secure/` in the same base path.
 
@@ -93,7 +93,7 @@ Activates `staging-eu` and then prints the current active environment status to 
 
 ## See Also
 
-- [`xg env list`](./env-list.mdx) — List all registered Dataverse environments
-- [`xg env deactivate`](./env-deactivate.mdx) — Deactivate the currently active environment
-- [`xg env status`](./env-status.mdx) — Show the active environment and connection status
-- [CLI Overview](../index.mdx) — Introduction to the XrmGhost CLI and command groups
+- [`xg env list`](/cli/reference/env-list/) — List all registered Dataverse environments
+- [`xg env deactivate`](/cli/reference/env-deactivate/) — Deactivate the currently active environment
+- [`xg env status`](/cli/reference/env-status/) — Show the active environment and connection status
+- [CLI Overview](/cli/) — Introduction to the XrmGhost CLI and command groups

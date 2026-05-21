@@ -15,6 +15,26 @@ Before you write attributes, keep these boundaries in mind:
 2. **JSON-shaped seed values.** Parameter values and entity images are passed as strings, often containing JSON payloads that downstream tooling can reuse.
 3. **Consumers provide behavior.** The package describes intent; tools such as `xrmghost-cli generate-scenario` and `xrmghost-framework-host` decide how to interpret it.
 
+## Installation
+
+To use `XrmGhost.Attributes` in your project, add the NuGet package to your solution. Choose one of the methods below.
+
+### Using the .NET CLI
+
+Run the following command in your project directory:
+
+```bash
+dotnet add package XrmGhost.Attributes
+```
+
+### Using Visual Studio NuGet Package Manager
+
+1. In Visual Studio, open **Tools** > **NuGet Package Manager** > **Manage NuGet Packages for Solution**.
+2. Search for `XrmGhost.Attributes`.
+3. Select the package and click **Install**.
+
+Once installed, you can begin decorating your plugin classes with XrmGhost attributes.
+
 ## A Reusable Example
 
 The example below shows a realistic starting point for a plugin that handles `account` updates and wants both a target entity and a pre-image available to downstream tooling.
@@ -72,7 +92,7 @@ That means the safest workflow is to treat these attributes as a metadata contra
 
 ## Relationship to `generate-scenario`
 
-`xrmghost-cli generate-scenario` is one of the most important consumers of this package.
+`xg generate-scenario` is one of the most important consumers of this package.
 
 - It inspects plugin classes for XrmGhost attributes.
 - It uses the declared entity images, parameters, and configuration values as starting data for generated scenarios.
@@ -82,12 +102,12 @@ In practice, that makes attribute coverage a documentation and tooling benefit: 
 
 ## Next Steps
 
-- Return to the [Attributes overview](./index.mdx) for the section map and package boundary.
-- Use the [manual attribute reference](./reference/index.mdx) for one page per current public attribute, backed by the current public contract in `xrmghost-attributes` as the source of truth.
-- Watch for future generated reference content under `docs/attributes/schema/`; that is the intended home for exhaustive schema-level documentation, not these narrative pages.
+- Return to the [Attributes overview](/attributes/) for the section map and package boundary.
+- Use the [manual attribute reference](/attributes/reference/) for one page per current public attribute, backed by the current public contract in `xrmghost-attributes` as the source of truth.
+
 
 ## Related
 
-- [Attributes Overview](./index.mdx)
-- [Manual Attribute Reference](./reference/index.mdx)
-- `docs/attributes/schema/` — planned future location for generated reference content
+- [Attributes Overview](/attributes/)
+- [Manual Attribute Reference](/attributes/reference/)
+

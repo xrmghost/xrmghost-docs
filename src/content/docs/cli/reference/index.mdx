@@ -11,31 +11,11 @@ This section is the reference area for the `xrmghost` CLI. It documents the info
 
 | Page | Purpose |
 |---|---|
-| [Command Groups](./command-groups.mdx) | Maps each command group to its reader-facing purpose and intended reference-page shape |
-
-## Manual IA vs Generated Reference Content
-
-The CLI reference area is split into two distinct layers. Understanding this split is essential before contributing or consuming content here.
-
-### Manual IA layer (this section)
-
-The pages in this section — including this landing page and the command-group mapping — are **manually authored** in `xrmghost-docs`. They define the *information architecture*: what command groups exist, what each group covers, and how future generated reference pages will be structured.
-
-- These pages are owned by the Documentation and CLI teams.
-- Changes go through a pull request to `xrmghost-docs`.
-- Do **not** treat these pages as per-command reference documentation.
-
-### Generated reference layer (`docs/cli/reference/<command>.mdx`)
-
-Individual per-command reference pages (flags, arguments, examples) will be **generated** from the `xrmghost-cli` source repository once the generation pipeline is active. They will land at paths such as `docs/cli/reference/run.mdx` and `docs/cli/reference/env-list.mdx`.
-
-> **TODO (ADO-1158):** Per-command reference pages are not yet generated. The generation pipeline is being established under ADO-1158. Do not hand-author per-command reference pages here.
-
-Once generated pages exist, they must **not** be manually edited. If a command's reference output is incorrect, fix the source in `xrmghost-cli` and re-run the generator. See [Generated vs Manual Content](../../architecture/generated-vs-manual.mdx) for the full generation contract.
+| [Command Groups](/cli/reference/command-groups/) | Maps each command group to its reader-facing purpose and intended reference-page shape |
 
 ## Command Groups at a Glance
 
-The `xrmghost` CLI surface is organised into the following top-level command groups. See [Command Groups](./command-groups.mdx) for the full mapping.
+The `xrmghost` CLI surface is organised into the following top-level command groups. See [Command Groups](/cli/reference/command-groups/) for the full mapping.
 
 | Command Group | Short Description |
 |---|---|
@@ -47,19 +27,10 @@ The `xrmghost` CLI surface is organised into the following top-level command gro
 | `env` | Manage Dataverse environment configurations |
 | `setup` | Install or update managed infrastructure components |
 
-## Ownership
-
-The CLI reference area has a split ownership model:
-
-- **Manual IA pages** (this page, `command-groups.mdx`): owned by the Documentation team in `xrmghost-docs`.
-- **Generated command reference pages** (`docs/cli/reference/<command>.mdx`): owned by the CLI team in `xrmghost-cli`. Generated files are outputs, not the authoritative source.
-
-For the full ownership table and update process, see [Content Ownership](../../architecture/content-ownership.mdx).
-
 ## Related
 
-- [CLI Overview](../index.mdx)
-- [Getting Started with the CLI](../getting-started.mdx)
-- [Command Groups](./command-groups.mdx)
-- [Generated vs Manual Content](../../architecture/generated-vs-manual.mdx)
-- [Content Ownership](../../architecture/content-ownership.mdx)
+- [CLI Overview](/cli/)
+- [Getting Started with the CLI](/cli/getting-started/)
+- [Command Groups](/cli/reference/command-groups/)
+- [Generated vs Manual Content](/architecture/generated-vs-manual/)
+- [Content Ownership](/architecture/content-ownership/)

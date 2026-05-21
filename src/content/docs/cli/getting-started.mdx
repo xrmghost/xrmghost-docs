@@ -5,7 +5,7 @@ description: Orient yourself with the XrmGhost CLI, discover available commands,
 
 # Getting Started with the CLI
 
-The `xrmghost` CLI (invoked as `ghost-plugin-cli`) is the primary way to run Dataverse plugins, manage environments, and interact with the XrmGhost ecosystem from a terminal.
+The `xrmghost` CLI (invoked as `xg`) is the primary way to run Dataverse plugins, manage environments, and interact with the XrmGhost ecosystem from a terminal.
 
 This guide helps you orient yourself after obtaining the CLI binary — covering how to explore available commands, confirm your setup, and find your way into the main workflows.
 
@@ -18,7 +18,7 @@ This guide assumes you already have the CLI binary available in your `PATH`. Ins
 Once the binary is in place, verify it responds:
 
 ```bash
-ghost-plugin-cli --version
+xg --version
 ```
 
 You should see a version header showing the CLI version and the bundled Core version. If the command is not found, ensure the binary is on your `PATH`.
@@ -28,15 +28,15 @@ You should see a version header showing the CLI version and the bundled Core ver
 The fastest way to understand what the CLI can do is to ask it:
 
 ```bash
-ghost-plugin-cli --help
+xg --help
 ```
 
 This prints the top-level command tree. For any command or subcommand, you can append `--help` to drill deeper:
 
 ```bash
-ghost-plugin-cli env --help
-ghost-plugin-cli license --help
-ghost-plugin-cli run --help
+xg env --help
+xg license --help
+xg run --help
 ```
 
 The `--help` surface is always up to date with the installed version, so it is the most reliable reference while you orient yourself.
@@ -62,21 +62,21 @@ If you are new to the CLI, the following sequence lets you explore without makin
 
 1. **Check your license status** — understand what tier and features are available to you:
    ```bash
-   ghost-plugin-cli license status
+   xg license status
    ```
 
 2. **List configured environments** — see what Dataverse environments (if any) are already set up:
    ```bash
-   ghost-plugin-cli env list
+   xg env list
    ```
 
 3. **Run diagnostics** — confirm connectivity and configuration are healthy:
    ```bash
-   ghost-plugin-cli doctor
+   xg doctor
    ```
    Use `--verbose` for detailed diagnostic output:
    ```bash
-   ghost-plugin-cli doctor --verbose
+   xg doctor --verbose
    ```
 
 None of the commands above modify state. They are read-only discovery steps.
@@ -85,17 +85,17 @@ None of the commands above modify state. They are read-only discovery steps.
 
 Once you are oriented, typical next actions are:
 
-- **Add an environment** — use `ghost-plugin-cli env add` to start the interactive wizard for connecting a Dataverse environment.
-- **Generate a scenario file** — use `ghost-plugin-cli generate-scenario` to create a JSON template for the plugin you want to test.
-- **Run a plugin** — once a scenario file is prepared and an environment is active, use `ghost-plugin-cli run` to execute the plugin out-of-process.
+- **Add an environment** — use `xg env add` to start the interactive wizard for connecting a Dataverse environment.
+- **Generate a scenario file** — use `xg generate-scenario` to create a JSON template for the plugin you want to test.
+- **Run a plugin** — once a scenario file is prepared and an environment is active, use `xg run` to execute the plugin out-of-process.
 
 ## Getting detailed command reference
 
 Full reference documentation for every command, flag, and option is being generated as part of the ADO-1158 documentation pipeline and will appear under the **Reference** section of the CLI docs.
 
-Until that reference lands, `ghost-plugin-cli <command> --help` is the definitive source.
+Until that reference lands, `xg <command> --help` is the definitive source.
 
 ## Next steps
 
-- [CLI Overview](./index.mdx) — the role of the CLI in the XrmGhost ecosystem
+- [CLI Overview](/cli/) — the role of the CLI in the XrmGhost ecosystem
 - **CLI Reference** _(coming soon)_ — auto-generated documentation for all commands

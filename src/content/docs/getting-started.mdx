@@ -1,36 +1,78 @@
 ---
 title: Getting Started
-description: A quick introduction to XrmGhost and how to get up and running for the first time.
+description: Install XrmGhost, set up the runtime host, and run your first local plugin execution.
 ---
 
 # Getting Started
 
-> **TODO**: Replace this placeholder with real getting-started content.
+XrmGhost runs your Dynamics plugins and tests on your machine. This page takes you from nothing installed to a first local run.
 
-Welcome to XrmGhost. This guide walks you through initial setup so you can start using the tool as quickly as possible.
+It's three steps: install the CLI, set up the runtime host, run.
 
 ## Prerequisites
 
-- TODO: List required software versions (Node, .NET, etc.)
-- TODO: List any account or environment prerequisites
+XrmGhost has two runtime dependencies. Both must be present before you start.
 
-## Installation
+| Requirement | Why |
+| --- | --- |
+| **.NET 9 runtime** | Runs the `xg` CLI itself. |
+| **.NET Framework 4.7.2** | Runs the host that executes your plugins, matching the Dataverse server-side runtime. |
 
-```bash
-# TODO: Add real installation command
-npm install -g xrmghost
-```
-
-## First Run
+Check what you have:
 
 ```bash
-# TODO: Add a minimal working example
-xrmghost --help
+dotnet --list-runtimes
 ```
 
-## Next Steps
+You want a `Microsoft.NETCore.App 9.x` line for the CLI, and .NET Framework 4.7.2 (or later) available on the machine for the host. On Windows 10/11 the 4.7.2 framework is almost always already there; on a clean build agent it may not be.
 
-- [CLI Reference](./cli/index.mdx)
-- [Attributes](./attributes/index.mdx)
-- [Architecture](./architecture/index.mdx)
-- [Contributing](./contributing/index.mdx)
+## 1. Install the CLI
+
+XrmGhost ships as a .NET global tool:
+
+```bash
+dotnet tool install -g XrmGhost.Cli
+```
+
+Confirm it's on your PATH:
+
+```bash
+xg --help
+```
+
+If `xg` isn't found right after install, open a new shell — the `dotnet tool` PATH entry is picked up on shell start.
+
+To update later:
+
+```bash
+dotnet tool update -g XrmGhost.Cli
+```
+
+## 2. Set up the runtime host
+
+The CLI is light. The component that actually executes your plugins is the **host** — a .NET Framework 4.7.2 process that mirrors the Dataverse server-side runtime. The CLI fetches and installs it for you; you just trigger it once:
+
+```bash
+xg setup host --update
+```
+
+This pulls the matching host version and registers it locally. Run the same command again whenever you update the CLI — it keeps the host in sync with it.
+
+You only do this once per machine (and after upgrades). After that, every `xg` run uses the installed host directly.
+
+## 3. Run
+
+With CLI and host in place, you're ready. From a project that contains your plugins:
+
+```bash
+xg --help
+```
+
+From here the command set covers running plugins locally, building and replaying test scenarios, and inspecting what happened. The [CLI Reference](/cli/) is the full map.
+
+## Where to go next
+
+- **[CLI Reference](/cli/)** — every command, flag, and what it does.
+- **[Attributes](/attributes/)** — how you mark up plugins and scenarios for XrmGhost to pick up.
+- **[Architecture](/architecture/)** — how the CLI, host, and Dataverse runtime fit together.
+- **[Contributing](/contributing/)** — working on XrmGhost itself.

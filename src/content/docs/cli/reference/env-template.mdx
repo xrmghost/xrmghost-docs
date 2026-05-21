@@ -5,7 +5,7 @@ description: Generate a blank environment configuration template JSON file, read
 
 # `xg env template`
 
-Generates a blank **environment configuration template** as a JSON file. The template contains a single sample `D365EnvironmentConfiguration` entry pre-filled with placeholder values, along with an empty `ActiveEnvironmentFriendlyName` field. You can edit the template manually and feed it directly to [`xg env import`](./env-import.mdx) to bootstrap one or more environment entries.
+Generates a blank **environment configuration template** as a JSON file. The template contains a single sample `D365EnvironmentConfiguration` entry pre-filled with placeholder values, along with an empty `ActiveEnvironmentFriendlyName` field. You can edit the template manually and feed it directly to [`xg env import`](/cli/reference/env-import/) to bootstrap one or more environment entries.
 
 > **License requirement:** This sub-command requires an active **Pro** (or higher) subscription. Running it without a valid Pro licence returns a non-zero exit code.
 
@@ -21,12 +21,12 @@ xg env template --output <FILE_PATH>
 
 ## Description
 
-`xg env template` produces a JSON scaffold that mirrors the structure expected by [`xg env import`](./env-import.mdx). The generated file contains:
+`xg env template` produces a JSON scaffold that mirrors the structure expected by [`xg env import`](/cli/reference/env-import/). The generated file contains:
 
 - A single `Environments` array with one placeholder entry.
 - Key fields (`FriendlyName`, `EnvironmentUrl`, `AuthenticationMethod`, `ClientId`, `MetadataCacheLifecycle`) set to sensible default values.
 - `ClientSecret` is intentionally **omitted** from the output (the field is `[JsonIgnore]`-decorated in the CLI source). Supply the secret interactively when running `xg env import`, or add it to the JSON manually before importing in a secure, non-version-controlled location.
-- `ActiveEnvironmentFriendlyName` set to `null` — activate an environment after import with [`xg env activate`](./env-activate.mdx) or via the interactive `xg env add` wizard.
+- `ActiveEnvironmentFriendlyName` set to `null` — activate an environment after import with [`xg env activate`](/cli/reference/env-activate/) or via the interactive `xg env add` wizard.
 
 If the parent directory of the output path does not exist, the CLI creates it automatically.
 
@@ -100,7 +100,7 @@ xg env import ./my-envs.json
 
 ## See Also
 
-- [`xg env import`](./env-import.mdx) — Import environment configurations from a JSON file (accepts the format produced by this command).
-- [`xg env add`](./env-add.mdx) — Interactive wizard to add a single environment without editing a JSON file.
-- [CLI Reference landing page](./index.mdx) — Full list of available commands and reference structure.
-- [CLI Overview](../index.mdx) — Introduction to the `xg` CLI and its command groups.
+- [`xg env import`](/cli/reference/env-import/) — Import environment configurations from a JSON file (accepts the format produced by this command).
+- [`xg env add`](/cli/reference/env-add/) — Interactive wizard to add a single environment without editing a JSON file.
+- [CLI Reference landing page](/cli/reference/) — Full list of available commands and reference structure.
+- [CLI Overview](/cli/) — Introduction to the `xg` CLI and its command groups.

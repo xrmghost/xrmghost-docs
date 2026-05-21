@@ -19,7 +19,7 @@ These docs are for engineers who want to understand what the package is for, how
 ## Who This Is For
 
 - Plugin authors who want a declarative way to describe Dataverse execution context
-- Teams using `xrmghost-cli generate-scenario` to seed scenario files from plugin metadata
+- Teams using `xg generate-scenario` to seed scenario files from plugin metadata
 - Engineers building tooling or tests that read plugin attributes via reflection
 
 ## Current Public Surface
@@ -38,18 +38,7 @@ The package itself is intentionally small: it defines attribute classes and ligh
 
 | Section | Description |
 |---|---|
-| [Getting Started](./getting-started.mdx) | Learn the core concepts, see a concrete plugin example, and understand the current validation boundary. |
-| [Manual Attribute Reference](./reference/index.mdx) | Browse one manual reference page per current public attribute while generated exports do not yet exist. |
-| Future schema reference | The generated reference is still planned separately once the schema pipeline exists. |
+| [Getting Started](/attributes/getting-started/) | Learn the core concepts, see a concrete plugin example, and understand the current validation boundary. |
+| [Manual Attribute Reference](/attributes/reference/) | Browse one manual reference page per current public attribute while generated exports do not yet exist. |
 
-## Narrative Docs vs. Future Generated Reference
 
-This section is intentionally narrative first. It explains how the package fits into XrmGhost and how to use it safely without pretending that exhaustive generated reference pages already exist.
-
-The current public contract in `xrmghost-attributes` is the source of truth. The new [manual attribute reference](./reference/index.mdx) is authored by hand from that contract today, and it can later be replaced or supplemented by generated output when the schema pipeline exists.
-
-When generated reference content becomes available, `docs/attributes/schema/` remains the planned location for exhaustive schema-level detail. Until then, these pages focus on package purpose, usage shape, and the limits of what is public today.
-
-## Product Ownership
-
-The Attributes documentation is owned by the **Attributes team** in collaboration with Documentation. For the full ownership map see [Content Ownership](../architecture/content-ownership.mdx).
