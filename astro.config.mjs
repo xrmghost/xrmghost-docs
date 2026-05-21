@@ -32,7 +32,12 @@ export default defineConfig({
 					label: 'Architecture',
 					collapsed: true,
 					items: [{ autogenerate: { directory: 'architecture' } }],
-				},				
+				},
+				{
+					label: 'Community',
+					collapsed: true,
+					items: [{ autogenerate: { directory: 'community' } }],
+				},
 				{
 					label: 'Contributing',
 					collapsed: true,
