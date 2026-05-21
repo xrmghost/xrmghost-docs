@@ -9,7 +9,7 @@ export default defineConfig({
 		starlight({
 			title: 'XrmGhost Docs',
 			logo: {
-				src: './src/assets/XG_Audiowide_transparent.svg',
+				src: '/assets/XG_Audiowide_transparent.svg',
 				replacesTitle: true
 			},
 			social: [
