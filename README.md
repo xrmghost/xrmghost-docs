@@ -1,5 +1,9 @@
 <p align="center">
-  <img src="./assets/XG_Audiowide_transparent_negative.svg" alt="XrmGhost" width="320" />
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="./assets/XG_Audiowide_transparent_negative.svg">
+    <source media="(prefers-color-scheme: light)" srcset="./assets/XG_Audiowide_transparent.svg">
+    <img alt="Fallback image description" src="./assets/XG_Audiowide_transparent_negative.svg" width="300">
+  </picture>
 </p>
 
 # xrmghost-docs
