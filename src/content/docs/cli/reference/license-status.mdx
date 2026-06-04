@@ -20,19 +20,19 @@ xg license status [OPTIONS]
 When a license is found the command prints:
 
 - **Status** — `License Active` (green) or `No Active License Found` (red).
-- **Tier** — the highest active subscription tier: `Free`, `Basic`, `Premium`, `Pro`, or `Enterprise`.
+- **Tier** — the highest active subscription tier: `Trial`, `Standard`, `Premium`, `Pro`, or `Enterprise`.
 - **Expires** — the UTC expiration timestamp of the license (`yyyy-MM-dd HH:mm:ss K` format).
 - **Expiration warning** — an amber warning if the license expires within 30 days; a red warning if it expires within 7 days.
 - **Subscription claims** — one entry per active subscription parsed from the JWT entitlement token (program name, tier, expiry). Shown in verbose mode only (see `--verbose`).
 
-When no valid license is found the command prints the `Unlicensed` / `Free` tier state and shows the activation hint.
+When no valid license is found the command prints the `Unlicensed` / `Trial` tier state and shows the activation hint.
 
 ### License states
 
 | State | Condition | Tier shown |
 |---|---|---|
-| **Active** | API key present, AKMS validation succeeds, expiration date in the future | Resolved from subscription claims (`Basic`, `Premium`, `Pro`, `Enterprise`) |
-| **Unlicensed** | No API key stored, or AKMS validation fails | `Free` |
+| **Active** | API key present, AKMS validation succeeds, expiration date in the future | Resolved from subscription claims (`Standard`, `Premium`, `Pro`, `Enterprise`) |
+| **Unlicensed** | No API key stored, or AKMS validation fails | `Trial` |
 | **Expiring soon** | Active license expires within 30 days | Same as Active, with amber warning |
 | **Expiring critically** | Active license expires within 7 days | Same as Active, with red warning |
 
@@ -92,7 +92,7 @@ XrmGhost License Status
 Retrieving license information...
 No Active License Found
   Status: Unlicensed
-  Tier: Free
+  Tier: Trial
   Description: No active license was found on this machine.
 
 To activate a license, use: xg license activate <bootstrap-key>
