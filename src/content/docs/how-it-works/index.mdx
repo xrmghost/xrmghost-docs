@@ -1,0 +1,42 @@
+---
+title: How It Works
+description: Public overview of the XrmGhost local-first execution model for Dataverse and Dynamics 365 plugins.
+---
+
+# How It Works
+
+XrmGhost moves the first validation step for Dataverse plugins from the cloud to your machine. Instead of deploying every change just to see whether the code behaves correctly, you run the plugin locally against a controlled scenario and inspect the result immediately.
+
+## The local-first model
+
+At a high level, the workflow looks like this:
+
+1. You prepare a plugin project and the scenario you want to run.
+2. The XrmGhost CLI starts the workflow from your terminal or automation.
+3. The local host executes plugin logic in a runtime shaped to match Dataverse expectations.
+4. You inspect the outcome, adjust code or inputs, and rerun within seconds.
+
+This keeps development feedback close to the code while still reflecting the server-side plugin model you ultimately deploy to Dataverse.
+
+## Core components
+
+| Component | Role |
+| --- | --- |
+| CLI | The main developer entry point for setup, execution, diagnostics, and scenario workflows. |
+| Framework host | The local execution process that mirrors the .NET Framework runtime expected by Dataverse plugins. |
+| Scenario and environment inputs | The configuration and test data that make runs reproducible. |
+
+## What this changes for teams
+
+The value is not just speed. The model also improves how teams work:
+
+- **Shorter feedback loops** because you do not need a deployment for every code check.
+- **Repeatable investigation** because a scenario can be rerun instead of rebuilt manually.
+- **Clearer cloud validation** because deployment can focus on final confirmation and integration.
+
+## Where to go next
+
+- Start with **[Overview](/overview/)** if you need the product-level context.
+- Continue to **[Getting Started](/getting-started/)** if you want to install the tooling.
+- Review **[Editions](/editions/)** for Trial and Standard orientation.
+- Use **[CLI](/cli/)** for command-level detail.
