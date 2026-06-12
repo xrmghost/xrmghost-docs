@@ -1,0 +1,48 @@
+---
+title: Overview
+description: What XrmGhost is, who it is for, and why local-first Dataverse development matters.
+---
+
+# Overview
+
+XrmGhost is a local-first development toolchain for Microsoft Dataverse and Dynamics 365 plugin teams. It helps you run plugin logic on your own machine, reproduce scenarios quickly, and shorten the feedback loop between a code change and a verified result.
+
+## What XrmGhost is
+
+XrmGhost is not a single binary or a hosted platform. It is a focused set of tools that work together:
+
+- a cross-platform CLI for day-to-day commands
+- a .NET Framework host that mirrors the Dataverse server-side plugin runtime
+- supporting libraries, infrastructure, and docs that keep the workflow repeatable
+
+Together, those pieces let you test behavior locally before you spend time deploying to the cloud.
+
+## Who it is for
+
+XrmGhost is designed for teams and individual developers who:
+
+- build Dataverse or Dynamics 365 plugins regularly
+- want faster debugging and replayable scenarios
+- need a workflow that fits local development, automation, and CI
+- want a clearer boundary between development-time validation and cloud deployment
+
+## Why it exists
+
+Dataverse plugin development usually forces you into a slow cycle: write code, deploy, wait, verify, repeat. XrmGhost exists to reduce that delay.
+
+With XrmGhost, teams can:
+
+- validate plugin behavior earlier
+- capture scenarios that are easy to replay
+- investigate regressions without rebuilding the same cloud setup every time
+- spend cloud deployments on confirmation instead of basic debugging
+
+## Canonical public entry points
+
+Use these pages as the stable product-level orientation:
+
+- **[How It Works](/how-it-works/)** for the local-first execution model
+- **[Editions](/editions/)** for Trial and Standard positioning
+- **[Getting Started](/getting-started/)** when you are ready to install and run the tooling
+
+Repository-specific detail still lives in the relevant repo documentation. This overview is the canonical public starting point for understanding the product story.
