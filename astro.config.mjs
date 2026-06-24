@@ -17,6 +17,14 @@ export default defineConfig({
 			],
 			customCss: ['./src/styles/custom.css'],
 			sidebar: [
+				{
+					label: 'Introduction',
+					items: [
+						{ label: 'Overview', slug: 'overview' },
+						{ label: 'How It Works', slug: 'how-it-works' },
+						{ label: 'Editions', slug: 'editions' },
+					],
+				},
 				{ label: 'Getting Started', slug: 'getting-started' },
 				{
 					label: 'Skills',
