@@ -131,7 +131,7 @@ The `--data-source` flag governs how `RetrieveMultiple` queries resolve at run t
 xg run --assembly-path <dll> --plugin-type <type> --scenario <json> --data-source auto
 ```
 
-`auto` and `live` query a real Dataverse environment in **read-only** mode and are **not available by default**: they require a licensed edition beyond the default and a configured environment (see [Editions](/editions/) and the [`xg env`](/cli/reference/) command group). On the default setup, `mock` is the only data source. The data source also changes *what to mock* — under `live`/`auto`, data that will come from the real environment should not be mocked, so decide the data source before authoring backing data.
+`auto` and `live` query a real Dataverse environment in **read-only** mode and are **not available by default**: they require a **Pro** license and a configured environment (see [Editions](/editions/) and the [`xg env`](/cli/reference/) command group). On the default setup, `mock` is the only data source. The data source also changes *what to mock* — under `live`/`auto`, data that will come from the real environment should not be mocked, so decide the data source before authoring backing data.
 
 ## Command cheat sheet
 
@@ -139,7 +139,7 @@ xg run --assembly-path <dll> --plugin-type <type> --scenario <json> --data-sourc
 |------|---------|
 | Run a scenario | `xg run --assembly-path <dll> --plugin-type <type> --scenario <json>` |
 | Run and attach a debugger | add `--debug-plugin-wait` |
-| Resolve RetrieveMultiple against live data (licensed) | add `--data-source auto\|live` |
+| Resolve RetrieveMultiple against live data (Pro) | add `--data-source auto\|live` |
 | Check licensing when results look wrong | `xg license status` |
 
 For the full, always-current flag reference of every command, see the [CLI Reference](/cli/reference/).
