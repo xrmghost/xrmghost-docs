@@ -1,0 +1,63 @@
+---
+title: Installing the Skills
+description: How to install the XrmGhost Agent Skills into Claude Code, GitHub Copilot CLI, Codex CLI, OpenCode, and other agents — the per-agent location, project vs user scope, and why this is not the same as installing a Claude Code plugin.
+sidebar:
+  order: 3
+---
+
+# Installing the Skills
+
+XrmGhost Skills follow the [Agent Skills](https://agentskills.io) open standard. Installing one is simply a matter of putting the skill folder where your agent looks for skills — there is no package manager step and no marketplace. This page covers the location for each agent, the two scopes you can install into, and a common point of confusion worth getting out of the way first.
+
+## Agent Skills are not Claude Code plugins
+
+This trips people up, so it is worth being explicit. **Agent Skills** (a `SKILL.md` file in a skills directory) and **Claude Code plugins** (a `.claude-plugin/` package distributed through a marketplace) are two different ecosystems with two different install paths.
+
+If you try to install these skills as if they were a plugin, it will not work:
+
+- There is **no `claude skill install` command** — `skill` is not a Claude Code sub-command, and `claude skill --help` falls back to the main help, which can be misleading.
+- `claude plugin install <repo-url>` will report *"Plugin not found in any configured marketplace"*, and `claude plugin marketplace add <repo-url>` fails because the repository has no `.claude-plugin/marketplace.json` — by design. It is a skills repository, not a plugin marketplace.
+
+The correct path is the manual copy described below. It takes seconds once you know it.
+
+## Prerequisites
+
+The skills assume the `xg` CLI is installed and the runtime host is set up. First-time setup — installing `xg`, running `xg setup host`, and activating a license — is covered by [Getting Started](/getting-started/). XrmGhost is distributed for evaluation; runs stop working as expected once the evaluation period lapses.
+
+## Where each agent looks for skills
+
+Each agent loads skills from its own directory. You can install at **project scope** (only the current workspace sees the skill) or **user scope** (every project on your machine sees it).
+
+| Agent | Project-level (this workspace) | User-level (all projects) |
+|-------|--------------------------------|---------------------------|
+| Claude Code | `.claude/skills/` | `~/.claude/skills/` |
+| GitHub Copilot CLI | `.github/skills/` | `~/.copilot/skills/` or `~/.agents/skills/` |
+| Codex CLI | `.agents/skills/` | `~/.agents/skills/` |
+| OpenCode | `.claude/skills/` (Claude Code fallback) | `~/.claude/skills/` |
+| Pi | `.pi/skills/` or `.agents/skills/` | `~/.pi/agent/skills/` or `~/.agents/skills/` |
+
+## Installing
+
+Clone (or download) the [`xrmghost-skills`](https://github.com/xrmghost/xrmghost-skills) repository, then copy the skill folder(s) you want into the right directory for your agent. Using Claude Code at user scope as the example:
+
+```bash
+git clone https://github.com/xrmghost/xrmghost-skills.git
+mkdir -p ~/.claude/skills
+cp -r xrmghost-skills/skills/debugging-dataverse-plugins-locally ~/.claude/skills/
+cp -r xrmghost-skills/skills/authoring-dataverse-plugin-scenarios ~/.claude/skills/
+```
+
+Two rules matter when copying:
+
+- **Copy the whole skill folder**, including any `references/` subdirectory — supporting files are loaded relative to `SKILL.md`.
+- **Do not nest a skill one level too deep.** The layout your agent expects is `…/skills/<skill-name>/SKILL.md`. A folder like `…/skills/xrmghost-skills/debugging-.../SKILL.md` will not be found.
+
+For another agent, swap the destination for the matching row in the table above (for example `~/.copilot/skills/` for GitHub Copilot CLI, or `.claude/skills/` for project scope).
+
+## Verifying the install
+
+Start (or restart) your agent and confirm it can see the skills — in Claude Code, the skills appear in the available-skills list, and the agent will engage them when a task matches their triggers (writing a scenario, running a plugin locally, interpreting an `xg` result). A quick check is to ask the agent to run a plugin scenario locally and watch whether it reaches for `xg run` with the right flags.
+
+## Keeping current
+
+The per-agent location matrix and copy procedure are maintained in the repository [`README.md`](https://github.com/xrmghost/xrmghost-skills#installation), which is the always-current source if a new agent is added or a path changes. A guided multi-agent installer — auto-detecting installed agents and letting you choose project vs user scope — is planned.

@@ -1,0 +1,145 @@
+---
+title: Using the Skills
+description: How the XrmGhost skills work day to day — authoring scenario files, running and debugging plugins and Custom APIs locally with xg, the post-run protocol, auto mode, and choosing a data source.
+sidebar:
+  order: 2
+---
+
+# Using the Skills
+
+This page describes what the two skills actually do once they are installed and an agent is working with you. You do not call a skill directly — your agent loads it when the task matches its triggers. Understanding what they do, though, lets you steer the work and read the output with confidence, whether you are a developer or an AI agent landing here for reference.
+
+Everything below assumes the `xg` CLI is installed and the runtime host is set up. If that is not yet true, start with [Getting Started](/getting-started/).
+
+## The loop, stage by stage
+
+The local development loop has four stages. The skills cover the middle two; the timing of when they engage is deliberate.
+
+1. **Implement** — the C# is being written. The skills stay out of the way here; let the code reach a compiled, coherent milestone.
+2. **Author scenarios** — once the code stands on its own, the operation(s) to run are described as scenario files.
+3. **Run** — each scenario is executed with `xg` and the result is read.
+4. **Fix loop** — a failure is interpreted, code or scenario is changed, and the run is repeated.
+
+A well-behaved agent surfaces local execution as the obvious next step at two natural moments — when an implementation reaches a milestone (*"want to run this locally before deploying?"*) and when a reported or production bug is being investigated (*"let's capture the context and reproduce it locally"*) — without nagging mid-implementation.
+
+## Authoring scenarios
+
+A scenario is a JSON document describing one operation. The authoring skill knows the shape and, more importantly, the typing rules that are the most common source of errors.
+
+### Minimum shape
+
+```json
+{
+  "scenarioName": "Short description of the operation",
+  "pluginAssemblyName": "MyCompany.Plugins.dll",
+  "pluginTypeName": "MyCompany.Plugins.Namespace.PluginClass",
+  "executionContext": {
+    "messageName": "Create",
+    "primaryEntityName": "account",
+    "primaryEntityId": "00000000-0000-0000-0000-000000000001",
+    "stage": 20,
+    "mode": 0,
+    "inputParameters": {
+      "Target": {
+        "logicalName": "account",
+        "id": "00000000-0000-0000-0000-000000000001",
+        "attributes": { }
+      }
+    }
+  }
+}
+```
+
+### Attribute value typing
+
+Inside any `attributes` object, value typing must be explicit or the framework misreads it:
+
+- **Plain values** (string, number, bool): written directly — `"name": "Contoso Ltd"`, `"revenue": 1000000`.
+- **OptionSet / Picklist**: `{ "value": X }` — never the bare number.
+- **EntityReference / lookup**: `{ "logicalName": "...", "id": "...", "name": "..." }` (`name` optional).
+- **GUIDs must be valid hex.** IDs with non-hex characters fail to parse inside EntityReference objects.
+
+### Describing the expected outcome
+
+- **Expect success**: omit `expectedException`. A run that does not throw is the success.
+- **Expect rejection**: declare `expectedException` with a `typeName` and a `messageContains` substring. The run matches only if that exception is thrown.
+
+### Supplying data the code reads
+
+When the code reads other records while it runs, that data is described — and there are two distinct mechanisms. Using the wrong one is the second most common mistake:
+
+- **`Retrieve` (single record)** → `organizationServiceMock.retrieveResponses`, where attributes are **nested** under an `attributes` object.
+- **`RetrieveMultiple` (query)** → a **root-level** `entities` key (a sibling of `executionContext`), grouped by logical name, where attributes sit **directly on the entity object** — the opposite of `retrieveResponses`. Include every field the query's filter references, or the record gets filtered out. The CLI applies the QueryExpression itself and returns only matches.
+
+A pre-image is provided via a root-level `preEntityImages` key whose name matches the image registered on the step (read in code via `Context.PreEntityImages["PreImage"]`).
+
+### Custom API scenarios
+
+A Custom API scenario differs from an entity plugin in its input parameters:
+
+- **Message name**: `custom_<publisherprefix>_<ApiName>` — both the `custom_` segment and the publisher prefix are required.
+- **No `Target`**: each declared request parameter is a direct key under `inputParameters`.
+- **Primary entity**: empty string `""` or omitted — Custom APIs are global, not bound to a record.
+
+Backing data (`retrieveResponses`, `entities`) works exactly as for a plugin.
+
+> The full authoring reference — every format, every edge case — lives in the [`authoring-dataverse-plugin-scenarios`](https://github.com/xrmghost/xrmghost-skills/blob/main/skills/authoring-dataverse-plugin-scenarios/SKILL.md) skill.
+
+## Running and debugging
+
+### Running a scenario
+
+```bash
+xg run \
+  --assembly-path "bin/Debug/net472/MyCompany.Plugins.dll" \
+  --plugin-type "MyCompany.Plugins.Contact.EnrichContact" \
+  --scenario "scenarios/EnrichContact_HappyPath.json"
+```
+
+### Debugging line by line
+
+Add `--debug-plugin-wait` to the `run` command. The CLI starts and pauses, printing a process ID. In Visual Studio use **Debug → Attach to Process…** (Ctrl+Alt+P), attach to `GhostPlugin.FrameworkHost.exe` matching that process ID, set your breakpoints, and execution resumes into them.
+
+### The post-run protocol
+
+This is the core behaviour of the debugging skill, and the reason a run never silently turns into a fix. After every run the outcome is reported — passed or failed, with the key signal (exception type and message, or the unexpected output) — and then three paths are offered explicitly:
+
+- **Analyze the issue** — investigate the failure from the *plugin code's* side: the logic, a null reference, a wrong branch.
+- **Analyze the scenario** — investigate from the *scenario file's* side. A failure is often not a code bug at all: a missing or wrong mock, an attribute typed incorrectly, a wrong message name.
+- **Auto mode** — iterate automatically (see below).
+
+The issue-vs-scenario distinction is the important guardrail: **a failing run does not imply the code is wrong.** When a run fails and the code looks correct, the first suspects are a scenario problem or an expired evaluation license (`xg license status`).
+
+### Auto mode
+
+Auto mode iterates toward a passing run on its own. It is useful but stays inspectable:
+
+- It may change either the plugin code or the scenario — the bug can be in either.
+- Every iteration it declares what it changed and why; no silent edits.
+- It is **bounded** (3–4 iterations is reasonable); if it has not converged it stops and reports what was tried.
+- It must **not** weaken assertions or bend the plugin just to make a scenario pass. Making a test pass is not the goal — understanding and correctly fixing the behaviour is. When the true cause is uncertain, it stops and asks.
+
+## Choosing a data source
+
+The `--data-source` flag governs how `RetrieveMultiple` queries resolve at run time:
+
+- **`mock`** (default): only mocked data; every record a query needs must be present in the scenario.
+- **`auto`**: mocked data first, falling back to a live environment for anything not mocked.
+- **`live`**: always query the live environment, ignoring mocks.
+
+```bash
+xg run --assembly-path <dll> --plugin-type <type> --scenario <json> --data-source auto
+```
+
+`auto` and `live` query a real Dataverse environment in **read-only** mode and are **not available by default**: they require a licensed edition beyond the default and a configured environment (see [Editions](/editions/) and the [`xg env`](/cli/reference/) command group). On the default setup, `mock` is the only data source. The data source also changes *what to mock* — under `live`/`auto`, data that will come from the real environment should not be mocked, so decide the data source before authoring backing data.
+
+## Command cheat sheet
+
+| Goal | Command |
+|------|---------|
+| Run a scenario | `xg run --assembly-path <dll> --plugin-type <type> --scenario <json>` |
+| Run and attach a debugger | add `--debug-plugin-wait` |
+| Resolve RetrieveMultiple against live data (licensed) | add `--data-source auto\|live` |
+| Check licensing when results look wrong | `xg license status` |
+
+For the full, always-current flag reference of every command, see the [CLI Reference](/cli/reference/).

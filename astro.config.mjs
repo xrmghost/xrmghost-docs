@@ -19,6 +19,11 @@ export default defineConfig({
 			sidebar: [
 				{ label: 'Getting Started', slug: 'getting-started' },
 				{
+					label: 'Skills',
+					collapsed: true,
+					items: [{ autogenerate: { directory: 'skills' } }],
+				},
+				{
 					label: 'CLI',
 					collapsed: true,
 					items: [{ autogenerate: { directory: 'cli' } }],

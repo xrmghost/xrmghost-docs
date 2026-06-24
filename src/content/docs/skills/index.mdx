@@ -1,0 +1,48 @@
+---
+title: Skills
+description: What XrmGhost Skills are, why they exist, and how they let an AI coding agent author scenarios and run Dataverse plugins and Custom APIs locally with the xg CLI.
+sidebar:
+  order: 1
+---
+
+# Skills
+
+**XrmGhost Skills** are packaged, ready-to-use knowledge that teaches an AI coding agent how to drive XrmGhost: how to describe a Dataverse operation, run it locally with the `xg` CLI, and interpret the result — without deploying to an online Dynamics 365 / Power Platform instance and reading trace logs afterwards.
+
+They exist because, in practice, XrmGhost is used *agent-first*. The most common way a plugin or Custom API gets written and verified today is an AI coding agent writing the C#, then running it locally to see how it behaves. The skills are the difference between an agent that knows XrmGhost exists and an agent that actually knows how to use it well — the right command flags, the exact scenario JSON shape, the failure modes to check first.
+
+## What you get
+
+Two skills ship in the public [`xrmghost-skills`](https://github.com/xrmghost/xrmghost-skills) repository. They are designed to activate **independently** — each is self-sufficient on its own triggers — so they work across agents without relying on cross-skill references.
+
+| Skill | What it does | Engage when |
+|-------|--------------|-------------|
+| **`debugging-dataverse-plugins-locally`** | Runs and debugs plugins, Custom APIs, and other C# pipeline objects locally with `xg run`; interprets results and drives the fix loop. | A plugin/Custom API just reached a working state, a bug is being investigated, or an `xg` run result needs interpreting. |
+| **`authoring-dataverse-plugin-scenarios`** | Writes the JSON scenario files that drive a local run — the message, input data, backing data, and expected outcome. | Preparing the input for a local run: defining the operation, supplying the data the code reads, describing what should happen. |
+
+Although both are named for *plugins* — the most common case — they apply equally to **Custom APIs** and any other C# object that runs through the Dataverse pipeline.
+
+## How they fit together: the local development loop
+
+The two skills map onto the four stages of the local development loop. Knowing which stage you are in tells you which skill is doing the work:
+
+1. **Implement** — the plugin / Custom API C# is written and reaches a coherent, compiled milestone.
+2. **Author scenarios** — the operation(s) to run are described as scenario files. → *authoring skill*
+3. **Run** — each scenario is executed with `xg` and the result is read. → *debugging skill*
+4. **Fix loop** — a failure is interpreted, code or scenario is changed, and the run is repeated.
+
+A scenario is a JSON document that describes one operation: which message fires, on what data, what the code reads while it runs, and what you expect to happen. Think of it as *defining the execution context you are sending the code into* — not as writing a test suite. The same scenario can later be run against mocked data or, on a licensed environment, against live data.
+
+[Using the Skills](/skills/using-skills/) walks through this loop in depth.
+
+## Agent Skills, not Claude Code plugins
+
+These skills are written to the [Agent Skills](https://agentskills.io) open standard: a `SKILL.md` file with `name` and `description` frontmatter, plus optional supporting files. That standard is consumed by several AI coding agents — Claude Code, GitHub Copilot CLI, Codex CLI, OpenCode, and others — each of which loads skills from its own directory.
+
+This is a different ecosystem from **Claude Code plugins**, which are a separate package system (they require a `.claude-plugin/` directory and a marketplace). There is no `claude skill install` command, and `claude plugin install` will not find these. Installing an Agent Skill is a matter of placing the skill folder where your agent looks for it — see [Installing the Skills](/skills/installing-skills/) for the exact path per agent.
+
+## Where to go next
+
+- **Want to install them?** Go to [Installing the Skills](/skills/installing-skills/) for the per-agent location and the copy procedure.
+- **Want to understand how they work day to day?** Read [Using the Skills](/skills/using-skills/).
+- **Haven't installed the CLI yet?** Start with [Getting Started](/getting-started/) — the skills assume `xg` is installed and set up.
