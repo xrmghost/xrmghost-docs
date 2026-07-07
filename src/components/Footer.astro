@@ -1,0 +1,100 @@
+---
+// Overrides Starlight's default page footer to add the approved XrmGhost
+// first-party backlink mesh (AB#1683). Keeps Starlight's own footer
+// (edit link, last-updated, pagination) untouched and appends a
+// docs-specific "more from XrmGhost" block with copy differentiated for
+// the docs surface — not a duplicate of the org profile or website footer.
+import Default from '@astrojs/starlight/components/Footer.astro';
+
+interface Surface {
+	href: string;
+	label: string;
+	description: string;
+}
+
+// Only first-party, public, non-gated surfaces. admin.xrmghost.tech is
+// intentionally excluded (gated portal, not public).
+const surfaces: Surface[] = [
+	{
+		href: 'https://www.xrmghost.tech',
+		label: 'www.xrmghost.tech',
+		description: 'Product overview, editions, and pricing — start here if you got to a doc page before the pitch.',
+	},
+	{
+		href: 'https://github.com/xrmghost',
+		label: 'github.com/xrmghost',
+		description: 'Organization profile — the full index of public repositories.',
+	},
+	{
+		href: 'https://github.com/xrmghost/xrmghost',
+		label: 'xrmghost/xrmghost',
+		description: 'Main repo — file an issue, request a feature, or read release notes.',
+	},
+	{
+		href: 'https://github.com/xrmghost/xrmghost-skills',
+		label: 'xrmghost/xrmghost-skills',
+		description: 'Source for the agent skills covered in the Skills section of these docs.',
+	},
+	{
+		href: 'https://github.com/xrmghost/xrmghost-attributes',
+		label: 'xrmghost/xrmghost-attributes',
+		description: 'Source for the declarative attributes covered in the Attributes reference.',
+	},
+];
+---
+
+<Default {...Astro.props}><slot /></Default>
+
+<nav class="xg-first-party-links" aria-label="More from XrmGhost">
+	<p class="xg-first-party-links-title">More from XrmGhost</p>
+	<ul>
+		{
+			surfaces.map((surface) => (
+				<li>
+					<a href={surface.href} rel="noopener">{surface.label}</a>
+					<span>{surface.description}</span>
+				</li>
+			))
+		}
+	</ul>
+</nav>
+
+<style>
+	@layer starlight.components {
+		.xg-first-party-links {
+			margin-top: 2rem;
+			padding-top: 1.5rem;
+			border-top: 1px solid var(--sl-color-hairline);
+		}
+		.xg-first-party-links-title {
+			margin: 0 0 0.75rem;
+			font-size: var(--sl-text-xs);
+			font-weight: 600;
+			text-transform: uppercase;
+			letter-spacing: 0.04em;
+			color: var(--sl-color-gray-3);
+		}
+		.xg-first-party-links ul {
+			display: grid;
+			gap: 0.5rem 2rem;
+			margin: 0;
+			padding: 0;
+			list-style: none;
+			grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+		}
+		.xg-first-party-links li {
+			display: flex;
+			flex-direction: column;
+			gap: 0.15rem;
+		}
+		.xg-first-party-links a {
+			font-size: var(--sl-text-sm);
+			font-weight: 600;
+			color: var(--sl-color-text-accent);
+		}
+		.xg-first-party-links span {
+			font-size: var(--sl-text-xs);
+			color: var(--sl-color-gray-3);
+		}
+	}
+</style>

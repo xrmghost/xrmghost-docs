@@ -1,0 +1,31 @@
+# XrmGhost documentation (docs.xrmghost.tech) is public. Everything here is
+# meant to be crawled, indexed, and cited — by search engines and by AI/LLM
+# agents and assistants.
+
+User-agent: *
+Allow: /
+
+# Explicit allow-list for well-known AI/LLM crawlers, so agent-facing tools
+# do not need to fall back to the wildcard rule above.
+User-agent: GPTBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: Claude-User
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: CCBot
+Allow: /
+
+Sitemap: https://docs.xrmghost.tech/sitemap-index.xml
