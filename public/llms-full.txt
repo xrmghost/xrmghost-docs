@@ -1,0 +1,3629 @@
+# XrmGhost Documentation — Full Text
+
+> Local-first development for Microsoft Dataverse and Dynamics 365. XrmGhost runs your plugins and tests on your machine, so the deploy-test loop closes in seconds instead of minutes. This file concatenates the product documentation (Overview, How It Works, Editions, Getting Started, CLI, Attributes, Skills) as a single markdown document for LLM and coding-agent ingestion. Canonical HTML lives at https://docs.xrmghost.tech/. The structured index is at https://docs.xrmghost.tech/llms.txt.
+
+
+
+---
+
+# Source: https://docs.xrmghost.tech/
+
+> Official documentation for the XrmGhost framework.
+
+
+<p align="center" class="xg-hero-logo">  
+  <picture class="xg-logo-gh">
+    <source media="(prefers-color-scheme: dark)" srcset="/assets/XG_Audiowide_transparent_negative.svg" />
+    <source media="(prefers-color-scheme: light)" srcset="/assets/XG_Audiowide_transparent.svg" />
+    <img alt="Xrm Ghost" src="/assets/XG_Audiowide_transparent.svg" width="300" />
+  </picture>  
+  <img
+    class="xg-logo xg-logo-dark"
+    alt="Xrm Ghost"
+    src="/assets/XG_Audiowide_transparent_negative.svg"
+    width="300"
+    style="display:none"
+  />
+  <img
+    class="xg-logo xg-logo-light"
+    alt="Xrm Ghost"
+    src="/assets/XG_Audiowide_transparent.svg"
+    width="300"
+    style="display:none"
+  />
+</p>
+
+**Local-first development for Microsoft Dataverse and Dynamics 365.**
+
+The Dynamics development loop is broken. You write code, you deploy, you wait, you test against the cloud, you find the bug, you do it again. XrmGhost runs your plugins and your tests on your machine, so the loop closes in seconds instead of minutes.
+
+This is the documentation hub. It's where you find out what each piece of XrmGhost does and where to go next.
+
+## Start with the canonical product pages
+
+If you are evaluating XrmGhost for the first time, begin with the public go-live overview:
+
+- **[Overview](/overview/)** — what XrmGhost is, who it is for, and why teams adopt it.
+- **[How It Works](/how-it-works/)** — the local-first execution model and the main moving parts.
+- **[Editions](/editions/)** — the Standard and Pro editions and what each includes.
+
+## Why XrmGhost exists
+
+- **Run plugins locally.** Stop deploying to find out if your code works. Execute against Dataverse from your own machine and see the result now, not after the next deploy.
+- **Build reproducible test scenarios.** Capture a bug, an edge case, or a regression as a scenario you can replay on demand — no more "works on the cloud, fails for the customer."
+- **Close the loop in seconds.** Iterate at the speed you write code, not at the speed Dataverse deploys it.
+
+## How this documentation is organized
+
+XrmGhost is not a single tool. It's a set of repositories — a CLI, a runtime host, core libraries, security, infrastructure, and more — each one owning a clear slice of the system.
+
+That's why **each repository README is the source of truth** for its own scope, maturity, and usage. This hub orients you; the individual repos go deep.
+
+We're opening the organization progressively: some repos are already public, others are still being prepared. Maturity varies by repo, and each README states its own.
+
+## Start breaking the loop
+
+The fastest way to understand XrmGhost is to run it. → **[Getting Started](/getting-started/) or jump into the [CLI reference](/cli/)**
+
+Want the high-level product story first? → **[Overview](/overview/)**
+
+Need to report a problem, request a capability, or discuss an idea? → **[Community](/community/)**
+
+---
+
+
+---
+
+# Source: https://docs.xrmghost.tech/overview/
+
+> What XrmGhost is, who it is for, and why local-first Dataverse development matters.
+
+
+# Overview
+
+XrmGhost is a local-first development toolchain for Microsoft Dataverse and Dynamics 365 plugin teams. It helps you run plugin logic on your own machine, reproduce scenarios quickly, and shorten the feedback loop between a code change and a verified result.
+
+## What XrmGhost is
+
+XrmGhost is not a single binary or a hosted platform. It is a focused set of tools that work together:
+
+- a cross-platform CLI for day-to-day commands
+- a .NET Framework host that mirrors the Dataverse server-side plugin runtime
+- supporting libraries, infrastructure, and docs that keep the workflow repeatable
+
+Together, those pieces let you test behavior locally before you spend time deploying to the cloud.
+
+## Who it is for
+
+XrmGhost is designed for teams and individual developers who:
+
+- build Dataverse or Dynamics 365 plugins regularly
+- want faster debugging and replayable scenarios
+- need a workflow that fits local development, automation, and CI
+- want a clearer boundary between development-time validation and cloud deployment
+
+## Why it exists
+
+Dataverse plugin development usually forces you into a slow cycle: write code, deploy, wait, verify, repeat. XrmGhost exists to reduce that delay.
+
+With XrmGhost, teams can:
+
+- validate plugin behavior earlier
+- capture scenarios that are easy to replay
+- investigate regressions without rebuilding the same cloud setup every time
+- spend cloud deployments on confirmation instead of basic debugging
+
+## Canonical public entry points
+
+Use these pages as the stable product-level orientation:
+
+- **[How It Works](/how-it-works/)** for the local-first execution model
+- **[Editions](/editions/)** for the Standard and Pro editions
+- **[Getting Started](/getting-started/)** when you are ready to install and run the tooling
+
+Repository-specific detail still lives in the relevant repo documentation. This overview is the canonical public starting point for understanding the product story.
+
+
+---
+
+# Source: https://docs.xrmghost.tech/how-it-works/
+
+> Public overview of the XrmGhost local-first execution model for Dataverse and Dynamics 365 plugins.
+
+
+# How It Works
+
+XrmGhost moves the first validation step for Dataverse plugins from the cloud to your machine. Instead of deploying every change just to see whether the code behaves correctly, you run the plugin locally against a controlled scenario and inspect the result immediately.
+
+## The local-first model
+
+At a high level, the workflow looks like this:
+
+1. You prepare a plugin project and the scenario you want to run.
+2. The XrmGhost CLI starts the workflow from your terminal or automation.
+3. The local host executes plugin logic in a runtime shaped to match Dataverse expectations.
+4. You inspect the outcome, adjust code or inputs, and rerun within seconds.
+
+This keeps development feedback close to the code while still reflecting the server-side plugin model you ultimately deploy to Dataverse.
+
+## Core components
+
+| Component | Role |
+| --- | --- |
+| CLI | The main developer entry point for setup, execution, diagnostics, and scenario workflows. |
+| Framework host | The local execution process that mirrors the .NET Framework runtime expected by Dataverse plugins. |
+| Scenario and environment inputs | The configuration and test data that make runs reproducible. |
+
+## What this changes for teams
+
+The value is not just speed. The model also improves how teams work:
+
+- **Shorter feedback loops** because you do not need a deployment for every code check.
+- **Repeatable investigation** because a scenario can be rerun instead of rebuilt manually.
+- **Clearer cloud validation** because deployment can focus on final confirmation and integration.
+
+## Where to go next
+
+- Start with **[Overview](/overview/)** if you need the product-level context.
+- Continue to **[Getting Started](/getting-started/)** if you want to install the tooling.
+- Review **[Editions](/editions/)** for the Standard and Pro editions.
+- Use **[CLI](/cli/)** for command-level detail.
+
+
+---
+
+# Source: https://docs.xrmghost.tech/editions/
+
+> XrmGhost Standard and Pro editions — local execution and debugging in Standard, read-only live Dataverse environment integration in Pro.
+
+
+# Editions
+
+XrmGhost ships in two editions. **Standard** is the local-first foundation: run and debug your Dataverse plugins and Custom APIs on your own machine. **Pro** includes everything in Standard and adds read-only integration with live Dataverse environments, so a local run can read real data instead of mocked data.
+
+Both editions share the same core workflow — author a scenario, run it locally, inspect the result. The difference is where the data a run reads comes from.
+
+## Standard
+
+Standard covers the full local development loop for Dataverse server-side code.
+
+- **Run plugins and Custom APIs locally.** Execute your server-side C# on your own machine, in a runtime shaped to match the Dataverse plugin pipeline. (Support for custom workflow activities — CWA — is on the roadmap.)
+- **Headless execution.** Run a scenario and read the result straight away — ideal for a fast write-run-fix loop, for automation, and for CI.
+- **Line-by-line debugging.** Attach a debugger to your own code as it runs locally — in Visual Studio, *Debug → Attach to Process* onto the XrmGhost host — and step through your plugin exactly as you would any local program. No deploy, no remote profiler.
+- **Scenario-driven data.** The data a run reads is supplied by the scenario itself (mocked data), so a run is fully self-contained and reproducible.
+
+Use Standard when you want to develop, debug, and verify Dataverse plugins and Custom APIs locally with data you define.
+
+## Pro
+
+Pro includes everything in Standard, and adds live integration with real Dataverse environments.
+
+- **Read-only access to live Dataverse environments.** This is the defining Pro capability, and it is strictly **read-only**: XrmGhost reads from the environment only to satisfy the queries your code makes during a local run, and never writes anything back. Your live data is never modified.
+- **Environment and connection library.** Register, organize, and switch between multiple Dataverse environments and connections, so you can point a run at whichever environment you need.
+- **Live data instead of mocks.** You design your scenario, pass the real id of the specific record or user you care about, and run your code locally — but every read query (`Retrieve` / `RetrieveMultiple`) resolves *live* against the environment. You no longer have to mock the data the code reads; XrmGhost fetches it from the real environment as the run executes.
+
+This is the `auto` / `live` data source described in [Using the Skills](/skills/using-skills/): on Standard a run reads only mocked scenario data; on Pro it can read live, read-only data from a configured environment.
+
+Use Pro when you want to reproduce and debug real, live cases locally without hand-building the data — for example investigating a production issue against the very environment that produced it.
+
+### On the Pro roadmap
+
+- **Scenario from a trace log.** Generate a runnable scenario directly from a Dataverse trace log, turning a real, live incident into a local run with even less manual setup — less work for a human, and less for an AI agent, to debug a real case.
+
+## Choosing an edition
+
+| If you want to... | Edition |
+| --- | --- |
+| Run and debug plugins / Custom APIs locally with data you define | Standard |
+| Read live, read-only data from real Dataverse environments during a run, and manage multiple environments | Pro |
+
+Pro is a superset of Standard: everything you can do in Standard, you can do in Pro.
+
+XrmGhost is distributed for evaluation, so you can install it and try the local workflow before activating a Standard or Pro license — see [Getting Started](/getting-started/).
+
+## Related pages
+
+- **[Overview](/overview/)** — what XrmGhost is and why it exists
+- **[How It Works](/how-it-works/)** — the local-first execution model
+- **[Using the Skills](/skills/using-skills/)** — how a run uses mocked vs live data day to day
+- **[Getting Started](/getting-started/)** — installation and first-run guidance
+
+
+---
+
+# Source: https://docs.xrmghost.tech/getting-started/
+
+> Install XrmGhost, set up the runtime host, and run your first local plugin execution.
+
+
+# Getting Started
+
+XrmGhost runs your Dynamics plugins and tests on your machine. This page takes you from nothing installed to a first local run.
+
+It's three steps: install the CLI, set up the runtime host, run.
+
+## Prerequisites
+
+XrmGhost has two runtime dependencies. Both must be present before you start.
+
+| Requirement | Why |
+| --- | --- |
+| **.NET 9 runtime** | Runs the `xg` CLI itself. |
+| **.NET Framework 4.7.2** | Runs the host that executes your plugins, matching the Dataverse server-side runtime. |
+
+Check what you have:
+
+```bash
+dotnet --list-runtimes
+```
+
+You want a `Microsoft.NETCore.App 9.x` line for the CLI, and .NET Framework 4.7.2 (or later) available on the machine for the host. On Windows 10/11 the 4.7.2 framework is almost always already there; on a clean build agent it may not be.
+
+## 1. Install the CLI
+
+XrmGhost ships as a .NET global tool:
+
+```bash
+dotnet tool install -g XrmGhost.Cli
+```
+
+Confirm it's on your PATH:
+
+```bash
+xg --help
+```
+
+If `xg` isn't found right after install, open a new shell — the `dotnet tool` PATH entry is picked up on shell start.
+
+To update later:
+
+```bash
+dotnet tool update -g XrmGhost.Cli
+```
+
+## 2. Set up the runtime host
+
+The CLI is light. The component that actually executes your plugins is the **host** — a .NET Framework 4.7.2 process that mirrors the Dataverse server-side runtime. The CLI fetches and installs it for you; you just trigger it once:
+
+```bash
+xg setup host --update
+```
+
+This pulls the matching host version and registers it locally. Run the same command again whenever you update the CLI — it keeps the host in sync with it.
+
+You only do this once per machine (and after upgrades). After that, every `xg` run uses the installed host directly.
+
+## 3. Run
+
+With CLI and host in place, you're ready. From a project that contains your plugins:
+
+```bash
+xg --help
+```
+
+From here the command set covers running plugins locally, building and replaying test scenarios, and inspecting what happened. The [CLI Reference](/cli/) is the full map.
+
+## Where to go next
+
+- **[Overview](/overview/)** — the product-level introduction to XrmGhost.
+- **[How It Works](/how-it-works/)** — the public explanation of the local-first execution model.
+- **[Editions](/editions/)** — see how Standard and Pro differ and which one fits your needs.
+- **[CLI Reference](/cli/)** — every command, flag, and what it does.
+- **[Attributes](/attributes/)** — how you mark up plugins and scenarios for XrmGhost to pick up.
+- **[Architecture](/architecture/)** — how the CLI, host, and Dataverse runtime fit together.
+- **[Community](/community/)** — report bugs, request features, and open discussions.
+- **[Contributing](/contributing/)** — working on XrmGhost itself.
+
+
+---
+
+# Source: https://docs.xrmghost.tech/cli/
+
+> Introduction to the XrmGhost command-line interface — what it does, who it is for, and how this documentation slice is organised.
+
+
+# XrmGhost CLI
+
+The XrmGhost CLI (`xg`) is the primary developer interface for the XrmGhost ecosystem. It runs on Windows, macOS, and Linux and gives you terminal access to the main workflows: executing Dataverse plugins out-of-process, managing environment configurations, handling licensing, and diagnosing problems.
+
+## Who the CLI Is For
+
+The CLI is aimed at developers who:
+
+- write and test Dataverse plugins locally before deploying to a Power Platform environment
+- need scriptable, repeatable runs as part of a CI workflow
+- prefer an AI-agent-first workflow or a terminal-first experience over a GUI
+
+## What the CLI Does
+
+| Command group | Purpose |
+|---|---|
+| `run` | Execute a Dataverse plugin using a scenario file, with the Framework Host running in the background |
+| `generate-scenario` | Create a template scenario JSON for a given plugin, ready to pass to `run` |
+| `env` | Add, edit, delete, list, activate, and switch Dataverse environment configurations |
+| `license` | Activate your license, view its status and tier, and retrieve your machine's platform ID |
+| `doctor` | Run environment and configuration health checks to diagnose connectivity or setup issues |
+| `privacy` | Display information about telemetry data collection and local storage |
+| `setup host` | Install or update the Framework Host component used by `run` |
+
+For the full flag-level detail of every command and sub-command, see the [CLI Reference](/cli/reference/) section — generated automatically from the CLI's `--help` output.
+
+## How This Documentation Slice Is Organised
+
+| Page | What you will find |
+|---|---|
+| This page | Overview, orientation, and navigation |
+| [Getting Started](/cli/getting-started/) | Installation, verification, and your first command |
+| Reference section | CLI explanation and flags details |
+
+
+## Where to Go Next
+
+- **New to XrmGhost?** Start with [Getting Started](/cli/getting-started/) to install the CLI and run your first plugin scenario.
+- **Looking for a specific flag or option?** Go to [CLI Reference](/cli/reference/) for the generated per-command reference.
+- **Found a bug or missing capability?** Use [Community](/community/) to report it or discuss it.
+- **Want to contribute?** See [Contributing](/contributing/) for guidelines on updating narrative docs or the generation pipeline.
+
+
+---
+
+# Source: https://docs.xrmghost.tech/cli/getting-started/
+
+> Orient yourself with the XrmGhost CLI, discover available commands, and learn how to begin using it safely for the first time.
+
+
+# Getting Started with the CLI
+
+The `xrmghost` CLI (invoked as `xg`) is the primary way to run Dataverse plugins, manage environments, and interact with the XrmGhost ecosystem from a terminal.
+
+This guide helps you orient yourself after obtaining the CLI binary — covering how to explore available commands, confirm your setup, and find your way into the main workflows.
+
+:::info Before you begin
+This guide assumes you already have the CLI binary available in your `PATH`. Installation and platform-specific prerequisites are covered in your distribution's release notes or onboarding instructions.
+:::
+
+## Confirm the CLI is available
+
+Once the binary is in place, verify it responds:
+
+```bash
+xg --version
+```
+
+You should see a version header showing the CLI version and the bundled Core version. If the command is not found, ensure the binary is on your `PATH`.
+
+## Discover available commands
+
+The fastest way to understand what the CLI can do is to ask it:
+
+```bash
+xg --help
+```
+
+This prints the top-level command tree. For any command or subcommand, you can append `--help` to drill deeper:
+
+```bash
+xg env --help
+xg license --help
+xg run --help
+```
+
+The `--help` surface is always up to date with the installed version, so it is the most reliable reference while you orient yourself.
+
+## Main command areas
+
+The CLI organises its functionality into the following top-level areas:
+
+| Command | Purpose |
+|---|---|
+| `run` | Execute a Dataverse plugin using a scenario file |
+| `generate-scenario` | Create a template JSON scenario file for a plugin |
+| `env` | Add, list, switch between, and manage environment configurations |
+| `license` | Activate a license, check status, and retrieve your machine ID |
+| `doctor` | Run health checks to diagnose configuration or connectivity issues |
+| `privacy` | Display information about data collected by the tool |
+
+These areas are stable entry points. Each has its own `--help` page.
+
+## A safe first exploration path
+
+If you are new to the CLI, the following sequence lets you explore without making any changes:
+
+1. **Check your license status** — understand what tier and features are available to you:
+   ```bash
+   xg license status
+   ```
+
+2. **List configured environments** — see what Dataverse environments (if any) are already set up:
+   ```bash
+   xg env list
+   ```
+
+3. **Run diagnostics** — confirm connectivity and configuration are healthy:
+   ```bash
+   xg doctor
+   ```
+   Use `--verbose` for detailed diagnostic output:
+   ```bash
+   xg doctor --verbose
+   ```
+
+None of the commands above modify state. They are read-only discovery steps.
+
+## When you are ready to act
+
+Once you are oriented, typical next actions are:
+
+- **Add an environment** — use `xg env add` to start the interactive wizard for connecting a Dataverse environment.
+- **Generate a scenario file** — use `xg generate-scenario` to create a JSON template for the plugin you want to test.
+- **Run a plugin** — once a scenario file is prepared and an environment is active, use `xg run` to execute the plugin out-of-process.
+
+## Getting detailed command reference
+
+Full reference documentation for every command, flag, and option is being generated as part of the ADO-1158 documentation pipeline and will appear under the **Reference** section of the CLI docs.
+
+Until that reference lands, `xg <command> --help` is the definitive source.
+
+## Next steps
+
+- [CLI Overview](/cli/) — the role of the CLI in the XrmGhost ecosystem
+- **CLI Reference** _(coming soon)_ — auto-generated documentation for all commands
+
+
+---
+
+# Source: https://docs.xrmghost.tech/cli/reference/
+
+> Landing page for the XrmGhost CLI reference area. Explains the reference structure, distinguishes manual IA guidance from future generated command documentation, and links to the command-group mapping artifact.
+
+
+# CLI Reference
+
+This section is the reference area for the `xrmghost` CLI. It documents the information architecture (IA) that governs how CLI command reference pages are organised and produced.
+
+## What This Section Contains
+
+| Page | Purpose |
+|---|---|
+| [Command Groups](/cli/reference/command-groups/) | Maps each command group to its reader-facing purpose and intended reference-page shape |
+
+## Command Groups at a Glance
+
+The `xrmghost` CLI surface is organised into the following top-level command groups. See [Command Groups](/cli/reference/command-groups/) for the full mapping.
+
+| Command Group | Short Description |
+|---|---|
+| `run` | Execute a Dataverse plugin via FrameworkHost |
+| `generate-scenario` | Generate a template JSON scenario file for a plugin |
+| `doctor` | Diagnose configuration and connectivity |
+| `privacy` | Display data-collection and privacy information |
+| `license` | Manage license status and activation |
+| `env` | Manage Dataverse environment configurations |
+| `setup` | Install or update managed infrastructure components |
+
+## Related
+
+- [CLI Overview](/cli/)
+- [Getting Started with the CLI](/cli/getting-started/)
+- [Command Groups](/cli/reference/command-groups/)
+- [Source of Truth](/architecture/source-of-truth/)
+- [Contributing](/contributing/)
+
+
+---
+
+# Source: https://docs.xrmghost.tech/attributes/
+
+> Overview of the XrmGhost.Attributes package, what it declares on plugin classes, and where to start with the narrative docs.
+
+
+# Attributes
+
+`XrmGhost.Attributes` is the shared metadata package used to describe Dataverse plugin behavior with .NET attributes instead of handwritten registration or scenario scaffolding metadata.
+
+These docs are for engineers who want to understand what the package is for, how to apply it to plugin classes, and where the current narrative guidance stops.
+
+## What the Package Does
+
+- Declares plugin execution context on a class with repeatable .NET attributes
+- Captures message, entity, image, parameter, configuration, and solution metadata in code
+- Gives reflection-based tools a stable surface to inspect without parsing plugin logic
+- Supplies the metadata used by other XrmGhost components such as the CLI scenario generator and the framework host
+
+## Who This Is For
+
+- Plugin authors who want a declarative way to describe Dataverse execution context
+- Teams using `xg generate-scenario` to seed scenario files from plugin metadata
+- Engineers building tooling or tests that read plugin attributes via reflection
+
+## Current Public Surface
+
+Today the package exposes class-level attributes for these jobs:
+
+- **Execution registration** via `PluginExecutionConfigAttribute` and `HandlesMessageAttribute`
+- **Scenario seed data** via `InputParameterAttribute`, `OutputParameterAttribute`, and `SharedVariableAttribute`
+- **Entity image metadata** via `PreImageAttribute` and `PostImageAttribute`
+- **Configuration defaults** via `SecureConfigurationAttribute` and `UnsecureConfigurationAttribute`
+- **Registration grouping** via `SolutionComponentAttribute`
+
+The package itself is intentionally small: it defines attribute classes and lightweight constructor/property validation, then leaves richer behavior to consumers that read the metadata.
+
+## Read This Section In Order
+
+| Section | Description |
+|---|---|
+| [Getting Started](/attributes/getting-started/) | Learn the core concepts, see a concrete plugin example, and understand the current validation boundary. |
+| [Manual Attribute Reference](/attributes/reference/) | Browse one manual reference page per current public attribute while generated exports do not yet exist. |
+
+## Feedback
+
+Found a documentation gap, unexpected behavior, or an idea for improving the attribute experience? Open it through [Community](/community/).
+
+
+---
+
+# Source: https://docs.xrmghost.tech/attributes/getting-started/
+
+> Learn the core XrmGhost.Attributes concepts, see a concrete plugin example, and understand the package's current validation boundary.
+
+
+# Getting Started with Attributes
+
+`XrmGhost.Attributes` lets you declare plugin metadata on the plugin class itself. The attributes are ordinary .NET attributes: they do nothing on their own until a tool or runtime host reads them via reflection.
+
+## Core Concepts
+
+Before you write attributes, keep these boundaries in mind:
+
+1. **Class-level metadata only.** The package's public attributes target plugin classes, not individual properties or methods.
+2. **JSON-shaped seed values.** Parameter values and entity images are passed as strings, often containing JSON payloads that downstream tooling can reuse.
+3. **Consumers provide behavior.** The package describes intent; tools such as `xrmghost-cli generate-scenario` and `xrmghost-framework-host` decide how to interpret it.
+
+## Installation
+
+To use `XrmGhost.Attributes` in your project, add the NuGet package to your solution. Choose one of the methods below.
+
+### Using the .NET CLI
+
+Run the following command in your project directory:
+
+```bash
+dotnet add package XrmGhost.Attributes
+```
+
+### Using Visual Studio NuGet Package Manager
+
+1. In Visual Studio, open **Tools** > **NuGet Package Manager** > **Manage NuGet Packages for Solution**.
+2. Search for `XrmGhost.Attributes`.
+3. Select the package and click **Install**.
+
+Once installed, you can begin decorating your plugin classes with XrmGhost attributes.
+
+## A Reusable Example
+
+The example below shows a realistic starting point for a plugin that handles `account` updates and wants both a target entity and a pre-image available to downstream tooling.
+
+```csharp
+using Microsoft.Xrm.Sdk;
+using XrmGhost.Attributes;
+
+[PluginExecutionConfigAttribute("account", "Update", Stage = 20, Mode = 0)]
+[PreImageAttribute(
+    "primary",
+    "{ \"__entityName\": \"account\", \"accountid\": \"00000000-0000-0000-0000-000000000001\", \"name\": \"Old Name\" }",
+    Attributes = new[] { "accountid", "name" })]
+[InputParameterAttribute(
+    "Target",
+    "{ \"__entityName\": \"account\", \"accountid\": \"00000000-0000-0000-0000-000000000001\", \"name\": \"New Name\" }")]
+[SharedVariableAttribute("CorrelationHint", "\"account-update\"")]
+public class AccountUpdatePlugin : IPlugin
+{
+    public void Execute(IServiceProvider serviceProvider)
+    {
+    }
+}
+```
+
+Why this example is reusable:
+
+- `PluginExecutionConfigAttribute` declares the primary entity, message, and optional stage/mode metadata.
+- `PreImageAttribute` shows how to give tools a named entity snapshot plus an optional filtered attribute list.
+- `InputParameterAttribute` seeds the `Target` input with JSON that looks like the Dataverse entity shape consumers expect.
+- `SharedVariableAttribute` shows that not every seeded value has to be an entity payload.
+
+## Supported Shape, at a High Level
+
+The package currently supports a small, explicit set of metadata shapes:
+
+- **Execution metadata** such as primary entity name, handled messages, stage, mode, and impersonating user ID
+- **Entity JSON payloads** for pre-images and post-images
+- **Parameter JSON payloads** for input and output parameters
+- **Configuration strings** for secure and unsecure configuration
+- **Solution names** for registration grouping
+
+The exact JSON contract is not yet documented as generated reference content. For now, follow the examples shipped with the package README and keep payloads aligned with the Dataverse object shape your consumer expects.
+
+## Validation Expectations
+
+Be conservative about what this package validates for you.
+
+- Some attributes validate obvious required inputs such as non-empty entity names, message names, or solution names.
+- Many attributes simply store the string values you provide, including JSON payloads.
+- The package does **not** act as a full schema validator for Dataverse entities, parameters, or configuration payloads.
+- If a payload is malformed, the failure usually appears later in the consumer that reads it rather than when the attribute is compiled.
+
+That means the safest workflow is to treat these attributes as a metadata contract and verify the contract with the tool that consumes it.
+
+## Relationship to `generate-scenario`
+
+`xg generate-scenario` is one of the most important consumers of this package.
+
+- It inspects plugin classes for XrmGhost attributes.
+- It uses the declared entity images, parameters, and configuration values as starting data for generated scenarios.
+- If the attributes are missing, the command can still inspect the assembly, but it has less information to pre-populate and falls back to a thinner result.
+
+In practice, that makes attribute coverage a documentation and tooling benefit: the more accurately you describe the plugin's execution context, the more useful the generated scenario scaffolding becomes.
+
+## Next Steps
+
+- Return to the [Attributes overview](/attributes/) for the section map and package boundary.
+- Use the [manual attribute reference](/attributes/reference/) for one page per current public attribute, backed by the current public contract in `xrmghost-attributes` as the source of truth.
+
+
+## Related
+
+- [Attributes Overview](/attributes/)
+- [Manual Attribute Reference](/attributes/reference/)
+
+
+---
+
+# Source: https://docs.xrmghost.tech/attributes/reference/
+
+> Manual reference landing page for every current public XrmGhost.Attributes attribute, with links back to the source-of-truth contract.
+
+
+# Attribute Reference
+
+This section provides one manual reference page for every current public attribute exposed by `XrmGhost.Attributes`.
+
+## Source of Truth and Boundary
+
+The current public contract in `xrmghost-attributes` is the source of truth for these pages.
+
+These reference pages are **manual** documentation today. They summarize the public constructor and property surface with high confidence from source, and they should not be read as generated schema exports. A future generated reference can replace or supplement this section later without changing the underlying contract.
+
+## Current Public Attributes
+
+| Attribute | Primary use |
+|---|---|
+| [HandlesMessageAttribute](/attributes/reference/handles-message-attribute/) | Declare a handled Dataverse message name on a plugin class. |
+| [InputParameterAttribute](/attributes/reference/input-parameter-attribute/) | Seed an input parameter with a JSON-shaped value. |
+| [OutputParameterAttribute](/attributes/reference/output-parameter-attribute/) | Describe an expected output parameter value. |
+| [PluginExecutionConfigAttribute](/attributes/reference/plugin-execution-config-attribute/) | Register entity, message, stage, mode, and impersonation metadata. |
+| [PostImageAttribute](/attributes/reference/post-image-attribute/) | Provide a post-operation entity image payload and optional column filter. |
+| [PreImageAttribute](/attributes/reference/pre-image-attribute/) | Provide a pre-operation entity image payload and optional column filter. |
+| [SecureConfigurationAttribute](/attributes/reference/secure-configuration-attribute/) | Store a default secure configuration string for consumers. |
+| [SharedVariableAttribute](/attributes/reference/shared-variable-attribute/) | Seed a shared variable value as JSON-shaped metadata. |
+| [SolutionComponentAttribute](/attributes/reference/solution-component-attribute/) | Group registration into one or more Dataverse solutions. |
+| [UnsecureConfigurationAttribute](/attributes/reference/unsecure-configuration-attribute/) | Store a default unsecure configuration string for consumers. |
+
+## How to Read These Pages
+
+- Use these pages for the current public names, constructor shape, and writable properties.
+- Use the narrative docs in [Attributes Overview](/attributes/) and [Getting Started](/attributes/getting-started/) for package context.
+- Stay conservative when you document behavior beyond the public contract: many downstream effects come from tools that consume the attributes, not from the attributes themselves.
+
+
+---
+
+# Source: https://docs.xrmghost.tech/skills/
+
+> What XrmGhost Skills are, why they exist, and how they let an AI coding agent author scenarios and run Dataverse plugins and Custom APIs locally with the xg CLI.
+
+
+# Skills
+
+**XrmGhost Skills** are packaged, ready-to-use knowledge that teaches an AI coding agent how to drive XrmGhost: how to describe a Dataverse operation, run it locally with the `xg` CLI, and interpret the result — without deploying to an online Dynamics 365 / Power Platform instance and reading trace logs afterwards.
+
+They exist because, in practice, XrmGhost is used *agent-first*. The most common way a plugin or Custom API gets written and verified today is an AI coding agent writing the C#, then running it locally to see how it behaves. The skills are the difference between an agent that knows XrmGhost exists and an agent that actually knows how to use it well — the right command flags, the exact scenario JSON shape, the failure modes to check first.
+
+## What you get
+
+Two skills ship in the public [`xrmghost-skills`](https://github.com/xrmghost/xrmghost-skills) repository. They are designed to activate **independently** — each is self-sufficient on its own triggers — so they work across agents without relying on cross-skill references.
+
+| Skill | What it does | Engage when |
+|-------|--------------|-------------|
+| **`debugging-dataverse-plugins-locally`** | Runs and debugs plugins, Custom APIs, and other C# pipeline objects locally with `xg run`; interprets results and drives the fix loop. | A plugin/Custom API just reached a working state, a bug is being investigated, or an `xg` run result needs interpreting. |
+| **`authoring-dataverse-plugin-scenarios`** | Writes the JSON scenario files that drive a local run — the message, input data, backing data, and expected outcome. | Preparing the input for a local run: defining the operation, supplying the data the code reads, describing what should happen. |
+
+Although both are named for *plugins* — the most common case — they apply equally to **Custom APIs** and any other C# object that runs through the Dataverse pipeline.
+
+## How they fit together: the local development loop
+
+The two skills map onto the four stages of the local development loop. Knowing which stage you are in tells you which skill is doing the work:
+
+1. **Implement** — the plugin / Custom API C# is written and reaches a coherent, compiled milestone.
+2. **Author scenarios** — the operation(s) to run are described as scenario files. → *authoring skill*
+3. **Run** — each scenario is executed with `xg` and the result is read. → *debugging skill*
+4. **Fix loop** — a failure is interpreted, code or scenario is changed, and the run is repeated.
+
+A scenario is a JSON document that describes one operation: which message fires, on what data, what the code reads while it runs, and what you expect to happen. Think of it as *defining the execution context you are sending the code into* — not as writing a test suite. The same scenario can later be run against mocked data or, on Pro, against live read-only data from a real environment.
+
+[Using the Skills](/skills/using-skills/) walks through this loop in depth.
+
+## Agent Skills, not Claude Code plugins
+
+These skills are written to the [Agent Skills](https://agentskills.io) open standard: a `SKILL.md` file with `name` and `description` frontmatter, plus optional supporting files. That standard is consumed by several AI coding agents — Claude Code, GitHub Copilot CLI, Codex CLI, OpenCode, and others — each of which loads skills from its own directory.
+
+This is a different ecosystem from **Claude Code plugins**, which are a separate package system (they require a `.claude-plugin/` directory and a marketplace). There is no `claude skill install` command, and `claude plugin install` will not find these. Installing an Agent Skill is a matter of placing the skill folder where your agent looks for it — see [Installing the Skills](/skills/installing-skills/) for the exact path per agent.
+
+## Where to go next
+
+- **Want to install them?** Go to [Installing the Skills](/skills/installing-skills/) for the per-agent location and the copy procedure.
+- **Want to understand how they work day to day?** Read [Using the Skills](/skills/using-skills/).
+- **Haven't installed the CLI yet?** Start with [Getting Started](/getting-started/) — the skills assume `xg` is installed and set up.
+
+
+---
+
+# Source: https://docs.xrmghost.tech/skills/installing-skills/
+
+> How to install the XrmGhost Agent Skills into Claude Code, GitHub Copilot CLI, Codex CLI, OpenCode, and other agents — the per-agent location, project vs user scope, and why this is not the same as installing a Claude Code plugin.
+
+
+# Installing the Skills
+
+XrmGhost Skills follow the [Agent Skills](https://agentskills.io) open standard. Installing one is simply a matter of putting the skill folder where your agent looks for skills — there is no package manager step and no marketplace. This page covers the location for each agent, the two scopes you can install into, and a common point of confusion worth getting out of the way first.
+
+## Agent Skills are not Claude Code plugins
+
+This trips people up, so it is worth being explicit. **Agent Skills** (a `SKILL.md` file in a skills directory) and **Claude Code plugins** (a `.claude-plugin/` package distributed through a marketplace) are two different ecosystems with two different install paths.
+
+If you try to install these skills as if they were a plugin, it will not work:
+
+- There is **no `claude skill install` command** — `skill` is not a Claude Code sub-command, and `claude skill --help` falls back to the main help, which can be misleading.
+- `claude plugin install <repo-url>` will report *"Plugin not found in any configured marketplace"*, and `claude plugin marketplace add <repo-url>` fails because the repository has no `.claude-plugin/marketplace.json` — by design. It is a skills repository, not a plugin marketplace.
+
+The correct path is the manual copy described below. It takes seconds once you know it.
+
+## Prerequisites
+
+The skills assume the `xg` CLI is installed and the runtime host is set up. First-time setup — installing `xg`, running `xg setup host`, and activating a license — is covered by [Getting Started](/getting-started/). XrmGhost is distributed for evaluation; runs stop working as expected once the evaluation period lapses.
+
+## Where each agent looks for skills
+
+Each agent loads skills from its own directory. You can install at **project scope** (only the current workspace sees the skill) or **user scope** (every project on your machine sees it).
+
+| Agent | Project-level (this workspace) | User-level (all projects) |
+|-------|--------------------------------|---------------------------|
+| Claude Code | `.claude/skills/` | `~/.claude/skills/` |
+| GitHub Copilot CLI | `.github/skills/` | `~/.copilot/skills/` or `~/.agents/skills/` |
+| Codex CLI | `.agents/skills/` | `~/.agents/skills/` |
+| OpenCode | `.claude/skills/` (Claude Code fallback) | `~/.claude/skills/` |
+| Pi | `.pi/skills/` or `.agents/skills/` | `~/.pi/agent/skills/` or `~/.agents/skills/` |
+
+## Installing
+
+Clone (or download) the [`xrmghost-skills`](https://github.com/xrmghost/xrmghost-skills) repository, then copy the skill folder(s) you want into the right directory for your agent. Using Claude Code at user scope as the example:
+
+```bash
+git clone https://github.com/xrmghost/xrmghost-skills.git
+mkdir -p ~/.claude/skills
+cp -r xrmghost-skills/skills/debugging-dataverse-plugins-locally ~/.claude/skills/
+cp -r xrmghost-skills/skills/authoring-dataverse-plugin-scenarios ~/.claude/skills/
+```
+
+Two rules matter when copying:
+
+- **Copy the whole skill folder**, including any `references/` subdirectory — supporting files are loaded relative to `SKILL.md`.
+- **Do not nest a skill one level too deep.** The layout your agent expects is `…/skills/<skill-name>/SKILL.md`. A folder like `…/skills/xrmghost-skills/debugging-.../SKILL.md` will not be found.
+
+For another agent, swap the destination for the matching row in the table above (for example `~/.copilot/skills/` for GitHub Copilot CLI, or `.claude/skills/` for project scope).
+
+## Verifying the install
+
+Start (or restart) your agent and confirm it can see the skills — in Claude Code, the skills appear in the available-skills list, and the agent will engage them when a task matches their triggers (writing a scenario, running a plugin locally, interpreting an `xg` result). A quick check is to ask the agent to run a plugin scenario locally and watch whether it reaches for `xg run` with the right flags.
+
+## Keeping current
+
+The per-agent location matrix and copy procedure are maintained in the repository [`README.md`](https://github.com/xrmghost/xrmghost-skills#installation), which is the always-current source if a new agent is added or a path changes. A guided multi-agent installer — auto-detecting installed agents and letting you choose project vs user scope — is planned.
+
+
+---
+
+# Source: https://docs.xrmghost.tech/skills/using-skills/
+
+> How the XrmGhost skills work day to day — authoring scenario files, running and debugging plugins and Custom APIs locally with xg, the post-run protocol, auto mode, and choosing a data source.
+
+
+# Using the Skills
+
+This page describes what the two skills actually do once they are installed and an agent is working with you. You do not call a skill directly — your agent loads it when the task matches its triggers. Understanding what they do, though, lets you steer the work and read the output with confidence, whether you are a developer or an AI agent landing here for reference.
+
+Everything below assumes the `xg` CLI is installed and the runtime host is set up. If that is not yet true, start with [Getting Started](/getting-started/).
+
+## The loop, stage by stage
+
+The local development loop has four stages. The skills cover the middle two; the timing of when they engage is deliberate.
+
+1. **Implement** — the C# is being written. The skills stay out of the way here; let the code reach a compiled, coherent milestone.
+2. **Author scenarios** — once the code stands on its own, the operation(s) to run are described as scenario files.
+3. **Run** — each scenario is executed with `xg` and the result is read.
+4. **Fix loop** — a failure is interpreted, code or scenario is changed, and the run is repeated.
+
+A well-behaved agent surfaces local execution as the obvious next step at two natural moments — when an implementation reaches a milestone (*"want to run this locally before deploying?"*) and when a reported or production bug is being investigated (*"let's capture the context and reproduce it locally"*) — without nagging mid-implementation.
+
+## Authoring scenarios
+
+A scenario is a JSON document describing one operation. The authoring skill knows the shape and, more importantly, the typing rules that are the most common source of errors.
+
+### Minimum shape
+
+```json
+{
+  "scenarioName": "Short description of the operation",
+  "pluginAssemblyName": "MyCompany.Plugins.dll",
+  "pluginTypeName": "MyCompany.Plugins.Namespace.PluginClass",
+  "executionContext": {
+    "messageName": "Create",
+    "primaryEntityName": "account",
+    "primaryEntityId": "00000000-0000-0000-0000-000000000001",
+    "stage": 20,
+    "mode": 0,
+    "inputParameters": {
+      "Target": {
+        "logicalName": "account",
+        "id": "00000000-0000-0000-0000-000000000001",
+        "attributes": { }
+      }
+    }
+  }
+}
+```
+
+### Attribute value typing
+
+Inside any `attributes` object, value typing must be explicit or the framework misreads it:
+
+- **Plain values** (string, number, bool): written directly — `"name": "Contoso Ltd"`, `"revenue": 1000000`.
+- **OptionSet / Picklist**: `{ "value": X }` — never the bare number.
+- **EntityReference / lookup**: `{ "logicalName": "...", "id": "...", "name": "..." }` (`name` optional).
+- **GUIDs must be valid hex.** IDs with non-hex characters fail to parse inside EntityReference objects.
+
+### Describing the expected outcome
+
+- **Expect success**: omit `expectedException`. A run that does not throw is the success.
+- **Expect rejection**: declare `expectedException` with a `typeName` and a `messageContains` substring. The run matches only if that exception is thrown.
+
+### Supplying data the code reads
+
+When the code reads other records while it runs, that data is described — and there are two distinct mechanisms. Using the wrong one is the second most common mistake:
+
+- **`Retrieve` (single record)** → `organizationServiceMock.retrieveResponses`, where attributes are **nested** under an `attributes` object.
+- **`RetrieveMultiple` (query)** → a **root-level** `entities` key (a sibling of `executionContext`), grouped by logical name, where attributes sit **directly on the entity object** — the opposite of `retrieveResponses`. Include every field the query's filter references, or the record gets filtered out. The CLI applies the QueryExpression itself and returns only matches.
+
+A pre-image is provided via a root-level `preEntityImages` key whose name matches the image registered on the step (read in code via `Context.PreEntityImages["PreImage"]`).
+
+### Custom API scenarios
+
+A Custom API scenario differs from an entity plugin in its input parameters:
+
+- **Message name**: `custom_<publisherprefix>_<ApiName>` — both the `custom_` segment and the publisher prefix are required.
+- **No `Target`**: each declared request parameter is a direct key under `inputParameters`.
+- **Primary entity**: empty string `""` or omitted — Custom APIs are global, not bound to a record.
+
+Backing data (`retrieveResponses`, `entities`) works exactly as for a plugin.
+
+> The full authoring reference — every format, every edge case — lives in the [`authoring-dataverse-plugin-scenarios`](https://github.com/xrmghost/xrmghost-skills/blob/main/skills/authoring-dataverse-plugin-scenarios/SKILL.md) skill.
+
+## Running and debugging
+
+### Running a scenario
+
+```bash
+xg run \
+  --assembly-path "bin/Debug/net472/MyCompany.Plugins.dll" \
+  --plugin-type "MyCompany.Plugins.Contact.EnrichContact" \
+  --scenario "scenarios/EnrichContact_HappyPath.json"
+```
+
+### Debugging line by line
+
+Add `--debug-plugin-wait` to the `run` command. The CLI starts and pauses, printing a process ID. In Visual Studio use **Debug → Attach to Process…** (Ctrl+Alt+P), attach to `GhostPlugin.FrameworkHost.exe` matching that process ID, set your breakpoints, and execution resumes into them.
+
+### The post-run protocol
+
+This is the core behaviour of the debugging skill, and the reason a run never silently turns into a fix. After every run the outcome is reported — passed or failed, with the key signal (exception type and message, or the unexpected output) — and then three paths are offered explicitly:
+
+- **Analyze the issue** — investigate the failure from the *plugin code's* side: the logic, a null reference, a wrong branch.
+- **Analyze the scenario** — investigate from the *scenario file's* side. A failure is often not a code bug at all: a missing or wrong mock, an attribute typed incorrectly, a wrong message name.
+- **Auto mode** — iterate automatically (see below).
+
+The issue-vs-scenario distinction is the important guardrail: **a failing run does not imply the code is wrong.** When a run fails and the code looks correct, the first suspects are a scenario problem or an expired evaluation license (`xg license status`).
+
+### Auto mode
+
+Auto mode iterates toward a passing run on its own. It is useful but stays inspectable:
+
+- It may change either the plugin code or the scenario — the bug can be in either.
+- Every iteration it declares what it changed and why; no silent edits.
+- It is **bounded** (3–4 iterations is reasonable); if it has not converged it stops and reports what was tried.
+- It must **not** weaken assertions or bend the plugin just to make a scenario pass. Making a test pass is not the goal — understanding and correctly fixing the behaviour is. When the true cause is uncertain, it stops and asks.
+
+## Choosing a data source
+
+The `--data-source` flag governs how `RetrieveMultiple` queries resolve at run time:
+
+- **`mock`** (default): only mocked data; every record a query needs must be present in the scenario.
+- **`auto`**: mocked data first, falling back to a live environment for anything not mocked.
+- **`live`**: always query the live environment, ignoring mocks.
+
+```bash
+xg run --assembly-path <dll> --plugin-type <type> --scenario <json> --data-source auto
+```
+
+`auto` and `live` query a real Dataverse environment in **read-only** mode and are **not available by default**: they require a **Pro** license and a configured environment (see [Editions](/editions/) and the [`xg env`](/cli/reference/) command group). On the default setup, `mock` is the only data source. The data source also changes *what to mock* — under `live`/`auto`, data that will come from the real environment should not be mocked, so decide the data source before authoring backing data.
+
+## Command cheat sheet
+
+| Goal | Command |
+|------|---------|
+| Run a scenario | `xg run --assembly-path <dll> --plugin-type <type> --scenario <json>` |
+| Run and attach a debugger | add `--debug-plugin-wait` |
+| Resolve RetrieveMultiple against live data (Pro) | add `--data-source auto\|live` |
+| Check licensing when results look wrong | `xg license status` |
+
+For the full, always-current flag reference of every command, see the [CLI Reference](/cli/reference/).
+
+
+---
+
+# Source: https://docs.xrmghost.tech/attributes/reference/handles-message-attribute/
+
+> Manual reference for the HandlesMessageAttribute public contract in XrmGhost.Attributes.
+
+
+# HandlesMessageAttribute
+
+`HandlesMessageAttribute` declares that a plugin class handles a specific Dataverse message such as `Create` or `Update`.
+
+## Manual Reference Note
+
+This is a **manual** reference page based on the current public contract in `xrmghost-attributes`, which remains the source of truth until any future generated reference exists.
+
+## Usage Shape
+
+```csharp
+[HandlesMessageAttribute("Update")]
+```
+
+## Constructor
+
+- `HandlesMessageAttribute(string messageName)`
+
+## Public Members
+
+- `MessageName` — required message name stored on the attribute instance.
+
+## Validation and Limits
+
+- The constructor throws when `messageName` is null, empty, or whitespace.
+- The attribute only records the declared message name; downstream tools decide how to interpret it.
+
+## When to Use It
+
+Use this attribute when message-level intent should be explicit on the plugin class, especially when tooling reads attributes via reflection.
+
+
+---
+
+# Source: https://docs.xrmghost.tech/attributes/reference/input-parameter-attribute/
+
+> Manual reference for the InputParameterAttribute public contract in XrmGhost.Attributes.
+
+
+# InputParameterAttribute
+
+`InputParameterAttribute` seeds a plugin execution context input parameter as metadata on the plugin class.
+
+## Manual Reference Note
+
+This is a **manual** reference page based on the current public contract in `xrmghost-attributes`, which remains the source of truth until any future generated reference exists.
+
+## Usage Shape
+
+```csharp
+[InputParameterAttribute("Target", "{ \"__entityName\": \"account\" }")]
+```
+
+## Constructor
+
+- `InputParameterAttribute(string name, string valueJson)`
+
+## Public Members
+
+- `Name` — input parameter name, such as `Target`.
+- `ValueJson` — JSON-shaped string value for the parameter.
+
+## Validation and Limits
+
+- The current public constructor stores the provided values directly.
+- The attribute does not validate that `valueJson` matches a Dataverse schema.
+- Consumers decide whether the JSON represents a simple scalar, an entity-like payload, or another complex object.
+
+## When to Use It
+
+Use this attribute when scenario generators or other reflection-based tooling need a starting input parameter payload.
+
+
+---
+
+# Source: https://docs.xrmghost.tech/attributes/reference/output-parameter-attribute/
+
+> Manual reference for the OutputParameterAttribute public contract in XrmGhost.Attributes.
+
+
+# OutputParameterAttribute
+
+`OutputParameterAttribute` declares an expected output parameter value that downstream tooling can use as metadata.
+
+## Manual Reference Note
+
+This is a **manual** reference page based on the current public contract in `xrmghost-attributes`, which remains the source of truth until any future generated reference exists.
+
+## Usage Shape
+
+```csharp
+[OutputParameterAttribute("Result", "true")]
+```
+
+## Constructor
+
+- `OutputParameterAttribute(string name, string expectedValueJson)`
+
+## Public Members
+
+- `Name` — output parameter name.
+- `ExpectedValueJson` — JSON-shaped expected value.
+
+## Validation and Limits
+
+- The current public constructor stores the provided values directly.
+- The attribute describes an expected result shape; it does not enforce that a plugin actually produces that value.
+- Schema validation is left to whichever consumer reads the metadata.
+
+## When to Use It
+
+Use this attribute when tests or generated scenarios benefit from a predeclared expected output payload.
+
+
+---
+
+# Source: https://docs.xrmghost.tech/attributes/reference/plugin-execution-config-attribute/
+
+> Manual reference for the PluginExecutionConfigAttribute public contract in XrmGhost.Attributes.
+
+
+# PluginExecutionConfigAttribute
+
+`PluginExecutionConfigAttribute` is the main execution-registration attribute for declaring primary entity, handled messages, and optional execution settings.
+
+## Manual Reference Note
+
+This is a **manual** reference page based on the current public contract in `xrmghost-attributes`, which remains the source of truth until any future generated reference exists.
+
+## Usage Shape
+
+```csharp
+[PluginExecutionConfigAttribute("account", "Update", Stage = 20, Mode = 0)]
+```
+
+## Constructor
+
+- `PluginExecutionConfigAttribute(string primaryEntityName, params string[]? messages)`
+
+## Public Members
+
+- `PrimaryEntityName` — required Dataverse logical name for the primary entity.
+- `Messages` — optional array of handled messages; when omitted, the contract says the configuration applies to all messages for the entity.
+- `Stage` — optional stage integer, defaulting to `-1` when not assigned.
+- `Mode` — optional execution mode integer, defaulting to `-1` when not assigned.
+- `ImpersonatingUserId` — optional user ID string for registration tools to use as impersonation metadata.
+
+## Validation and Limits
+
+- The constructor throws when `primaryEntityName` is null, empty, or whitespace.
+- The constructor also throws when any provided message entry is null, empty, or whitespace.
+- The public contract documents stage values `10`, `20`, and `40`, and mode values `0` and `1`, but the attribute does not enforce those ranges itself.
+- The attribute stores registration metadata; consumer behavior still belongs to the tool that reads it.
+
+## When to Use It
+
+Use this attribute when a plugin needs explicit execution registration metadata that reflection-based tooling can read without inspecting plugin logic.
+
+
+---
+
+# Source: https://docs.xrmghost.tech/attributes/reference/post-image-attribute/
+
+> Manual reference for the PostImageAttribute public contract in XrmGhost.Attributes.
+
+
+# PostImageAttribute
+
+`PostImageAttribute` describes a default post-operation entity image for a plugin execution context.
+
+## Manual Reference Note
+
+This is a **manual** reference page based on the current public contract in `xrmghost-attributes`, which remains the source of truth until any future generated reference exists.
+
+## Usage Shape
+
+```csharp
+[PostImageAttribute("primary", "{ \"__entityName\": \"account\", \"name\": \"New Name\" }", Attributes = new[] { "name" })]
+```
+
+## Constructor
+
+- `PostImageAttribute(string name, string entityJson)`
+
+## Public Members
+
+- `Name` — image alias.
+- `EntityJson` — JSON-shaped entity payload.
+- `Attributes` — optional column list used by automated registration tools for filtering.
+
+## Validation and Limits
+
+- The current public constructor stores the provided values directly.
+- `Attributes` is optional and defaults to `null`, which the contract describes as including all attributes in image registration.
+- The attribute does not validate that `entityJson` is well-formed or that the named columns exist.
+
+## When to Use It
+
+Use this attribute when downstream tooling should have a representative post-image payload or a known post-image registration shape.
+
+
+---
+
+# Source: https://docs.xrmghost.tech/attributes/reference/pre-image-attribute/
+
+> Manual reference for the PreImageAttribute public contract in XrmGhost.Attributes.
+
+
+# PreImageAttribute
+
+`PreImageAttribute` describes a default pre-operation entity image for a plugin execution context.
+
+## Manual Reference Note
+
+This is a **manual** reference page based on the current public contract in `xrmghost-attributes`, which remains the source of truth until any future generated reference exists.
+
+## Usage Shape
+
+```csharp
+[PreImageAttribute("primary", "{ \"__entityName\": \"account\", \"name\": \"Old Name\" }", Attributes = new[] { "name" })]
+```
+
+## Constructor
+
+- `PreImageAttribute(string name, string entityJson)`
+
+## Public Members
+
+- `Name` — image alias.
+- `EntityJson` — JSON-shaped entity payload.
+- `Attributes` — optional column list used by automated registration tools for filtering.
+
+## Validation and Limits
+
+- The current public constructor stores the provided values directly.
+- `Attributes` is optional and defaults to `null`, which the contract describes as including all attributes in image registration.
+- The attribute does not validate that `entityJson` is well-formed or that the named columns exist.
+
+## When to Use It
+
+Use this attribute when downstream tooling should have a representative pre-image payload or a known pre-image registration shape.
+
+
+---
+
+# Source: https://docs.xrmghost.tech/attributes/reference/secure-configuration-attribute/
+
+> Manual reference for the SecureConfigurationAttribute public contract in XrmGhost.Attributes.
+
+
+# SecureConfigurationAttribute
+
+`SecureConfigurationAttribute` stores a default secure configuration string on the plugin class for XrmGhost consumers.
+
+## Manual Reference Note
+
+This is a **manual** reference page based on the current public contract in `xrmghost-attributes`, which remains the source of truth until any future generated reference exists.
+
+## Usage Shape
+
+```csharp
+[SecureConfigurationAttribute("secret-cfg")]
+```
+
+## Constructor
+
+- `SecureConfigurationAttribute(string configuration)`
+
+## Public Members
+
+- `Configuration` — secure configuration string.
+
+## Validation and Limits
+
+- The current public constructor stores the provided configuration directly.
+- The source comments explicitly note that real Dataverse secure configuration is platform-managed; this attribute exists for simulation, testing, and scenario generation within XrmGhost.
+- Sensitive values should still be handled carefully even when the attribute is only metadata.
+
+## When to Use It
+
+Use this attribute when a consumer needs a default secure configuration value for local tooling, simulation, or generated scenario setup.
+
+
+---
+
+# Source: https://docs.xrmghost.tech/attributes/reference/shared-variable-attribute/
+
+> Manual reference for the SharedVariableAttribute public contract in XrmGhost.Attributes.
+
+
+# SharedVariableAttribute
+
+`SharedVariableAttribute` seeds a shared variable value as class-level metadata.
+
+## Manual Reference Note
+
+This is a **manual** reference page based on the current public contract in `xrmghost-attributes`, which remains the source of truth until any future generated reference exists.
+
+## Usage Shape
+
+```csharp
+[SharedVariableAttribute("CorrelationHint", "\"account-update\"")]
+```
+
+## Constructor
+
+- `SharedVariableAttribute(string name, string valueJson)`
+
+## Public Members
+
+- `Name` — shared variable name.
+- `ValueJson` — JSON-shaped value.
+
+## Validation and Limits
+
+- The current public constructor stores the provided values directly.
+- The attribute does not validate JSON structure or whether the name matches a consumer's expectations.
+- Interpretation of the value belongs to the consuming runtime or tool.
+
+## When to Use It
+
+Use this attribute when reflection-based tooling needs a seeded shared-variable payload as part of a plugin execution scenario.
+
+
+---
+
+# Source: https://docs.xrmghost.tech/attributes/reference/solution-component-attribute/
+
+> Manual reference for the SolutionComponentAttribute public contract in XrmGhost.Attributes.
+
+
+# SolutionComponentAttribute
+
+`SolutionComponentAttribute` declares which Dataverse solution or solutions should receive a plugin component during automated registration.
+
+## Manual Reference Note
+
+This is a **manual** reference page based on the current public contract in `xrmghost-attributes`, which remains the source of truth until any future generated reference exists.
+
+## Usage Shape
+
+```csharp
+[SolutionComponentAttribute("CoreBusinessLogic", IsDefault = true)]
+[SolutionComponentAttribute("ExtendedFeatures")]
+```
+
+## Constructor
+
+- `SolutionComponentAttribute(string solutionUniqueName)`
+
+## Public Members
+
+- `SolutionUniqueName` — required solution unique name.
+- `IsDefault` — optional boolean flag, defaulting to `false`, for the primary solution choice when multiple attributes are present.
+
+## Validation and Limits
+
+- The constructor throws when `solutionUniqueName` is null, empty, or whitespace.
+- The attribute stores grouping metadata only; the registration order and behavior remain consumer responsibilities.
+
+## When to Use It
+
+Use this attribute when registration tooling needs explicit solution grouping for a plugin component.
+
+
+---
+
+# Source: https://docs.xrmghost.tech/attributes/reference/unsecure-configuration-attribute/
+
+> Manual reference for the UnsecureConfigurationAttribute public contract in XrmGhost.Attributes.
+
+
+# UnsecureConfigurationAttribute
+
+`UnsecureConfigurationAttribute` stores a default unsecure configuration string on the plugin class for XrmGhost consumers.
+
+## Manual Reference Note
+
+This is a **manual** reference page based on the current public contract in `xrmghost-attributes`, which remains the source of truth until any future generated reference exists.
+
+## Usage Shape
+
+```csharp
+[UnsecureConfigurationAttribute("public-cfg")]
+```
+
+## Constructor
+
+- `UnsecureConfigurationAttribute(string configuration)`
+
+## Public Members
+
+- `Configuration` — unsecure configuration string.
+
+## Validation and Limits
+
+- The current public constructor stores the provided configuration directly.
+- The attribute does not add extra schema or secret-handling validation.
+- Consumers decide how and when the configuration value is used.
+
+## When to Use It
+
+Use this attribute when local tooling or scenario setup needs an explicit default unsecure configuration value.
+
+
+---
+
+# Source: https://docs.xrmghost.tech/cli/reference/command-groups/
+
+> Maps every xrmghost CLI command group to its reader-facing purpose, lists known sub-commands, and describes the intended reference-page shape for each group. This is a manual IA artifact — it does not contain generated per-command reference content.
+
+
+# CLI Command Groups
+
+This page maps each `xrmghost` CLI command group to its purpose, known sub-commands, and the intended shape of future generated reference pages. It is a **manual IA artifact**: it defines structure and intent, not executable command documentation.
+
+---
+
+## `run`
+
+**Reader-facing purpose:** Execute a Dataverse plugin out-of-process via FrameworkHost using a scenario file.
+
+**Group type:** Top-level command (no sub-commands).
+
+**Known flags (from source — not authoritative):** `-a`/`--assembly`, `-t`/`--type`, `-s`/`--scenario`, `--data-source`, `--normal`, `--verbose`, `--debug`, `--debug-plugin-wait`, `--unsecure-config`, `--secure-config`, `--no-interactive`, `--framework-host-path`.
+
+**Intended reference-page shape:**
+- Path: `docs/cli/reference/run.mdx`
+- Sections: Synopsis, Description, Options, Exit codes, Examples
+- Generated from: `xrmghost run --help` or structured command manifest in `xrmghost-cli`
+
+---
+
+## `generate-scenario`
+
+**Reader-facing purpose:** Generate a template JSON scenario file for a specified Dataverse plugin assembly and type, ready to use with `run`.
+
+**Group type:** Top-level command (no sub-commands).
+
+**Known flags (from source — not authoritative):** `-a`/`--assembly`, `-t`/`--type`.
+
+**Intended reference-page shape:**
+- Path: `docs/cli/reference/generate-scenario.mdx`
+- Sections: Synopsis, Description, Options, Output format, Examples
+- Generated from: `xrmghost generate-scenario --help` or structured command manifest in `xrmghost-cli`
+
+---
+
+## `doctor`
+
+**Reader-facing purpose:** Diagnose CLI configuration, FrameworkHost connectivity, AKMS reachability, and license validity. Verbose mode includes JWT subscription claims diagnostics.
+
+**Group type:** Top-level command (no sub-commands).
+
+**Known flags (from source — not authoritative):** `--verbose`.
+
+**Intended reference-page shape:**
+- Path: `docs/cli/reference/doctor.mdx`
+- Sections: Synopsis, Description, Options, Checks performed, Examples
+- Generated from: `xrmghost doctor --help` or structured command manifest in `xrmghost-cli`
+
+---
+
+## `privacy`
+
+**Reader-facing purpose:** Display information about the data collected by the tool, including telemetry scope and retention policy.
+
+**Group type:** Top-level command (no sub-commands).
+
+**Known flags (from source — not authoritative):** None documented.
+
+**Intended reference-page shape:**
+- Path: `docs/cli/reference/privacy.mdx`
+- Sections: Synopsis, Description, What data is collected, Retention, Examples
+- Generated from: `xrmghost privacy --help` or structured command manifest in `xrmghost-cli`
+
+---
+
+## `license`
+
+**Reader-facing purpose:** Manage XrmGhost license status, activation, and machine identity. All licensing operations are grouped under this command.
+
+**Group type:** Command group with sub-commands.
+
+### Sub-commands
+
+| Sub-command | Purpose |
+|---|---|
+| `license status` | Show current license tier, expiration date, and subscription claims |
+| `license activate` | Activate a license using a bootstrap key |
+| `license get-platform-id` | Display the unique machine identifier required for licensing |
+
+**Intended reference-page shape (per sub-command):**
+- Paths: `docs/cli/reference/license-status.mdx`, `docs/cli/reference/license-activate.mdx`, `docs/cli/reference/license-get-platform-id.mdx`
+- Sections per page: Synopsis, Description, Options, Examples
+- Generated from: `xrmghost license <sub-command> --help` or structured command manifest in `xrmghost-cli`
+
+> **TODO (ADO-1158 dependency):** The exact flag names for `license activate` (bootstrap key flag) and `license status` (output format flags) are not fully resolved in the current contract. Document the dependency rather than inventing signatures. Resolve against the `xrmghost-cli` source before generating reference pages.
+
+---
+
+## `env`
+
+**Reader-facing purpose:** Manage Dataverse environment configurations — add, edit, delete, list, switch, and refresh environment metadata.
+
+**Group type:** Command group with sub-commands.
+
+### Sub-commands
+
+| Sub-command | Purpose |
+|---|---|
+| `env list` | List all configured Dataverse environments |
+| `env add` | Interactive wizard to add a new Dataverse environment |
+| `env edit` | Edit an existing environment configuration |
+| `env delete` | Remove an environment configuration |
+| `env activate` | Set a specific environment as the active one |
+| `env deactivate` | Deactivate the currently active environment |
+| `env status` | Show the status of configured environments |
+| `env import` | Import environment configurations from a JSON file |
+| `env export` | Export environment configurations to a JSON file |
+| `env template` | Output a blank environment configuration template |
+| `env refresh` | Refresh the Dataverse metadata cache for an environment |
+
+**Intended reference-page shape (per sub-command):**
+- Paths: `docs/cli/reference/env-list.mdx`, `docs/cli/reference/env-add.mdx`, `docs/cli/reference/env-edit.mdx`, `docs/cli/reference/env-delete.mdx`, `docs/cli/reference/env-activate.mdx`, `docs/cli/reference/env-deactivate.mdx`, `docs/cli/reference/env-status.mdx`, `docs/cli/reference/env-import.mdx`, `docs/cli/reference/env-export.mdx`, `docs/cli/reference/env-template.mdx`, `docs/cli/reference/env-refresh.mdx`
+- Sections per page: Synopsis, Description, Options, Examples
+- Generated from: `xrmghost env <sub-command> --help` or structured command manifest in `xrmghost-cli`
+
+---
+
+## `setup`
+
+**Reader-facing purpose:** Install or update managed infrastructure components, specifically the FrameworkHost managed payload.
+
+**Group type:** Command group with sub-commands.
+
+### Sub-commands
+
+| Sub-command | Purpose |
+|---|---|
+| `setup host` | Install or update the managed FrameworkHost component |
+
+**Known flags for `setup host` (from source — not authoritative):** `--update`.
+
+**Intended reference-page shape:**
+- Path: `docs/cli/reference/setup-host.mdx`
+- Sections: Synopsis, Description, Options, Examples
+- Generated from: `xrmghost setup host --help` or structured command manifest in `xrmghost-cli`
+
+---
+
+## Related
+
+- [CLI Reference Landing](/cli/reference/)
+- [CLI Overview](/cli/)
+- [Source of Truth](/architecture/source-of-truth/)
+- [Contributing](/contributing/)
+
+
+---
+
+# Source: https://docs.xrmghost.tech/cli/reference/doctor/
+
+> Run environment and configuration health checks to diagnose connectivity, prerequisite, and licensing issues with the XrmGhost CLI.
+
+
+# xg doctor
+
+Runs a set of diagnostic checks against your local environment, verifying that all prerequisite components are reachable and correctly configured. The command exits with code `0` if every critical check passes, or `1` if any check fails.
+
+Use `doctor` any time the CLI behaves unexpectedly, before raising a support ticket, or as part of a scripted health verification step.
+
+## Synopsis
+
+```shell
+xg doctor [options]
+```
+
+## Description
+
+`xg doctor` walks through a fixed sequence of checks in order:
+
+1. **CLI Information** — Reports the installed CLI version, the assembly location, and the unique machine Platform ID.
+2. **Core Library** — Reports the version and location of the bundled `XrmGhost.Core` assembly.
+3. **Platform Information** — Displays OS description, OS architecture, process architecture, .NET runtime version, and framework description.
+4. **.NET SDKs** — Lists all .NET SDK versions found via `dotnet --list-sdks`. Warns if .NET 8 is absent.
+5. **FrameworkHost** — Resolves the `XrmGhost.FrameworkHost.exe` binary (managed app-data install root first, then legacy beside-CLI locations) and reports its path and version. Fails if the executable cannot be found.
+6. **Local Configuration Files** — Verifies that `bootstrap.lic` can be decrypted and that the AKMS API key is present and unexpired. Displays the license tier when the key is valid.
+7. **AKMS Connectivity** — Contacts the AKMS JWKS endpoint to confirm network reachability, then attempts a test JWT issuance if a valid local API key exists.
+8. **Subscription Claims Diagnostics** — Reads the current license status and displays subscription claims. In `--verbose` mode, also attempts a live JWT round-trip to validate claims parsing.
+
+Each check prints a pass/fail indicator. The final line summarises the overall result.
+
+:::tip
+Running `xg doctor --verbose` before reporting a bug gives you a complete diagnostic snapshot — including resolved paths, version strings, and subscription claims — that significantly speeds up support.
+:::
+
+## Options
+
+| Option | Short | Type | Default | Description |
+|---|---|---|---|---|
+| `--verbose` | `-v` | flag | `false` | Enable verbose output. Adds resolved file paths, discovery source for FrameworkHost, full subscription claims details, and a JWT round-trip test. |
+| `--framework-host-path <FRAMEWORK_HOST_PATH>` | `-f` | string | _(auto-discovered)_ | Override the path to `XrmGhost.FrameworkHost.exe`. When provided, the CLI validates that the file exists at the given path and skips auto-discovery. |
+
+## Exit Codes
+
+| Code | Meaning |
+|---|---|
+| `0` | All critical checks passed. |
+| `1` | One or more checks failed. Review the output for details. |
+
+## Examples
+
+### Run default diagnostics
+
+```shell
+xg doctor
+```
+
+Runs all checks with minimal output. Suitable for a quick health confirmation.
+
+### Run with verbose output
+
+```shell
+xg doctor --verbose
+```
+
+Includes resolved file paths, FrameworkHost discovery source, full subscription claims, and a live JWT round-trip test. Recommended when troubleshooting.
+
+### Override the FrameworkHost path
+
+```shell
+xg doctor --framework-host-path "C:\Tools\XrmGhost\XrmGhost.FrameworkHost.exe"
+```
+
+Checks a specific FrameworkHost binary instead of relying on auto-discovery. Useful in non-standard install layouts or when testing a freshly built binary.
+
+### Combine override with verbose output
+
+```shell
+xg doctor -v -f "./bin/XrmGhost.FrameworkHost.exe"
+```
+
+## Checks Performed
+
+The table below maps each check to the condition that makes it fail.
+
+| Check | Fails when |
+|---|---|
+| CLI Information | Assembly metadata cannot be read or Platform ID cannot be retrieved. |
+| Core Library | `XrmGhost.Core` assembly cannot be located or its metadata is unreadable. |
+| Platform Information | OS or .NET runtime metadata is inaccessible (rare; indicates a severely broken runtime). |
+| .NET SDKs | `dotnet --list-sdks` exits with a non-zero code or the process cannot be started. A warning (not a failure) is printed if .NET 8 is absent. |
+| FrameworkHost | The executable cannot be resolved at the managed app-data root, legacy beside-CLI locations, or the path given with `--framework-host-path`. |
+| Local Configuration Files | `bootstrap.lic` is missing or cannot be decrypted **and** the AKMS API key is missing or expired. |
+| AKMS Connectivity | The JWKS endpoint is unreachable or returns no keys, **or** the test JWT issuance fails when a valid API key is present. |
+| Subscription Claims Diagnostics | An unhandled exception occurs while reading or displaying license claims. |
+
+:::note
+A warning on the `.NET 8 SDK` check does not cause an overall failure. The check still returns `true` so that the final status reflects only hard failures.
+:::
+
+## See Also
+
+- [CLI Reference](/cli/reference/) — overview of the reference area and command groups
+- [CLI Command Groups](/cli/reference/command-groups/) — all command groups and their intended reference-page shape
+- [Getting Started with the CLI](/cli/getting-started/) — first-time orientation and safe exploration path
+- [CLI Overview](/cli/) — role of the CLI in the XrmGhost ecosystem
+
+
+---
+
+# Source: https://docs.xrmghost.tech/cli/reference/env-activate/
+
+> Set a Dataverse environment as the active one for all subsequent XrmGhost CLI operations.
+
+
+# xg env activate
+
+Sets the named Dataverse environment as the **active environment** for the current user. After activation, all CLI operations that require an environment context — such as `run`, `doctor`, and `env refresh` — will use the selected environment without requiring explicit environment flags.
+
+By default, `env activate` also triggers a background metadata cache update so that entity and attribute information for the environment is ready locally. You can skip this step with the `--no-cache` flag if you need a fast switch and do not require an up-to-date local schema.
+
+## Requirements
+
+- The environment must already be registered. Use [`xg env add`](/cli/reference/env-add/) to register a new environment before activating it.
+- The environment must have a valid Client ID and Client Secret stored. Authentication is required for the metadata cache update that runs at activation time (unless `--no-cache` is passed).
+- License tier: **Pro** or higher. Attempting to run this command with a lower tier will produce a feature-gated error.
+
+## Synopsis
+
+```
+xg env activate <FRIENDLY_NAME> [OPTIONS]
+```
+
+## Arguments
+
+| Argument | Required | Description |
+|---|---|---|
+| `FRIENDLY_NAME` | Yes | The friendly name of the Dataverse environment to activate, as registered with `xg env add`. Names are case-insensitive. |
+
+## Options
+
+| Flag | Default | Description |
+|---|---|---|
+| `--no-cache` | `false` | Skip the metadata caching process during activation. The environment is still set as active; only the Dataverse metadata fetch is bypassed. |
+
+## Where the Active Environment State Is Persisted
+
+The active environment selection is stored in the XrmGhost local configuration file `d365_environments.json` under the platform-specific application data directory:
+
+| Platform | Path |
+|---|---|
+| **Windows** | `%LOCALAPPDATA%\XrmGhost\XrmGhostCli\d365_environments.json` |
+| **Linux** | `$XDG_DATA_HOME/xrmghost/xrmghostcli/d365_environments.json` (falls back to `~/.local/share/xrmghost/xrmghostcli/d365_environments.json`) |
+| **macOS** | `~/Library/Application Support/xrmghost/xrmghostcli/d365_environments.json` |
+
+The file stores an `ActiveEnvironmentFriendlyName` field that points to the currently active environment. Only one environment can be active at a time. To clear the active selection without switching to another environment, use [`xg env deactivate`](/cli/reference/env-deactivate/).
+
+> **Risk note:** If you activate an environment on a machine that stores credentials locally, any process with access to the application data directory can identify which environment is currently selected. Credentials (client secrets) are stored separately in encrypted form under `environments_secure/` in the same base path.
+
+## Metadata Cache
+
+Unless `--no-cache` is passed, `env activate` connects to Dataverse using the stored Client ID and Client Secret and fetches full entity metadata (entities, attributes, relationships, and privileges) via a `RetrieveAllEntities` request. The result is serialised to:
+
+```
+<app-data-path>/metadata_cache/<FRIENDLY_NAME>/metadata.json
+```
+
+On subsequent activations, the CLI checks whether the cached metadata is still within the environment's configured `MetadataCacheLifecycle` window (default: 7 days). If the cache is still valid, the fetch is skipped automatically.
+
+## Exit Codes
+
+| Code | Meaning |
+|---|---|
+| `0` | Environment activated successfully |
+| `1` | Activation failed — environment not found, empty friendly name, or Dataverse connection error |
+
+## Examples
+
+### Activate an environment (with metadata cache update)
+
+```shell
+xg env activate my-dev-env
+```
+
+Connects to the Dataverse environment registered as `my-dev-env`, sets it as active, and updates the local metadata cache if the existing cache is stale or absent.
+
+### Activate an environment without updating the metadata cache
+
+```shell
+xg env activate my-dev-env --no-cache
+```
+
+Sets `my-dev-env` as the active environment immediately, bypassing the Dataverse metadata fetch. Useful when you want a fast context switch and the local cache is already adequate.
+
+### Check which environment is currently active after activation
+
+```shell
+xg env activate staging-eu
+xg env status
+```
+
+Activates `staging-eu` and then prints the current active environment status to confirm the switch.
+
+## See Also
+
+- [`xg env list`](/cli/reference/env-list/) — List all registered Dataverse environments
+- [`xg env deactivate`](/cli/reference/env-deactivate/) — Deactivate the currently active environment
+- [`xg env status`](/cli/reference/env-status/) — Show the active environment and connection status
+- [CLI Overview](/cli/) — Introduction to the XrmGhost CLI and command groups
+
+
+---
+
+# Source: https://docs.xrmghost.tech/cli/reference/env-add/
+
+> Launch the interactive wizard to register a new Dataverse environment configuration in XrmGhost.
+
+
+# `xg env add`
+
+## Synopsis
+
+```shell
+xg env add
+```
+
+## Description
+
+`xg env add` opens an interactive wizard that collects all the information needed to register a new Dataverse environment with XrmGhost.
+
+The wizard prompts you for the following details in sequence:
+
+1. **Friendly name** — a short, unique label used to reference this environment in other `xg env` commands (e.g. `activate`, `delete`, `refresh`). Must not be empty; uniqueness is enforced by the service layer.
+2. **Environment URL** — the full HTTPS URL of your Dynamics 365 / Dataverse organisation (e.g. `https://myorg.crm.dynamics.com`). Must be a valid absolute HTTP/HTTPS URL.
+3. **Authentication method** — currently fixed to **Client Secret** (the only supported method). Displayed for informational purposes.
+4. **Client ID** — the Application (Client) ID of the Azure AD app registration used for authentication.
+5. **Client Secret** — the client secret for the Azure AD app registration. Input is masked. Must not be empty.
+6. **Metadata cache lifecycle** — how long XrmGhost keeps Dataverse metadata cached for this environment. Choose from a preset list or enter a custom duration.
+
+After the wizard completes, the environment configuration is saved and the client secret is stored securely in the platform credential store (Windows Credential Manager on Windows, or an equivalent secure store on other platforms).
+
+> **License requirement:** `xg env add` requires a **Pro** license tier. Running it without a valid Pro subscription will produce an error before the wizard starts.
+
+### Interactive-only mode
+
+`xg env add` is fully interactive — there are no non-interactive flags to pre-fill values. All inputs must be entered at the terminal prompt. Scripted or CI usage is not supported for this command.
+
+### Metadata cache lifecycle presets
+
+The wizard offers the following preset durations. Select **Custom** to enter a value manually.
+
+| Preset | Duration |
+|---|---|
+| `1 hour` | 1 hour |
+| `4 hours` | 4 hours |
+| `1 day` | 24 hours |
+| `1 week` *(default)* | 7 days |
+| `2 weeks` | 14 days |
+| `1 month` | ~30 days |
+| `Custom` | User-specified (see format below) |
+
+**Custom duration format:** a positive integer followed by a unit suffix — `m` (minutes), `h` (hours), or `d` (days). Examples: `30m`, `12h`, `3d`.
+
+## Options
+
+`xg env add` accepts no command-line flags or arguments. The entire configuration is gathered through the interactive wizard.
+
+| Flag | Type | Description |
+|---|---|---|
+| *(none)* | — | This command has no flags. All input is interactive. |
+
+## Exit Codes
+
+| Code | Meaning |
+|---|---|
+| `0` | Environment added successfully. |
+| `1` | Wizard cancelled, required information was missing, or a duplicate friendly name was supplied. |
+| `-1` | License tier check failed (Pro license required). |
+
+## Examples
+
+### Add a new environment (basic)
+
+```shell
+xg env add
+```
+
+Launch the wizard and follow the prompts to register a new Dataverse environment. After completing all steps, the environment is available immediately for use with other `xg env` commands.
+
+### Add an environment and verify it was registered
+
+```shell
+xg env add
+xg env list
+```
+
+Run `xg env add` to register the environment, then run `xg env list` to confirm it appears in the list of configured environments.
+
+## See Also
+
+- [`xg env list`](/cli/reference/env-list/) — list all registered Dataverse environments
+- [`xg env edit`](/cli/reference/env-edit/) — update the configuration of an existing environment
+- [`xg env delete`](/cli/reference/env-delete/) — remove a registered environment
+- [CLI Overview](/cli/)
+
+
+---
+
+# Source: https://docs.xrmghost.tech/cli/reference/env-deactivate/
+
+> Deactivate the currently active Dataverse environment, leaving no environment active. Exits cleanly if no environment is currently active.
+
+
+# `xg env deactivate`
+
+Clears the currently active Dataverse environment from the local XrmGhost configuration. After a successful deactivation, no environment is set as active — subsequent commands that require an active environment (such as `xg run`) will prompt you to activate one first.
+
+If no environment is currently active, the command reports that fact and exits successfully without making any changes.
+
+> **License requirement:** This sub-command requires an active **Pro** (or higher) subscription. Run `xg license status` to verify your current tier.
+
+---
+
+## Synopsis
+
+```shell
+xg env deactivate
+```
+
+---
+
+## Description
+
+`xg env deactivate` reads the current active environment from the local configuration store (`d365_environments.json`). It then does one of the following:
+
+- **No environment is active** — Prints a warning message (`No environment is currently active.`) and exits with code `0`. This is a safe no-op; nothing is modified.
+- **An environment is active** — Clears the active environment pointer in the store and prints a confirmation message: `Environment '<FRIENDLY_NAME>' deactivated successfully. No environment is active.`
+
+The command takes no arguments and no flags beyond the standard `--help` global option. There is no confirmation prompt.
+
+---
+
+## Options
+
+`xg env deactivate` accepts no flags or arguments.
+
+| Flag | Type | Default | Description |
+|---|---|---|---|
+| `--help` | `bool` | `false` | Display help text for this command and exit. |
+
+---
+
+## Exit Codes
+
+| Code | Meaning |
+|---|---|
+| `0` | Command completed successfully — either the active environment was cleared, or no environment was active (no-op). |
+| `1` | License tier insufficient (Pro required), or an unexpected internal error occurred. |
+
+---
+
+## Examples
+
+### Deactivate the currently active environment
+
+```shell
+$ xg env deactivate
+
+Environment 'Production' deactivated successfully. No environment is active.
+```
+
+### Run when no environment is active (no-op)
+
+```shell
+$ xg env deactivate
+
+No environment is currently active.
+```
+
+The exit code is `0` in both cases. You can use this command in scripts without first checking whether an environment is active.
+
+### Typical workflow: deactivate, switch, re-activate
+
+```shell
+# Deactivate the current environment
+xg env deactivate
+
+# Verify no environment is active
+xg env status
+
+# Activate a different environment
+xg env activate Staging
+```
+
+---
+
+## See Also
+
+- [`xg env activate`](/cli/reference/env-activate/) — Set a specific Dataverse environment as the active one.
+- [`xg env list`](/cli/reference/env-list/) — List all registered Dataverse environments and see which one is currently active.
+- [`xg env status`](/cli/reference/env-status/) — Show the active environment URL and name.
+- [CLI Overview](/cli/) — Introduction to the XrmGhost CLI and its command groups.
+
+
+---
+
+# Source: https://docs.xrmghost.tech/cli/reference/env-delete/
+
+> Permanently remove a Dataverse environment configuration from the local XrmGhost environment store by its friendly name.
+
+
+# `xg env delete`
+
+Permanently removes a Dataverse environment configuration from the local XrmGhost environment store. The command identifies the target environment by its **friendly name** and, before proceeding, interactively asks you to confirm the operation.
+
+> **Destructive operation — this cannot be undone.** Once deleted, the environment configuration (URL, client ID, cache settings) and its associated credential are removed from the local store. You would need to re-add the environment with [`xg env add`](/cli/reference/env-add/) or re-import it with [`xg env import`](/cli/reference/env-import/) to recover it.
+
+> **License requirement:** This command requires an active **Pro** (or higher) subscription. Run `xg license status` to verify your current tier.
+
+---
+
+## Synopsis
+
+```shell
+xg env delete <FRIENDLY_NAME>
+```
+
+---
+
+## Arguments
+
+| Argument | Required | Description |
+|---|---|---|
+| `<FRIENDLY_NAME>` | Yes | The friendly name of the environment to delete, exactly as it appears in `xg env list`. |
+
+---
+
+## Options
+
+`xg env delete` accepts no optional flags beyond the required positional argument above. Global options (e.g. `--help`) apply as normal.
+
+| Flag | Type | Default | Description |
+|---|---|---|---|
+| `--help` | `bool` | `false` | Display help text for this command and exit. |
+
+> **Note:** There is no `--force` flag. The confirmation prompt is always shown and cannot be bypassed from the command line. Press **Enter** (or type `n`) to cancel; type `y` to confirm deletion.
+
+---
+
+## Description
+
+`xg env delete` looks up the environment identified by `<FRIENDLY_NAME>` in the local configuration store (`d365_environments.json`). If the name is not found, the command prints an error message and exits with code `1`.
+
+When the environment is found, the command displays a confirmation prompt:
+
+```
+Are you sure you want to delete the environment '<FRIENDLY_NAME>'? This action cannot be undone. [y/n] (n):
+```
+
+The default answer is **no** (`n`). You must explicitly type `y` and press Enter to proceed. Any other input cancels the operation gracefully with a message and exit code `0`.
+
+After a confirmed deletion the environment entry is permanently removed from the store and the success message is printed in green.
+
+---
+
+## Exit Codes
+
+| Code | Meaning |
+|---|---|
+| `0` | Command completed successfully — either the environment was deleted, or the user cancelled the confirmation prompt. |
+| `1` | Environment not found (no matching friendly name); or license tier insufficient (Pro required). |
+
+---
+
+## Examples
+
+### Delete an environment (interactive confirmation)
+
+```shell
+$ xg env delete Production
+
+Are you sure you want to delete the environment 'Production'? This action cannot be undone. [y/n] (n): y
+Environment 'Production' has been successfully deleted.
+```
+
+### Cancel deletion at the confirmation prompt
+
+```shell
+$ xg env delete UAT
+
+Are you sure you want to delete the environment 'UAT'? This action cannot be undone. [y/n] (n): n
+Deletion cancelled by user.
+```
+
+### Attempt to delete a non-existent environment
+
+```shell
+$ xg env delete NonExistent
+
+Error: Environment 'NonExistent' not found.
+```
+
+---
+
+## See Also
+
+- [`xg env list`](/cli/reference/env-list/) — List all registered Dataverse environments and see which one is currently active.
+- [`xg env add`](/cli/reference/env-add/) — Add a new Dataverse environment through the interactive wizard.
+- [CLI Overview](/cli/) — Introduction to the XrmGhost CLI and its command groups.
+
+
+---
+
+# Source: https://docs.xrmghost.tech/cli/reference/env-edit/
+
+> Edit an existing Dynamics 365 environment configuration interactively. Launches a wizard that allows you to update the friendly name, environment URL, Client ID, Client Secret, and metadata cache lifecycle of a registered environment.
+
+
+# `xg env edit`
+
+Edit an existing Dynamics 365 environment configuration interactively.
+
+:::info Pro licence required
+`env edit` is a **Pro-tier** feature. Ensure your licence is active and at the Pro level before running this command. Use [`xg license status`](/cli/reference/license-status/) to verify.
+:::
+
+## Synopsis
+
+```
+xg env edit <FRIENDLY_NAME>
+```
+
+## Description
+
+`xg env edit` opens an interactive wizard that lets you modify the settings of a previously registered Dataverse environment. The environment is identified by its **friendly name** — a short human-readable label you assigned when the environment was first added.
+
+Once invoked, the wizard pre-populates every prompt with the current value of the field. Press **Enter** to accept the existing value, or type a replacement to overwrite it.
+
+### What the wizard edits
+
+The wizard walks you through the following fields in order:
+
+1. **Friendly name** — the human-readable label used to identify the environment in all other commands.
+2. **Environment URL** — the Dataverse organisation URL (e.g., `https://myorg.crm.dynamics.com`). Must be a valid absolute `https://` URL.
+3. **Client ID** — the Azure AD application (client) ID used for authentication.
+4. **Client Secret** — the Azure AD application secret. Leave blank to keep the existing secret without changing it.
+5. **Metadata cache lifecycle** — how long the Dataverse metadata cache is considered fresh before an automatic refresh is triggered. Select from a preset list or enter a custom duration.
+
+### Secret handling
+
+The Client Secret is stored separately from the environment configuration file. When editing:
+
+- If you enter a new secret, it replaces the stored secret.
+- If you leave the secret prompt blank, the existing stored secret is preserved.
+- If you also change the friendly name, the secret is automatically migrated to use the new name as its identifier. The old secret entry is removed.
+
+### Metadata cache lifecycle presets
+
+The wizard offers the following preset durations for the metadata cache lifecycle:
+
+| Option | Duration |
+|---|---|
+| `1 hour` | 1 hour |
+| `4 hours` | 4 hours |
+| `1 day` | 24 hours |
+| `1 week` | 7 days _(default)_ |
+| `2 weeks` | 14 days |
+| `1 month` | 30 days (approximate) |
+| `Custom` | User-defined — enter a value such as `30m`, `2h`, or `3d` |
+
+Custom durations use the suffix `m` (minutes), `h` (hours), or `d` (days).
+
+## Arguments
+
+| Argument | Required | Description |
+|---|---|---|
+| `<FRIENDLY_NAME>` | Yes | The friendly name of the environment configuration to edit. Must match an existing registered environment exactly. |
+
+## Options
+
+`env edit` has no additional flags beyond the required positional argument. All editable fields are collected interactively by the wizard after invocation.
+
+| Option | Description |
+|---|---|
+| `--help` | Display help information for this command and exit. |
+
+## Exit codes
+
+| Code | Meaning |
+|---|---|
+| `0` | Environment updated successfully. |
+| `1` | Error — environment not found, wizard cancelled, or an unexpected failure occurred. |
+
+## Examples
+
+### Edit an environment interactively
+
+```shell
+xg env edit "My Dev Org"
+```
+
+Launches the interactive wizard for the environment registered as `My Dev Org`. Each prompt is pre-populated with the current value; press Enter to keep it or type a new value to replace it.
+
+### Rename an environment and update the Client Secret
+
+```shell
+xg env edit staging-old
+```
+
+Run the wizard, change the friendly name from `staging-old` to `staging-v2`, enter a new Client Secret when prompted, and confirm all other fields. The secret is automatically migrated to the new name.
+
+### Change only the metadata cache lifecycle
+
+```shell
+xg env edit "Production"
+```
+
+Accept every prompt with its current value (press Enter) until you reach the metadata cache lifecycle selection. Choose `Custom`, then enter `1d` to set the cache to expire after 1 day.
+
+## Non-interactive usage
+
+`env edit` always launches an interactive wizard — it cannot be driven entirely from CLI flags in the current version. To automate environment management, consider exporting the configuration with [`env export`](/cli/reference/env-export/), editing the JSON file, and re-importing it with [`env import`](/cli/reference/env-import/).
+
+If the terminal is non-interactive (e.g., a CI pipeline), the wizard prompts will fail to receive input and the command will exit with code `1`. Use scripted `env import` workflows for non-interactive environments.
+
+## See Also
+
+- [`env list`](/cli/reference/env-list/) — list all registered environments and see which one is active
+- [`env add`](/cli/reference/env-add/) — add a new environment configuration using the same interactive wizard
+- [`env delete`](/cli/reference/env-delete/) — remove a registered environment configuration
+- [CLI Overview](/cli/) — overview of the `xrmghost` CLI and its command groups
+
+
+---
+
+# Source: https://docs.xrmghost.tech/cli/reference/env-export/
+
+> Export one or all registered Dataverse environment configurations to a JSON file. Client secrets are never included in the export.
+
+
+# `xg env export`
+
+Export registered Dataverse environment configurations from the local XrmGhost store to a portable JSON file. Use this command to back up your environment definitions, share them with teammates, or seed a fresh machine before running [`xg env import`](/cli/reference/env-import/).
+
+> **Pro tier required.** `env export` is a feature-gated command. A valid XrmGhost Pro licence is required to run it. See [`xg license status`](/cli/reference/license-status/) to check your current tier.
+
+## Synopsis
+
+```shell
+xg env export [FRIENDLY_NAME] [options]
+```
+
+## Description
+
+When called without arguments, `env export` serialises the **entire environment store** — every configured Dataverse environment — to a single JSON file. Pass a `FRIENDLY_NAME` to export only that specific environment.
+
+The output format is always **indented JSON**. The file contains the environment's connection metadata (URL, tenant ID, client ID, etc.) but **never the client secret**: the `ClientSecret` field is unconditionally excluded from all exports at the model level.
+
+If the target output path does not exist, the command creates the necessary directory structure before writing.
+
+### Default output path
+
+When `--output` is omitted, the file is written to the user's `Downloads` folder with an auto-generated name:
+
+```
+~/Downloads/XrmGhost_env_<sanitized_name>_<yyyyMMddHHmmss>.json
+```
+
+For a full-store export the placeholder `all_environments` is used in place of a friendly name:
+
+```
+~/Downloads/XrmGhost_env_all_environments_20260507153042.json
+```
+
+## Options
+
+| Flag | Argument | Required | Description |
+|---|---|---|---|
+| `[FRIENDLY_NAME]` | `string` | No | The friendly name of the environment to export. When omitted, **all** registered environments are exported. |
+| `-o`, `--output` | `<FILE_PATH>` | No | Full path of the destination JSON file. If not specified, the file is saved to the `Downloads` folder with an auto-generated timestamped name. |
+
+## Exit codes
+
+| Code | Meaning |
+|---|---|
+| `0` | Export completed successfully (or no environments registered — nothing to export). |
+| `1` | The specified `FRIENDLY_NAME` was not found, or an unexpected error occurred during export. |
+
+## Examples
+
+### Export all environments (default path)
+
+```shell
+xg env export
+```
+
+Writes all registered environments to `~/Downloads/XrmGhost_env_all_environments_<timestamp>.json`.
+
+### Export all environments to a custom path
+
+```shell
+xg env export --output ./backups/environments.json
+```
+
+### Export a single environment by friendly name
+
+```shell
+xg env export MyDevEnvironment
+```
+
+Writes only the `MyDevEnvironment` configuration to `~/Downloads/XrmGhost_env_MyDevEnvironment_<timestamp>.json`.
+
+### Export a single environment to a specific file
+
+```shell
+xg env export MyDevEnvironment --output ./exports/my-dev-env.json
+```
+
+### Use the export in a CI pipeline
+
+```shell
+xg env export --output /tmp/xg-environments.json
+# ... transfer file to the target machine ...
+xg env import /tmp/xg-environments.json
+```
+
+## Output format
+
+The export produces a JSON file whose shape mirrors the internal `D365EnvironmentsStore` (full-store export) or a single `D365EnvironmentConfiguration` (single-environment export). Example excerpt for a single environment:
+
+```json
+{
+  "FriendlyName": "MyDevEnvironment",
+  "Url": "https://myorg.crm4.dynamics.com",
+  "TenantId": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+  "ClientId": "yyyyyyyy-yyyy-yyyy-yyyy-yyyyyyyyyyyy",
+  "IsActive": true
+}
+```
+
+> **Note:** `ClientSecret` is always absent from exported files regardless of what is stored locally. When importing on another machine, you will be required to supply the secret again.
+
+## See Also
+
+- [`xg env import`](/cli/reference/env-import/) — Import environment configurations from a JSON file
+- [`xg env list`](/cli/reference/env-list/) — List all currently registered environments
+- [CLI Reference](/cli/) — Full CLI reference landing page
+- [CLI Overview](/cli/) — Introduction to the XrmGhost CLI
+
+
+---
+
+# Source: https://docs.xrmghost.tech/cli/reference/env-import/
+
+> Import one or more Dataverse environment configurations from a JSON file into the local XrmGhost environment store.
+
+
+# xg env import
+
+Import environment configurations from a JSON file into the local XrmGhost environment store. Supports both a single environment object and a bulk import file (array wrapped in an `environments` key). When an imported environment already exists by `FriendlyName`, the command interactively prompts to **Skip** or **Overwrite** the conflict.
+
+> **License requirement:** `env import` requires a **Pro** license tier. Run `xg license status` to verify your tier.
+
+---
+
+## Synopsis
+
+```shell
+xg env import <FILE_PATH>
+```
+
+---
+
+## Arguments
+
+| Argument | Required | Description |
+|---|---|---|
+| `<FILE_PATH>` | Yes | Path to the JSON file containing the environment configuration(s) to import. |
+
+---
+
+## Options
+
+`env import` has no optional flags beyond the required positional argument above. Global options (e.g. `--help`) apply as normal.
+
+| Flag | Type | Default | Description |
+|---|---|---|---|
+| `--help` | `bool` | `false` | Display help text for this command and exit. |
+
+---
+
+## Input File Format
+
+The command accepts two JSON shapes:
+
+### Single environment object
+
+```json
+{
+  "FriendlyName": "My Dev Environment",
+  "EnvironmentUrl": "https://myorg.crm.dynamics.com",
+  "AuthenticationMethod": "ClientSecret",
+  "ClientId": "00000000-0000-0000-0000-000000000001",
+  "MetadataCacheLifecycle": "7.00:00:00"
+}
+```
+
+### Bulk import file (array wrapped in `environments`)
+
+```json
+{
+  "environments": [
+    {
+      "FriendlyName": "Dev",
+      "EnvironmentUrl": "https://dev.crm.dynamics.com",
+      "AuthenticationMethod": "ClientSecret",
+      "ClientId": "00000000-0000-0000-0000-000000000001",
+      "MetadataCacheLifecycle": "7.00:00:00"
+    },
+    {
+      "FriendlyName": "QA",
+      "EnvironmentUrl": "https://qa.crm.dynamics.com",
+      "AuthenticationMethod": "ClientSecret",
+      "ClientId": "00000000-0000-0000-0000-000000000002",
+      "MetadataCacheLifecycle": "7.00:00:00"
+    }
+  ]
+}
+```
+
+> **Client secret handling:** The `ClientSecret` field is deliberately excluded from files produced by `xg env export` (it is marked `[JsonIgnore]` during export). If the import file does not contain a `ClientSecret` and the environment uses `ClientSecret` authentication, the command will interactively prompt you to enter it. To automate imports, pre-populate the field in the JSON before running the command in a non-interactive context.
+
+---
+
+## Conflict Resolution
+
+If an environment with the same `FriendlyName` already exists in the local store, the command presents an interactive prompt with the following choices:
+
+| Choice | Behaviour |
+|---|---|
+| **Skip** | The conflicting environment is left unchanged. The import counter increments `skipped`. |
+| **Overwrite** | The existing configuration is replaced with the imported one. The import counter increments `overwritten`. |
+
+A third option, **Rename**, is currently shown in the prompt but is not yet implemented — selecting it results in a skip.
+
+---
+
+## Exit Codes
+
+| Code | Meaning |
+|---|---|
+| `0` | Command completed (may include skipped entries). |
+| `1` | Fatal error: file not found, file read failure, or JSON parse error. |
+
+---
+
+## Examples
+
+### Import a single environment from a file
+
+```shell
+xg env import ./environments/dev.json
+```
+
+### Import multiple environments from a bulk export
+
+```shell
+xg env import ./all_environments.json
+```
+
+### Import from an absolute path
+
+```shell
+xg env import /home/user/configs/xrmghost-envs.json
+```
+
+---
+
+## See Also
+
+- [`xg env template`](/cli/reference/env-template/) — Generate a blank environment configuration JSON ready to fill in and import.
+- [`xg env list`](/cli/reference/env-list/) — List all currently registered Dataverse environments.
+- [CLI Overview](/cli/) — Introduction to the `xg` CLI, command groups, and how this documentation is organised.
+
+
+---
+
+# Source: https://docs.xrmghost.tech/cli/reference/env-list/
+
+> List all Dataverse environment configurations registered with XrmGhost, showing connection details and which environment is currently active.
+
+
+# `xg env list`
+
+Display a table of all Dataverse environment configurations registered with the XrmGhost CLI. For each environment the command shows its friendly name, environment URL, authentication method, client application ID, metadata cache lifecycle, and whether it is currently active.
+
+> **License requirement:** This command requires a **Pro** license tier. Running it with a lower-tier license prints an error and exits with code `-1`.
+
+## Synopsis
+
+```
+xg env list
+```
+
+## Description
+
+`xg env list` reads the local environment configuration store (`d365_environments.json`) and renders a rich console table with one row per registered environment. The environments are sorted alphabetically by friendly name.
+
+The currently active environment — the one used automatically by commands such as `xg run` when no explicit environment is specified — is highlighted with a green `*` marker in the **Active** column.
+
+If no environments are registered yet, the command prints an informational message and exits with code `0`.
+
+### Output columns
+
+| Column | Description |
+|---|---|
+| **Active** | `*` (green) for the currently active environment; empty otherwise |
+| **Friendly Name** | Human-readable label assigned when the environment was added |
+| **Environment URL** | The Dynamics 365 / Dataverse organisation URL (e.g., `https://myorg.crm.dynamics.com`) |
+| **Auth Method** | Authentication method configured for this environment (currently `ClientSecret`) |
+| **Client ID** | Azure AD application (client) ID used to authenticate |
+| **Cache Lifecycle** | How long the local Dataverse metadata cache is considered valid before a refresh is triggered |
+
+## Options
+
+This command has no options or flags.
+
+## Exit codes
+
+| Code | Meaning |
+|---|---|
+| `0` | Command completed successfully (including the empty-list case) |
+| `-1` | License tier insufficient (Pro license required) |
+
+## Examples
+
+### List all environments (two environments registered, one active)
+
+```
+$ xg env list
+
+                 Registered Dynamics 365 Environments
+ ┌────────┬──────────────────┬─────────────────────────────────────────┬───────────────┬──────────────────────────────────────┬─────────────────┐
+ │ Active │ Friendly Name    │ Environment URL                         │ Auth Method   │ Client ID                            │ Cache Lifecycle │
+ ├────────┼──────────────────┼─────────────────────────────────────────┼───────────────┼──────────────────────────────────────┼─────────────────┤
+ │      * │ Production       │ https://contoso.crm.dynamics.com        │ ClientSecret  │ a1b2c3d4-0000-0000-0000-111122223333  │ 7 day(s)        │
+ │        │ UAT              │ https://contoso-uat.crm.dynamics.com    │ ClientSecret  │ a1b2c3d4-0000-0000-0000-444455556666  │ 1 day(s)        │
+ └────────┴──────────────────┴─────────────────────────────────────────┴───────────────┴──────────────────────────────────────┴─────────────────┘
+
+* Indicates the currently active environment: Production
+```
+
+### No environments registered
+
+```
+$ xg env list
+
+No Dynamics 365 environments are registered yet.
+You can add one using the 'XrmGhost env add' command.
+```
+
+### No active environment set
+
+```
+$ xg env list
+
+                 Registered Dynamics 365 Environments
+ ┌────────┬──────────────────┬─────────────────────────────────────────┬───────────────┬──────────────────────────────────────┬─────────────────┐
+ │ Active │ Friendly Name    │ Environment URL                         │ Auth Method   │ Client ID                            │ Cache Lifecycle │
+ ├────────┼──────────────────┼─────────────────────────────────────────┼───────────────┼──────────────────────────────────────┼─────────────────┤
+ │        │ Dev              │ https://contoso-dev.crm.dynamics.com    │ ClientSecret  │ a1b2c3d4-0000-0000-0000-777788889999  │ 1 hour(s)       │
+ └────────┴──────────────────┴─────────────────────────────────────────┴───────────────┴──────────────────────────────────────┴─────────────────┘
+
+No environment is currently active.
+You can activate one using 'XrmGhost env activate <FRIENDLY_NAME>'.
+```
+
+## See Also
+
+- [xg env add](/cli/reference/env-add/) — Add a new Dataverse environment through the interactive wizard
+- [xg env status](/cli/reference/env-status/) — Show the status of configured environments
+- [CLI Overview](/cli/) — Introduction to the XrmGhost CLI and command groups
+
+
+---
+
+# Source: https://docs.xrmghost.tech/cli/reference/env-refresh/
+
+> Forces an immediate refresh of the Dataverse metadata cache for the currently active environment, bypassing lifecycle expiry checks.
+
+
+# `xg env refresh`
+
+Forces an immediate refresh of the Dataverse metadata cache for the currently active environment.
+
+> **Pro tier required.** `env refresh` is a feature-gated command available on the XrmGhost Pro plan and above. Run `xg license status` to check your current tier.
+
+## Description
+
+`xg env refresh` connects to the Dataverse instance of the **currently active** environment and re-fetches the full entity metadata set. The refreshed data is serialised to a local cache file and replaces any previously cached content.
+
+Unlike the automatic cache update that occurs during `xg env activate`, this command always bypasses the configured `MetadataCacheLifecycle` expiry window. It is equivalent to calling the internal cache update with `forceRefresh: true` — the cache is rebuilt unconditionally, even if the existing cache is still within its validity period.
+
+The command targets only the active environment. To refresh a different environment's cache, first activate it with `xg env activate <FRIENDLY_NAME>`, then run `xg env refresh`.
+
+### When to use `env refresh`
+
+| Scenario | Recommended action |
+|---|---|
+| Dataverse schema has changed (new entities, attributes added or removed) and the local cache is stale | Run `xg env refresh` |
+| Plugin run fails with "entity not found" errors despite the environment being active | Run `xg env refresh` to rebuild the cache |
+| You activated an environment with `--no-cache` and now need metadata | Run `xg env refresh` to populate the cache |
+| You want to pre-warm the cache without deactivating and re-activating the environment | Run `xg env refresh` |
+
+## Synopsis
+
+```shell
+xg env refresh
+```
+
+## Options
+
+`env refresh` takes no arguments and no flags.
+
+| Option | Type | Default | Description |
+|---|---|---|---|
+| *(none)* | — | — | This command has no configurable options. The target environment is always the currently active one. |
+
+## Exit Codes
+
+| Code | Meaning |
+|---|---|
+| `0` | Refresh completed successfully, or no environment was active (informational, not an error). |
+| `1` | An unexpected error occurred (e.g., Dataverse connectivity failure, file I/O error). |
+
+## Examples
+
+### Refresh the active environment's metadata cache
+
+```shell
+xg env refresh
+```
+
+Expected output when an environment is active:
+
+```
+Attempting to refresh metadata for the active environment: MyDevEnvironment...
+Starting metadata cache update for 'MyDevEnvironment'...
+Successfully connected to Dataverse for 'MyDevEnvironment'. Fetching metadata...
+Retrieved metadata for 312 entities for 'MyDevEnvironment'. Serializing and caching...
+Metadata cache for 'MyDevEnvironment' updated successfully at 2026-05-07T18:54:00Z. Path: ...
+```
+
+### Refresh after activating without cache
+
+```shell
+# Activate quickly without waiting for the initial cache build
+xg env activate MyDevEnvironment --no-cache
+
+# Later, populate the cache on demand
+xg env refresh
+```
+
+### Check which environment will be refreshed before running
+
+```shell
+# Confirm the active environment first
+xg env status
+
+# Then refresh
+xg env refresh
+```
+
+## Notes
+
+- If no environment is currently active, the command prints an informational message and exits with code `0`. It does not treat this as an error.
+- The cache is stored locally under the XrmGhost data directory at `metadata_cache/<sanitised-friendly-name>/metadata.json`.
+- Large Dataverse organisations with many custom entities may take several seconds to complete the refresh. The command prints progress messages to standard output.
+- The cache file is a plain JSON serialisation of the Dataverse entity metadata array. Do not edit it manually; it will be overwritten on the next refresh.
+
+## See Also
+
+- [`xg env activate`](/cli/reference/env-activate/) — activate an environment and optionally pre-warm the metadata cache
+- [`xg env status`](/cli/reference/env-status/) — display the currently active environment
+- [CLI Reference](/cli/) — full index of available commands
+
+
+---
+
+# Source: https://docs.xrmghost.tech/cli/reference/env-status/
+
+> Show the currently active Dataverse environment — its friendly name and organisation URL. Useful as a quick sanity-check before running a plugin or switching contexts.
+
+
+# `xg env status`
+
+Display the friendly name and organisation URL of the Dataverse environment that is currently active. This is the environment that commands such as `xg run` will use when no explicit environment is specified.
+
+> **License requirement:** This command requires a **Pro** license tier. Run `xg license status` to verify your current tier.
+
+## Synopsis
+
+```
+xg env status
+```
+
+## Description
+
+`xg env status` reads the local environment configuration store and looks up the environment that has been marked as active. It then prints two lines:
+
+- The **Active Environment** label with the environment's friendly name.
+- The **URL** of the Dataverse / Dynamics 365 organisation.
+
+If no environment is currently active — for example, immediately after installation or after running `xg env deactivate` — the command prints an informational message and exits with code `0`. No error is raised in this case; the command simply communicates that no environment is selected.
+
+If the active marker in the store points to an environment name that no longer exists in the configuration (an inconsistent state that should not occur under normal usage), the command prints an error and exits with code `1`.
+
+> **Active vs specific:** `env status` always reflects the *globally active* environment, not a per-invocation selection. To change which environment is active, use `xg env activate <FRIENDLY_NAME>`. To see all registered environments, use `xg env list`.
+
+## Options
+
+This command has no options or flags.
+
+| Flag | Description |
+|---|---|
+| `--help` | Display help text for this command and exit. |
+
+## Exit Codes
+
+| Code | Meaning |
+|---|---|
+| `0` | Command completed successfully. This includes the case where no environment is currently active. |
+| `1` | The active environment name is set in the store but the corresponding configuration entry cannot be found (inconsistent state). |
+| `-1` | License tier insufficient — a Pro license is required. |
+
+## Examples
+
+### Active environment is set
+
+```
+$ xg env status
+
+Active Environment: Production
+  URL: https://contoso.crm.dynamics.com
+```
+
+### No environment is currently active
+
+```
+$ xg env status
+
+No environment is currently active.
+```
+
+To activate an environment, use:
+
+```
+$ xg env activate Production
+
+Environment 'Production' activated successfully.
+```
+
+### Inconsistent state (active name not found in store)
+
+This should not occur under normal usage, but may happen if the configuration file was edited manually:
+
+```
+$ xg env status
+
+Error: Active environment 'Production' not found in configuration.
+```
+
+To recover, re-register the environment with `xg env add` or import it from a backup with `xg env import`.
+
+## See Also
+
+- [xg env list](/cli/reference/env-list/) — List all registered Dataverse environments with full connection details
+- [xg env activate](/cli/reference/env-activate/) — Set a registered environment as the active one
+- [CLI Overview](/cli/) — Introduction to the XrmGhost CLI and command groups
+
+
+---
+
+# Source: https://docs.xrmghost.tech/cli/reference/env-template/
+
+> Generate a blank environment configuration template JSON file, ready to be populated and imported with `xg env import`.
+
+
+# `xg env template`
+
+Generates a blank **environment configuration template** as a JSON file. The template contains a single sample `D365EnvironmentConfiguration` entry pre-filled with placeholder values, along with an empty `ActiveEnvironmentFriendlyName` field. You can edit the template manually and feed it directly to [`xg env import`](/cli/reference/env-import/) to bootstrap one or more environment entries.
+
+> **License requirement:** This sub-command requires an active **Pro** (or higher) subscription. Running it without a valid Pro licence returns a non-zero exit code.
+
+---
+
+## Synopsis
+
+```shell
+xg env template --output <FILE_PATH>
+```
+
+---
+
+## Description
+
+`xg env template` produces a JSON scaffold that mirrors the structure expected by [`xg env import`](/cli/reference/env-import/). The generated file contains:
+
+- A single `Environments` array with one placeholder entry.
+- Key fields (`FriendlyName`, `EnvironmentUrl`, `AuthenticationMethod`, `ClientId`, `MetadataCacheLifecycle`) set to sensible default values.
+- `ClientSecret` is intentionally **omitted** from the output (the field is `[JsonIgnore]`-decorated in the CLI source). Supply the secret interactively when running `xg env import`, or add it to the JSON manually before importing in a secure, non-version-controlled location.
+- `ActiveEnvironmentFriendlyName` set to `null` — activate an environment after import with [`xg env activate`](/cli/reference/env-activate/) or via the interactive `xg env add` wizard.
+
+If the parent directory of the output path does not exist, the CLI creates it automatically.
+
+### Output format
+
+The generated file is **indented JSON** (not YAML). Null fields are omitted (`DefaultIgnoreCondition = WhenWritingNull`).
+
+Example of generated content:
+
+```json
+{
+  "Environments": [
+    {
+      "FriendlyName": "MY-ENV-NAME",
+      "EnvironmentUrl": "https://myorg.crm.dynamics.com",
+      "AuthenticationMethod": "ClientSecret",
+      "ClientId": "YOUR_CLIENT_ID_GUID",
+      "MetadataCacheLifecycle": "7.00:00:00"
+    }
+  ]
+}
+```
+
+---
+
+## Options
+
+| Flag | Type | Default | Description |
+|---|---|---|---|
+| `-o` / `--output <FILE_PATH>` | `string` | *(required)* | Destination path for the generated JSON template. If the directory does not exist, the CLI creates it. The command fails with exit code `1` if this flag is omitted or empty. |
+
+---
+
+## Exit Codes
+
+| Code | Meaning |
+|---|---|
+| `0` | Template written successfully. |
+| `1` | Missing or empty `--output` path; I/O error writing the file; licence insufficient (non-Pro). |
+
+---
+
+## Examples
+
+### Generate a template to the current directory
+
+```shell
+xg env template --output ./env-template.json
+```
+
+### Generate a template to a specific path (creating the directory if needed)
+
+```shell
+xg env template --output ~/.config/xrmghost/environments/template.json
+```
+
+### Generate a template and immediately import it (after manual edits)
+
+```shell
+# 1. Create the template
+xg env template --output ./my-envs.json
+
+# 2. Edit my-envs.json: replace placeholder values with your real environment details
+#    (FriendlyName, EnvironmentUrl, ClientId, etc.)
+
+# 3. Import the edited file — the CLI will prompt for ClientSecret interactively
+xg env import ./my-envs.json
+```
+
+---
+
+## See Also
+
+- [`xg env import`](/cli/reference/env-import/) — Import environment configurations from a JSON file (accepts the format produced by this command).
+- [`xg env add`](/cli/reference/env-add/) — Interactive wizard to add a single environment without editing a JSON file.
+- [CLI Reference landing page](/cli/reference/) — Full list of available commands and reference structure.
+- [CLI Overview](/cli/) — Introduction to the `xg` CLI and its command groups.
+
+
+---
+
+# Source: https://docs.xrmghost.tech/cli/reference/generate-scenario/
+
+> Generate a template JSON scenario file for a Dataverse plugin assembly and type, ready to be used with the `run` command.
+
+
+# `xg generate-scenario`
+
+Inspects a compiled Dataverse plugin assembly and emits a ready-to-use scenario JSON file that can be passed directly to [`xg run`](/cli/reference/run/). The command launches XrmGhost.FrameworkHost to interrogate the plugin's metadata — attribute decorations, message handlers, entity configuration — and wires that information into a fully-populated execution context with sensible defaults.
+
+Use `generate-scenario` as the starting point of your local plugin testing workflow: generate a scaffold once, adjust the generated JSON to match your test data, then pass it to `run`.
+
+---
+
+## Synopsis
+
+```shell
+xg generate-scenario -p <PLUGIN_ASSEMBLY_PATH> -t <PLUGIN_TYPE_NAME> [options]
+```
+
+---
+
+## Options
+
+| Flag | Short | Type | Default | Description |
+|---|---|---|---|---|
+| `--plugin-assembly-path` | `-p` | `string` | *(required)* | Path to the compiled plugin assembly DLL. The file must exist at the specified path. |
+| `--plugin-type` | `-t` | `string` | *(required)* | Fully-qualified name of the plugin class to introspect (e.g. `MyPlugins.MyPluginClass`). |
+| `--output` | `-o` | `string` | Same directory as the assembly | Path where the generated scenario JSON file is written. If omitted, or if only a filename is given, the file is placed alongside the plugin DLL. When multiple messages are generated, the filename is suffixed with `_<MessageName>_Scenario.json`. |
+| `--framework-host-path` | `-f` | `string` | Auto-resolved | Path to `XrmGhost.FrameworkHost.exe`. When not provided the CLI checks the managed application-data install root first, then falls back to legacy beside-the-CLI locations (`bin`, then the CLI directory). |
+| `--debug-mode` | `-d` | `bool` | `false` | Emits detailed verbose output, including FrameworkHost startup information, gRPC health-check status, and per-field scaffold decisions. |
+| `--no-default-user-settings` | — | `bool` | `false` | Suppresses the automatic insertion of a default `usersettings` mock (Retrieve response) for the calling user context. |
+| `--no-default-owner` | — | `bool` | `false` | Suppresses the automatic insertion of a default `ownerid` (EntityReference to `systemuser`) in the generated `Target` entity. |
+| `--online` | — | `bool` | `false` | Enables online mode, which activates live Dataverse metadata integration. Requires an active **Pro** license. |
+| `--no-interactive` | — | `bool` | `false` | Exits immediately if FrameworkHost is not installed instead of prompting the user to download it. Useful in CI pipelines. |
+
+---
+
+## Description
+
+### How the scaffold is built
+
+`generate-scenario` connects to a short-lived FrameworkHost process over gRPC, sends the plugin assembly path and type name, and receives the plugin's inferred metadata. From that metadata the command builds an `ExecutionContextDefinition` that includes:
+
+- **Message name** — taken from `[HandlesMessage]` attributes on the plugin class. If no attributes are present, the scaffold defaults to `Create`.
+- **Primary entity name and ID** — derived from `ExecutionConfig` on the plugin, or left empty when the plugin carries no metadata.
+- **`Target` input parameter** — auto-generated as an `EntityDefinition` with a `name` sample attribute. Skipped for Custom API messages (those whose `MessageName` begins with `custom_`).
+- **`ownerid` attribute** — an `EntityReference` pointing to the context's `UserId` as a `systemuser`. Suppressed by `--no-default-owner`.
+- **Default UserSettings mock** — a Retrieve response that returns a realistic `usersettings` entity for the calling user. Suppressed by `--no-default-user-settings`.
+
+### Multiple message handlers
+
+When a plugin implements `[HandlesMessage]` for more than one message, the command generates one scenario file per message, each named `<PluginTypeName>_<MessageName>_Scenario.json`.
+
+### Partial scaffold warning
+
+If required metadata is missing (e.g. no `[HandlesMessage]` attribute and no `PrimaryEntityName` set), the command emits a warning after writing the file:
+
+```
+Warning (Message: Create): Generated a partial scenario scaffold because required
+XrmGhost metadata was missing or incomplete (executionContext.primaryEntityName,
+inputParameters.Target.logicalName). Before using this scenario, fill those values manually.
+```
+
+This warning does not prevent the file from being written. It flags that you need to review and complete the scaffold before running it.
+
+### Online mode
+
+With `--online` the command can integrate live Dataverse metadata (entity definitions, option sets). This feature requires an active **Pro** license; the command validates the license tier before proceeding and returns exit code `1` if the check fails.
+
+---
+
+## Exit Codes
+
+| Code | Meaning |
+|---|---|
+| `0` | All scenario files generated successfully. |
+| `1` | An error occurred: assembly not found, type load failure, license check failed (online mode), or FrameworkHost startup failure. |
+
+---
+
+## Examples
+
+### Minimal — generate a scenario for a single plugin type
+
+```shell
+xg generate-scenario \
+  --plugin-assembly-path ./bin/Debug/net8.0/MyCompany.Plugins.dll \
+  --plugin-type MyCompany.Plugins.AccountCreatePlugin
+```
+
+The scenario file is written to `./bin/Debug/net8.0/MyCompany.Plugins.AccountCreatePlugin_Create_Scenario.json`.
+
+### Specify an explicit output path
+
+```shell
+xg generate-scenario \
+  -p ./bin/Debug/net8.0/MyCompany.Plugins.dll \
+  -t MyCompany.Plugins.AccountCreatePlugin \
+  -o ./test-scenarios/account-create.json
+```
+
+### Generate without the default owner and user-settings mock
+
+```shell
+xg generate-scenario \
+  -p ./bin/Debug/net8.0/MyCompany.Plugins.dll \
+  -t MyCompany.Plugins.AccountCreatePlugin \
+  --no-default-owner \
+  --no-default-user-settings
+```
+
+### Non-interactive mode (CI pipeline)
+
+```shell
+xg generate-scenario \
+  -p ./artifacts/MyCompany.Plugins.dll \
+  -t MyCompany.Plugins.AccountCreatePlugin \
+  --no-interactive
+```
+
+### Enable debug output to diagnose FrameworkHost startup
+
+```shell
+xg generate-scenario \
+  -p ./bin/Debug/net8.0/MyCompany.Plugins.dll \
+  -t MyCompany.Plugins.AccountCreatePlugin \
+  --debug-mode
+```
+
+---
+
+## See Also
+
+- [`xg run`](/cli/reference/run/) — Execute a scenario file produced by `generate-scenario`
+- [CLI Overview](/cli/) — Introduction to the `xg` CLI and command groups
+- [Getting Started with the CLI](/cli/getting-started/) — Installation, verification, and your first command
+- [CLI Reference](/cli/reference/) — Full reference index for all CLI commands
+
+
+---
+
+# Source: https://docs.xrmghost.tech/cli/reference/license-activate/
+
+> Activate an XrmGhost license on this machine by exchanging a bootstrap activation key for a long-lived API key via the AKMS service.
+
+
+# xg license activate
+
+Activates an XrmGhost license on the current machine using a bootstrap activation key provided by your administrator.
+
+## Synopsis
+
+```shell
+xg license activate <ACTIVATION_KEY>
+```
+
+## Description
+
+`xg license activate` exchanges a one-time bootstrap activation key for a rotating API key issued by the XrmGhost Key Management Service (AKMS). The API key is encrypted and stored locally on the machine, where it is used for all subsequent authenticated operations.
+
+### What happens during activation
+
+1. The CLI reads the local Platform ID (machine GUID) to identify this machine to AKMS.
+2. The bootstrap key is securely stored locally as `bootstrap.lic` (encrypted via `SecureFileService`).
+3. The CLI contacts AKMS and exchanges the bootstrap key for an API key.
+4. If AKMS returns a valid API key, the key is encrypted and persisted locally; the expiry date is displayed.
+5. The bootstrap key is retained as a local fallback for automatic API-key refresh when the issued key expires.
+
+### Online vs offline behaviour
+
+| Scenario | Behaviour |
+|---|---|
+| **Online (AKMS reachable)** | Bootstrap key is exchanged for an API key immediately. The API key ID, Client ID, and expiry timestamps (UTC and local) are printed to the terminal. |
+| **AKMS unreachable** | Activation fails at the key-exchange step. The bootstrap key has already been stored locally. Re-run `license activate` once connectivity is restored — the stored bootstrap key will be used automatically by future refresh attempts. |
+| **Platform ID missing** | Activation fails before contacting AKMS. Run the CLI at least once to generate a Platform ID, or use [`xg license get-platform-id`](/cli/reference/license-get-platform-id/) to confirm it exists. |
+
+### Arguments
+
+| Argument | Required | Description |
+|---|---|---|
+| `<ACTIVATION_KEY>` | Yes | The bootstrap activation key provided by the administrator. The key is displayed partially masked in the terminal output. |
+
+## Options
+
+The `license activate` command currently accepts no flags beyond the positional `<ACTIVATION_KEY>` argument.
+
+| Flag | Type | Default | Description |
+|---|---|---|---|
+| *(none)* | — | — | No optional flags are defined for this command. |
+
+> **Note:** A custom AKMS endpoint override flag is planned for a future release. The AKMS base URL is currently read from the compiled `AkmsBaseUrl` configuration value.
+
+## Exit Codes
+
+| Code | Meaning |
+|---|---|
+| `0` | Activation succeeded. API key obtained from AKMS and stored locally. |
+| `1` | Activation failed. Possible reasons: empty or invalid activation key, Platform ID not found, AKMS unreachable, or AKMS returned no valid API key. |
+
+## Examples
+
+### Activate with a bootstrap key
+
+```shell
+xg license activate BOOTSTRAP-KEY-1234-ABCD-5678
+```
+
+The CLI will display the Platform ID (partially), the first 4 characters of the activation key, and — on success — the issued API Key ID, Client ID, and expiry timestamps.
+
+### Verify activation succeeded
+
+After activating, confirm the license is active with:
+
+```shell
+xg license status
+```
+
+A successful activation results in `License Active` output with the tier name and expiry date.
+
+### Activate and immediately check status (script usage)
+
+```shell
+xg license activate "$BOOTSTRAP_KEY" && xg license status
+```
+
+Use `&&` to run `license status` only if activation exits with code `0`.
+
+## See Also
+
+- [xg license status](/cli/reference/license-status/) — display current license tier, expiry, and subscription claims
+- [xg license get-platform-id](/cli/reference/license-get-platform-id/) — display the unique machine identifier required for licensing
+- [CLI Overview](/cli/) — introduction to the `xg` CLI and command groups
+
+
+---
+
+# Source: https://docs.xrmghost.tech/cli/reference/license-get-platform-id/
+
+> Display the unique Platform ID (machine GUID) for this machine. Used by administrators and the licensing system to bind a license key to a specific installation.
+
+
+# `xg license get-platform-id`
+
+## Synopsis
+
+```shell
+xg license get-platform-id
+```
+
+## Description
+
+`xg license get-platform-id` prints the **Platform ID** for the current machine — a persistent UUID that uniquely identifies this XrmGhost installation. The command reads the stored identifier from local application data and writes it to the console, then exits.
+
+### What the Platform ID is
+
+When the XrmGhost CLI runs for the first time, it generates a random UUID (version 4) and persists it in the user application data directory:
+
+| Platform | Storage path |
+|---|---|
+| Windows | `%LOCALAPPDATA%\XrmGhost\XrmGhostCli\machine_id.dat` |
+| Linux | `$XDG_DATA_HOME/xrmghost/xrmghostcli/machine_id.dat` (falls back to `~/.local/share/…`) |
+| macOS | `~/Library/Application Support/xrmghost/xrmghostcli/machine_id.dat` |
+
+The Platform ID is a standard hyphenated GUID string, for example `3fa85f64-5717-4562-b3fc-2c963f66afa6`. It is stable across CLI updates as long as the application data directory is preserved. If the file is deleted the CLI generates a new GUID on the next run, which will invalidate any previously issued licenses bound to the old ID.
+
+### What the Platform ID is used for
+
+The Platform ID is the machine-side anchor of the XrmGhost licensing model:
+
+- **License activation** — `xg license activate` sends the Platform ID to the AKMS service alongside the bootstrap key to issue a machine-bound API key.
+- **License validation** — on every run the CLI verifies that the local license corresponds to the current machine's Platform ID.
+- **Administrator workflows** — when an administrator provisions a license seat they need the Platform ID to target the correct machine. Use this command to retrieve and copy it.
+
+### Cross-platform notes
+
+The value is identical in format across all supported platforms (Windows, Linux, macOS). However, the storage path differs per platform (see the table above). If the storage location is inaccessible (for example due to permission issues) the command exits with code `1` and prints an error message.
+
+## Options
+
+This command has no flags or options.
+
+## Example
+
+Retrieve the Platform ID for this machine:
+
+```shell
+xg license get-platform-id
+```
+
+Expected output:
+
+```
+Your Platform ID is: 3fa85f64-5717-4562-b3fc-2c963f66afa6
+Please provide this ID to the administrator if requested for licensing purposes.
+```
+
+The GUID value will differ on every machine. Copy the displayed value and share it with your administrator when requested.
+
+## Exit Codes
+
+| Code | Meaning |
+|---|---|
+| `0` | Success — Platform ID retrieved and printed |
+| `1` | Error — Platform ID could not be read (storage access failure or missing data) |
+
+## See Also
+
+- [`xg license activate`](/cli/reference/license-activate/) — activate a license using a bootstrap key (requires the Platform ID)
+- [`xg license status`](/cli/reference/license-status/) — view current license tier, expiration, and subscription details
+- [CLI Reference](/cli/reference/) — landing page for all CLI reference pages
+- [CLI Overview](/cli/) — introduction to the `xg` CLI and command groups
+
+
+---
+
+# Source: https://docs.xrmghost.tech/cli/reference/license-status/
+
+> Display the current XrmGhost license status, including tier, expiration date, and active subscription claims.
+
+
+# xg license status
+
+Display the current license status for this machine. The command contacts the AKMS licensing backend, resolves the active API key, and prints the tier, expiration date, and any subscription claims associated with the license.
+
+## Synopsis
+
+```
+xg license status [OPTIONS]
+```
+
+## Description
+
+`xg license status` queries the local API key store and the AKMS (API Key Management Service) backend to determine whether the machine holds a valid, active license.
+
+When a license is found the command prints:
+
+- **Status** — `License Active` (green) or `No Active License Found` (red).
+- **Tier** — the highest active subscription tier: `Trial`, `Standard`, `Premium`, `Pro`, or `Enterprise`.
+- **Expires** — the UTC expiration timestamp of the license (`yyyy-MM-dd HH:mm:ss K` format).
+- **Expiration warning** — an amber warning if the license expires within 30 days; a red warning if it expires within 7 days.
+- **Subscription claims** — one entry per active subscription parsed from the JWT entitlement token (program name, tier, expiry). Shown in verbose mode only (see `--verbose`).
+
+When no valid license is found the command prints the `Unlicensed` / `Trial` tier state and shows the activation hint.
+
+### License states
+
+| State | Condition | Tier shown |
+|---|---|---|
+| **Active** | API key present, AKMS validation succeeds, expiration date in the future | Resolved from subscription claims (`Standard`, `Premium`, `Pro`, `Enterprise`) |
+| **Unlicensed** | No API key stored, or AKMS validation fails | `Trial` |
+| **Expiring soon** | Active license expires within 30 days | Same as Active, with amber warning |
+| **Expiring critically** | Active license expires within 7 days | Same as Active, with red warning |
+
+> **Note:** The license status is cached in-process for up to 2 minutes. If you just activated a license, run `xg license status` again after a few seconds to pick up the refreshed state.
+
+## Options
+
+| Option | Short | Type | Default | Description |
+|---|---|---|---|---|
+| `--verbose` | `-v` | flag | `false` | Print extended output including subscription claim details (program name, tier, expiry) parsed from the JWT entitlement token. |
+
+## Exit codes
+
+| Code | Meaning |
+|---|---|
+| `0` | License information retrieved successfully (regardless of license validity). |
+| `1` | An error occurred while contacting AKMS or reading the local API key store. |
+
+## Examples
+
+### Check license status (standard output)
+
+```
+$ xg license status
+
+XrmGhost License Status
+
+Retrieving license information...
+License Active
+  Tier: Pro
+  Expires: 2027-01-15 00:00:00 +00:00
+```
+
+### Check license status with verbose subscription claims
+
+```
+$ xg license status --verbose
+
+XrmGhost License Status
+
+Retrieving license information...
+License Active
+  Tier: Pro
+  Expires: 2027-01-15 00:00:00 +00:00
+
+Subscription Claims:
+  XrmGhost Pro (Active) - Expires: 2027-01-15
+```
+
+### Unlicensed machine
+
+```
+$ xg license status
+
+XrmGhost License Status
+
+Retrieving license information...
+No Active License Found
+  Status: Unlicensed
+  Tier: Trial
+  Description: No active license was found on this machine.
+
+To activate a license, use: xg license activate <bootstrap-key>
+```
+
+### License expiring within 30 days
+
+```
+$ xg license status
+
+XrmGhost License Status
+
+Retrieving license information...
+License Active
+  Tier: Enterprise
+  Expires: 2026-05-25 00:00:00 +00:00
+
+⚠️  License expires in 18 days
+Consider renewing your license before it expires.
+```
+
+## See Also
+
+- [xg license activate](/cli/reference/license-activate/) — Activate a license using a bootstrap key.
+- [xg license get-platform-id](/cli/reference/license-get-platform-id/) — Display the unique machine identifier required for licensing.
+- [CLI Overview](/cli/) — Introduction to the `xg` command-line interface.
+
+
+---
+
+# Source: https://docs.xrmghost.tech/cli/reference/privacy/
+
+> Display information about the data collected by XrmGhost, including Platform ID, hardware context, and telemetry scope. Prints the privacy policy URL and current machine identifiers.
+
+
+# `xg privacy`
+
+## Synopsis
+
+```shell
+xg privacy
+```
+
+## Description
+
+`xg privacy` prints a structured summary of every category of data that XrmGhost collects, stores, or transmits. The command exits immediately after printing; it does not open a browser or make network requests.
+
+The output covers four distinct areas:
+
+### 1. Platform ID
+
+When the XrmGhost CLI is first run, it generates a unique GUID called the **Platform ID** (internally `StoredMachineGuid`). This identifier is:
+
+- stored locally in your user application data directory
+- printed to the console by this command alongside the current value
+- transmitted to XrmGhost servers for **licensing validation** and **anonymised usage analytics**
+
+The Platform ID persists across CLI updates. It is the primary key used to associate your machine with an activated license.
+
+### 2. Local Hardware Context
+
+On each startup the CLI computes a **hardware contextual salt** from:
+
+- the primary network adapter's MAC address
+- the operating system description
+- the processor count
+- the current username
+
+This value is hashed locally and used to harden activated license files against being copied to a different machine. **The salt itself is never transmitted to XrmGhost servers.**
+
+### 3. Other Information Sent Remotely
+
+For licensing, analytics, and error reporting the following additional data may be sent alongside the Platform ID:
+
+| Field | Example source |
+|---|---|
+| IP address | Inferred at connection time |
+| Machine name | `Environment.MachineName` |
+| OS description | `RuntimeInformation.OSDescription` |
+| .NET runtime description | `RuntimeInformation.FrameworkDescription` |
+| XrmGhost CLI version | Embedded assembly version |
+| Username | `Environment.UserName` |
+| User domain name | `Environment.UserDomainName` |
+
+### 4. Usage Analytics and Error Reporting
+
+XrmGhost may collect anonymised information about commands run, features used, and errors encountered. All telemetry is linked to your Platform ID. The purpose is to identify popular workflows, prioritise improvements, and diagnose bugs.
+
+For the full privacy policy visit: **https://xrmghost.com/privacy-policy**
+
+## Options
+
+This command has no flags or options.
+
+## Example
+
+```shell
+xg privacy
+```
+
+Sample output (Platform ID and machine values will differ on your machine):
+
+```
+XrmGhost Data Collection & Privacy Information
+
+1. Platform ID (Internally `StoredMachineGuid`):
+   - A unique identifier (GUID) is generated when XrmGhost CLI is first run. This is your Platform ID.
+   - This Platform ID is stored locally on your machine in your user application data directory.
+   - Your current Platform ID: 3fa85f64-5717-4562-b3fc-2c963f66afa6
+   - Purpose: This Platform ID is used to associate your machine with any activated licenses and for collecting anonymized usage analytics and error reports to help improve XrmGhost.
+   - Sent Remotely: Yes, this Platform ID is sent to XrmGhost servers for licensing and analytics.
+
+2. Local Hardware Context (`HardwareContextualSalt`):
+   ...
+   - Sent Remotely: No, this hardware salt itself is NOT sent to XrmGhost servers.
+
+3. Other Information Sent Remotely (with your Platform ID):
+   ...
+
+4. Usage Analytics & Error Reporting:
+   ...
+
+For more detailed information, please visit our online privacy policy at: https://xrmghost.com/privacy-policy
+```
+
+## Exit Codes
+
+| Code | Meaning |
+|---|---|
+| `0` | Success — privacy information printed |
+
+## See Also
+
+- [`xg license status`](/cli/reference/license-status/) — view your current license tier and the Platform ID used for activation
+- [CLI Reference](/cli/reference/) — landing page for all CLI reference pages
+- [CLI Overview](/cli/) — introduction to the `xg` CLI and command groups
+- [Privacy Policy](https://xrmghost.com/privacy-policy) — full online privacy policy
+
+
+---
+
+# Source: https://docs.xrmghost.tech/cli/reference/run/
+
+> Execute a Dataverse plugin out-of-process via XrmGhost.FrameworkHost. Accepts an assembly path, a plugin type name, and an optional scenario file that describes the execution context, input parameters, and mock data.
+
+
+# xg run
+
+Execute a Dataverse plugin out-of-process via `XrmGhost.FrameworkHost`.
+
+## Synopsis
+
+```shell
+xg run -a <ASSEMBLY_PATH> -t <PLUGIN_TYPE> [options]
+```
+
+## Description
+
+`xg run` is the primary execution command in the XrmGhost CLI. It loads the plugin assembly you specify, starts `XrmGhost.FrameworkHost.exe` as a background process, and dispatches the plugin execution over a local gRPC channel. The host process is terminated automatically when the run completes.
+
+The command has two required arguments — the assembly path and the fully-qualified plugin type name — and a rich set of optional flags that control scenario injection, verbosity, debugging, configuration strings, and data-source routing.
+
+**Scenario files** are JSON documents generated by [`xg generate-scenario`](/cli/reference/generate-scenario/) and let you define the execution context (message name, entity, stage, depth), input parameters, pre/post entity images, mock OrganizationService responses, and expected outcomes. Without a scenario file the host constructs a minimal default context.
+
+**Verbosity flags** (`-n`, `-v`, `-d`) are mutually exclusive in practice: use the lowest level that gives you the information you need. The default (no verbosity flag) shows only plugin traces, which keeps the output clean in CI.
+
+**Data-source routing** (`--data-source`) controls how `RetrieveMultiple` calls are handled inside the simulated `IOrganizationService`. `auto` (the default) lets the host decide based on the scenario content.
+
+## Options
+
+| Flag | Type | Default | Description |
+|---|---|---|---|
+| `-a`, `--assembly-path` | `string` | *(required)* | Path to the plugin assembly DLL. The file must exist at the time the command is invoked. |
+| `-t`, `--plugin-type` | `string` | *(required)* | Fully-qualified name of the plugin type to execute (e.g., `MyPlugins.MyPluginClass`). |
+| `-s`, `--scenario` | `string` | — | Path to a JSON scenario file. When provided, the file is deserialised into a `ScenarioDefinition` that supplies the execution context, input parameters, entity images, mock data, and expected outcomes. |
+| `-f`, `--framework-host-path` | `string` | — | Explicit path to `XrmGhost.FrameworkHost.exe`. When omitted, the CLI resolves the host from its managed application-data install root, then falls back to legacy beside-the-CLI locations (`bin/`, then the CLI directory). |
+| `-w`, `--debug-plugin-wait` | `bool` | `false` | Instructs FrameworkHost to pause before executing the plugin and wait for a debugger to attach. The CLI prints the host process ID and step-by-step attach instructions. |
+| `-c`, `--continue-on-unlicensed` | `bool` | `false` | When a Pro-tier feature is encountered without a valid license, execution continues with a mocked result and a warning instead of terminating with a non-zero exit code. |
+| `-n`, `--normal` | `bool` | `false` | Show plugin traces plus critical framework messages (errors and warnings). Expands the default output without the noise of full verbose mode. |
+| `-v`, `--verbose` | `bool` | `false` | Show plugin traces and all framework traces, ordered chronologically. |
+| `-d`, `--debug` | `bool` | `false` | Show all traces including timing analysis and performance metrics. Most detailed output level. |
+| `--debug-mode` | `bool` | `false` | Enable detailed debug output for CLI-level operations (version info, scenario loading steps, license state, entitlement emission, entity extraction diagnostics). Distinct from `-d`/`--debug`, which controls plugin trace verbosity. |
+| `--unsecure-config` | `string` | — | Unsecure configuration string passed to the plugin as `IPluginExecutionContext.UnsecureConfig`. |
+| `--secure-config` | `string` | — | Secure configuration string passed to the plugin as `IPluginExecutionContext.SecureConfig`. |
+| `--data-source` | `string` | `auto` | Controls how `RetrieveMultiple` calls are routed inside the simulated `IOrganizationService`. Accepted values: `mock` (use scenario mock data only), `live` (route to a real Dataverse environment), `auto` (host decides based on scenario content). |
+
+## Exit Codes
+
+| Code | Meaning |
+|---|---|
+| `0` | Plugin executed successfully. |
+| `1` | Plugin execution failed, scenario file not found, assembly not found, FrameworkHost failed to start or become healthy, or an unexpected error occurred. |
+
+## Examples
+
+### Basic run
+
+Execute a plugin against its assembly with no scenario file. The host creates a minimal default execution context.
+
+```shell
+xg run \
+  -a ./bin/Debug/MyPlugins.dll \
+  -t MyPlugins.AccountPreCreate
+```
+
+### Run with a scenario file
+
+Load a scenario that defines the execution context, input parameters, and mock data.
+
+```shell
+xg run \
+  -a ./bin/Debug/MyPlugins.dll \
+  -t MyPlugins.AccountPreCreate \
+  -s ./scenarios/account-create.json
+```
+
+### Advanced run — debug attach, secure config, and explicit data source
+
+Generate a scenario first, then execute with debugger attach support, a secure configuration string, and mock-only data sourcing.
+
+```shell
+# Generate the scenario template (run once)
+xg generate-scenario \
+  -a ./bin/Debug/MyPlugins.dll \
+  -t MyPlugins.AccountPreCreate \
+  -o ./scenarios/account-create.json
+
+# Run with advanced flags
+xg run \
+  -a ./bin/Debug/MyPlugins.dll \
+  -t MyPlugins.AccountPreCreate \
+  -s ./scenarios/account-create.json \
+  -w \
+  --secure-config "api-key=secret123" \
+  --data-source mock \
+  -d
+```
+
+After the command prints the FrameworkHost PID and attach instructions, attach your debugger to `XrmGhost.FrameworkHost.exe`, set breakpoints in your plugin code, and then resume execution.
+
+### Run with verbose output and unlicensed-Pro continuation
+
+```shell
+xg run \
+  -a ./bin/Debug/MyPlugins.dll \
+  -t MyPlugins.ComplexPlugin \
+  -s ./scenarios/complex.json \
+  -v \
+  -c
+```
+
+With `-c`, any Pro-tier feature encountered (such as Final Entity States) returns a mocked result and prints a warning rather than terminating with exit code `1`.
+
+## See Also
+
+- [`xg generate-scenario`](/cli/reference/generate-scenario/) — Generate a scenario JSON template for a plugin assembly and type
+- [`xg doctor`](/cli/reference/doctor/) — Diagnose CLI configuration, FrameworkHost connectivity, and license validity
+- [CLI Overview](/cli/) — Introduction to the XrmGhost CLI and how this documentation is organised
+
+
+---
+
+# Source: https://docs.xrmghost.tech/cli/reference/setup-host/
+
+> Install or update the Plugin Framework Host component required to run Dataverse plugins out-of-process with the XrmGhost CLI.
+
+
+# `xg setup host`
+
+Installs or updates the **Plugin Framework Host** (`XrmGhost.Framework.Host`) — the managed runtime component that the `xg run` command launches in the background to execute Dataverse plugins out-of-process.
+
+## Synopsis
+
+```shell
+xg setup host [OPTIONS]
+```
+
+When called without any option, `setup host` inspects the current installation state and prints a status message. It automatically performs an install if the Framework Host is missing from the expected location.
+
+## Description
+
+The Plugin Framework Host is a .NET Framework 4.7.2 Windows process that XrmGhost uses to host Dataverse plugin assemblies in an isolated, out-of-process environment. The `xg run` command requires the Framework Host to be present and compatible before it can execute a plugin. If it is not found, `run` will prompt you to install it first.
+
+`setup host` manages the entire bootstrap lifecycle:
+
+- **Check** (`--check`): reads the current installation state and reports it without making any changes.
+- **Install / Update** (`--update`): downloads the latest compatible `XrmGhost.Framework.Host` NuGet package from the configured feed and extracts the executable to the managed install root under the XrmGhost user-data directory.
+
+The managed install root is located at:
+
+- **Windows:** `%LOCALAPPDATA%\xrmghost\framework-host\current\`
+- **Linux / macOS:** `~/.local/share/xrmghost/framework-host/current/` (or `~/xrmghost/framework-host/current/` as fallback)
+
+:::note
+The Framework Host executable (`XrmGhost.Framework.Host.exe`) targets the `net472/win-x86` runtime payload. Running or installing it on non-Windows hosts is not supported — see [Prerequisites](#prerequisites).
+:::
+
+## Prerequisites
+
+| Requirement | Notes |
+|---|---|
+| **Windows only** | The Framework Host is a `net472 win-x86` executable. `setup host` must be run on Windows. |
+| **Write access to the user-data directory** | The install writes to `%LOCALAPPDATA%\xrmghost\`. No system-wide write access is required. If your environment restricts access to `%LOCALAPPDATA%`, rerun from an elevated terminal or adjust directory permissions. |
+| **NuGet feed reachable** | The CLI resolves and downloads the Framework Host from the configured NuGet sources. Ensure `nuget.org` (or your private feed) is accessible from the machine. |
+
+## Options
+
+| Flag | Default | Description |
+|---|---|---|
+| `--check` | `false` | Inspect the current Framework Host installation state and print a status message. Does **not** modify the local installation. Cannot be combined with `--update`. |
+| `--update` | `false` | Download and install the latest compatible Framework Host package from the configured NuGet feed. Also triggered automatically when the Framework Host is missing and no flag is specified. Cannot be combined with `--check`. |
+
+> **Mutual exclusion:** `--check` and `--update` cannot be specified together. The command returns a validation error if both are provided.
+
+## Exit Codes
+
+| Code | Meaning |
+|---|---|
+| `0` | Success — either the status was printed or the install completed without errors. |
+| `1` | Install failed — see the error message printed to the console for details. |
+
+## Examples
+
+### Check the current Framework Host status
+
+Report the installed version and whether an update is available, without changing anything:
+
+```shell
+xg setup host --check
+```
+
+Example output when the Framework Host is up to date:
+
+```
+Framework Host is current (1.4.0).
+```
+
+Example output when an update is available:
+
+```
+Framework Host 1.3.0 is installed. 1.4.0 is available. Run 'xg setup host --update'.
+```
+
+### Install or update to the latest Framework Host
+
+Download and install the latest compatible Framework Host from the configured NuGet feed:
+
+```shell
+xg setup host --update
+```
+
+Example output on success:
+
+```
+Framework Host installed (1.4.0).
+```
+
+### First-run install (no flag required)
+
+If the Framework Host is missing, running `setup host` without any flag also triggers an automatic install:
+
+```shell
+xg setup host
+```
+
+## Troubleshooting
+
+| Symptom | Likely cause | Resolution |
+|---|---|---|
+| `Failed to install XrmGhost.Framework.Host` | The current user cannot write to the managed install root, or another process is locking the directory | Verify write permissions under `%LOCALAPPDATA%\xrmghost\`. Close any tools that may be locking the directory, or rerun from an elevated terminal. |
+| `All configured NuGet sources were unreachable` | Network or feed connectivity issue | Check that the NuGet feed (`nuget.org` or your private feed) is reachable from the machine. |
+| `Framework Host is incompatible or corrupted` | The installed version is not compatible with the current CLI | Run `xg setup host --update` to replace the installation, or run `xg doctor --verbose` to inspect the resolved host path. |
+
+## See Also
+
+- [`xg run`](/cli/reference/run/) — execute a Dataverse plugin using the Framework Host
+- [`xg doctor`](/cli/reference/doctor/) — diagnose Framework Host connectivity, license validity, and configuration health
+- [CLI Reference](/cli/) — overview of the CLI reference area

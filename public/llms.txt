@@ -1,6 +1,6 @@
 # XrmGhost Documentation
 
-> Local-first development for Microsoft Dataverse and Dynamics 365. XrmGhost runs your plugins and tests on your machine, so the deploy-test loop closes in seconds instead of minutes.
+> Local-first development for Microsoft Dataverse and Dynamics 365. XrmGhost runs your plugins and tests on your machine, so the deploy-test loop closes in seconds instead of minutes. The suite spans a CLI (the primary tool), an Attributes library, and agent Skills.
 
 ## Start here
 - [Overview](https://docs.xrmghost.tech/overview/): what XrmGhost is, who it's for, and why teams adopt it.
@@ -11,10 +11,16 @@
 ## Reference
 - [CLI reference](https://docs.xrmghost.tech/cli/): command groups and the full CLI command reference.
 - [Attributes reference](https://docs.xrmghost.tech/attributes/): declarative attributes for Dataverse plugin registration.
-- [Architecture](https://docs.xrmghost.tech/architecture/): the documentation operating model and content source of truth.
 - [Skills](https://docs.xrmghost.tech/skills/): agent skills for running and debugging plugins locally.
 
 ## Elsewhere
+- [XrmGhost.Cli on NuGet](https://www.nuget.org/packages/XrmGhost.Cli/): install the CLI and pull the latest release — `dotnet tool install`/`update`.
+- [XrmGhost.Attributes on NuGet](https://www.nuget.org/packages/XrmGhost.Attributes/): add the Attributes library to your plugin project as a package reference.
 - [www.xrmghost.tech](https://www.xrmghost.tech): product overview, positioning, and editions.
 - [github.com/xrmghost](https://github.com/xrmghost): organization profile and the full index of public repositories.
 - [github.com/xrmghost/xrmghost](https://github.com/xrmghost/xrmghost): main repo — issues, feature requests, and release notes.
+- [github.com/xrmghost/xrmghost-attributes](https://github.com/xrmghost/xrmghost-attributes): source for the Attributes library shipped as XrmGhost.Attributes.
+- [github.com/xrmghost/xrmghost-skills](https://github.com/xrmghost/xrmghost-skills): source for the agent Skills that drive XrmGhost from coding assistants.
+
+## Optional
+- [llms-full.txt](https://docs.xrmghost.tech/llms-full.txt): the entire product documentation flattened into one markdown file for whole-context ingestion.
