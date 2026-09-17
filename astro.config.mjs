@@ -79,6 +79,11 @@ export default defineConfig({
 					items: [{ autogenerate: { directory: 'attributes' } }],
 				},
 				{
+					label: 'Query Engine',
+					collapsed: true,
+					items: [{ autogenerate: { directory: 'query-engine' } }],
+				},
+				{
 					label: 'Architecture',
 					collapsed: true,
 					items: [{ autogenerate: { directory: 'architecture' } }],
