@@ -1,6 +1,6 @@
 ---
 title: How to Add a New Docs Page
-description: Step-by-step workflow for adding a new page to the XrmGhost public documentation, including frontmatter rules, folder naming conventions, CLI docs decision path, and how to find the right product owner.
+description: Step-by-step workflow for adding a new page to the XrmGhost public documentation, including frontmatter rules, folder naming conventions, CLI docs decision path, QueryEngine snapshot maintenance, and how to find the right product owner.
 ---
 
 # How to Add a New Docs Page
@@ -176,6 +176,15 @@ dispositions and required context come from the matrix, not from the contract co
 describe an engine that no longer exists while its provenance claims it is current. Nothing catches
 that — **for this flow the only automated gate is `npm run build`**, which proves the site compiles,
 not that it tells the truth.
+
+### Where the re-transcribed page goes live
+
+`xrmghost-docs` is a **standalone site**: there is no portal submodule to advance and no sync step to
+run. Once the re-transcription merges to `dev`, `.github/workflows/deploy.yml` runs `npm ci` and
+`npm run build` and publishes the result to GitHub Pages on that push, so an updated QueryEngine
+reference is live as soon as it lands on `dev` (see [7. Publishing](#7-publishing)). The build is the
+only thing standing between the merge and the public page — and it proves the site compiles, not that
+the page still matches the engine.
 
 Periodic surveillance of new SDK operators **does not belong to this flow**; it is a dedicated
 reconnaissance, ADO-2349.
