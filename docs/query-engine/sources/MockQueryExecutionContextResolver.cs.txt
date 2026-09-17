@@ -1,0 +1,1713 @@
+using System;
+using System.Collections.Generic;
+using System.Globalization;
+using System.Linq;
+using Microsoft.Xrm.Sdk;
+using XrmGhost.FrameworkHost.QueryEngine.Abstractions;
+using XrmGhost.FrameworkHost.QueryEngine.Hierarchy;
+using XrmGhost.FrameworkHost.Services;
+
+namespace XrmGhost.FrameworkHost.QueryEngine.Context
+{
+    /// <summary>
+    /// Resolves the <see cref="MockQueryExecutionContext"/> a plan needs, by reading the same
+    /// records Dataverse reads: <c>usersettings</c> for the caller's zone, business unit and
+    /// language, <c>systemuser</c> for the caller's business unit when the execution context did
+    /// not state one and for the user hierarchy below them, <c>teammembership</c> for the teams of
+    /// the caller and of that hierarchy, and <c>organization</c> for the organisation.
+    ///
+    /// <para>
+    /// <b>It resolves them for a stated caller.</b>  The identity comes in through
+    /// <see cref="MockQueryCaller"/> at construction — from <c>ExecutionContext.UserId</c>, the
+    /// user the plugin runs as — and every per-user record is picked by matching it.  Reading "the
+    /// first <c>usersettings</c> record" instead is correct while a scenario declares one user and
+    /// quietly answers with a different person's settings as soon as it declares two.
+    /// </para>
+    ///
+    /// <para>
+    /// <b>It reads only what was asked for.</b>  The caller passes the union of the
+    /// <see cref="OperatorContextRequirement"/> values declared by the operators the plan actually
+    /// uses (see <see cref="IOperatorCapabilities"/>); a plan whose operators need nothing causes
+    /// no lookup at all.  The requirements are the whole input: there is no second list of
+    /// "context operators" to keep in step with the registry, and no typed scenario contract to
+    /// fill in — a scenario declares these records the way it declares any other record, and the
+    /// resolver finds them in the entity registry.
+    /// </para>
+    ///
+    /// <para>
+    /// <b>A missing record is a default, not a failure.</b>  No <c>usersettings</c> record means
+    /// UTC, no membership and no language; no <c>systemuser</c> record means the business unit is
+    /// read one step further down; no <c>teammembership</c> row means no teams; no
+    /// <c>organization</c> record means a week starting on Monday and a
+    /// fiscal year that is the calendar year in monthly periods.  Each fallback names <b>which</b>
+    /// record was missing, because "some context was defaulted" is not a fix anybody can act on.
+    /// Each
+    /// fallback is traced through <see cref="IEnhancedTracingService"/> under
+    /// <see cref="WarningTraceSource"/>, so it reaches the user as a
+    /// <c>TraceEntry</c> of the execution response rather than sitting in a field somebody has to
+    /// know to look at.  Nothing here consults a licence: needing to know who is asking is not a Pro
+    /// feature.
+    /// </para>
+    ///
+    /// <para>
+    /// <b>The one thing that is not a default is an unanswerable hierarchy.</b>  A missing record
+    /// has a documented answer and a defaulted one is still an answer; a <c>systemuser</c> set that
+    /// carries two self-referential lookups, a manager chain that loops, or one deeper than the cap
+    /// has none, and inventing one would return rows about a different tree.  Those three refuse
+    /// with a <see cref="MockHierarchyResolutionException"/> — and they refuse <i>here</i>, in step
+    /// 0-bis of <c>InMemoryExecutor</c>, which is before the first row of the query is read.  It is
+    /// the only way this resolver ever throws, it happens only for a plan that declared
+    /// <see cref="OperatorContextRequirement.UserHierarchy"/>, and it is an
+    /// <see cref="InvalidOperationException"/> underneath, which is what the QueryEngine already
+    /// throws for a structurally unanswerable query.
+    /// </para>
+    ///
+    /// <para>
+    /// Logical names and attributes below are the published Dataverse ones, verified against the
+    /// table reference rather than inferred:
+    /// <see href="https://learn.microsoft.com/en-us/power-apps/developer/data-platform/reference/entities/usersettings"/>,
+    /// <see href="https://learn.microsoft.com/en-us/power-apps/developer/data-platform/reference/entities/systemuser"/>,
+    /// <see href="https://learn.microsoft.com/en-us/power-apps/developer/data-platform/reference/entities/teammembership"/>
+    /// and
+    /// <see href="https://learn.microsoft.com/en-us/power-apps/developer/data-platform/reference/entities/organization"/>.
+    /// </para>
+    /// </summary>
+    public sealed class MockQueryExecutionContextResolver
+    {
+        /// <summary>Dataverse table holding the caller's preferences.</summary>
+        public const string UserSettingsLogicalName = "usersettings";
+
+        /// <summary>Primary key of <c>usersettings</c>: the user the settings belong to.</summary>
+        public const string UserIdAttribute = "systemuserid";
+
+        /// <summary>"Unique identifier of the business unit with which the user is associated."</summary>
+        public const string BusinessUnitIdAttribute = "businessunitid";
+
+        /// <summary>
+        /// "Unique identifier of the user interface language" — an <b>LCID</b>, and the attribute a
+        /// language operator compares against.
+        ///
+        /// <para>
+        /// The neighbouring <c>localeid</c> is the formatting locale and is deliberately not read:
+        /// the two are both integers, both live on this record, and both read as "the user's
+        /// language" to anyone who does not go and look, so picking the wrong one produces a
+        /// plausible number Dataverse would never have matched on.
+        /// </para>
+        /// </summary>
+        public const string UserLanguageAttribute = "uilanguageid";
+
+        /// <summary>
+        /// Dataverse table holding the user themself.  It is read for two things — the caller's
+        /// business unit, only when the execution context did not already state it, and the user
+        /// hierarchy of <see cref="OperatorContextRequirement.UserHierarchy"/>.  Its primary key is
+        /// <see cref="UserIdAttribute"/>, the same spelling <c>usersettings</c> uses, because a
+        /// user's settings are keyed on the user.
+        /// </summary>
+        public const string SystemUserLogicalName = "systemuser";
+
+        /// <summary>
+        /// What the self-referential lookup of <c>systemuser</c> is called in a real Dataverse
+        /// organisation: the manager lookup.
+        ///
+        /// <para>
+        /// <b>It is not the source this resolver reads, and nothing here matches on it.</b>  The
+        /// hierarchy is deduced from the shapes the registered records actually carry — the single
+        /// attribute whose value is an <see cref="EntityReference"/> naming
+        /// <see cref="SystemUserLogicalName"/> — because a mock scenario declares records and does
+        /// not declare relationship metadata.  Wiring this name in would find nothing on a scenario
+        /// that spells its lookup otherwise, and would find it on one that carries a bare
+        /// <see cref="Guid"/> under this name, which is an identifier and not a link.
+        /// </para>
+        ///
+        /// <para>
+        /// It is stated here because the deduction's diagnostics name it: an author told "no
+        /// self-referential lookup was found" needs to know what the attribute is called in the
+        /// platform they are mocking.
+        /// </para>
+        /// </summary>
+        public const string ExpectedParentUserAttribute = "parentsystemuserid";
+
+        /// <summary>
+        /// The Dataverse <b>intersect</b> that resolves team membership: one row per
+        /// (user, team) pair, carrying <see cref="UserIdAttribute"/> and
+        /// <see cref="TeamIdAttribute"/> and nothing else worth reading.
+        ///
+        /// <para>
+        /// It is the platform table and not a solution-specific one — a custom membership entity
+        /// would answer for whatever organisation declared it and for no other, whereas every
+        /// Dataverse organisation has this one.
+        /// </para>
+        /// </summary>
+        public const string TeamMembershipLogicalName = "teammembership";
+
+        /// <summary>The team half of a <see cref="TeamMembershipLogicalName"/> row.</summary>
+        public const string TeamIdAttribute = "teamid";
+
+        /// <summary>"Local time zone for the user" — a Dataverse zone index, kept raw.</summary>
+        public const string TimeZoneCodeAttribute = "timezonecode";
+
+        /// <summary>"Local time zone adjustment for the user", in minutes.</summary>
+        public const string TimeZoneBiasAttribute = "timezonebias";
+
+        /// <summary>Dataverse table holding organisation-wide settings.</summary>
+        public const string OrganizationLogicalName = "organization";
+
+        /// <summary>Primary key of <c>organization</c>.</summary>
+        public const string OrganizationIdAttribute = "organizationid";
+
+        /// <summary>"Designated first day of the week", a picklist keyed like <see cref="DayOfWeek"/>.</summary>
+        public const string WeekStartDayAttribute = "weekstartdaycode";
+
+        /// <summary>
+        /// "The date on which the fiscal period starts" — a <c>DateOnly</c>-behaviour attribute,
+        /// i.e. a date in the <b>user's local time</b> and not an instant.
+        /// </summary>
+        public const string FiscalCalendarStartAttribute = "fiscalcalendarstart";
+
+        /// <summary>
+        /// "The fiscal period used by the organization" — an <c>Integer</c> over the full range
+        /// whose <c>stringmap</c> carries no rows, so it is <b>not</b> a picklist and no option set
+        /// is interrogated for it.  Its ratified inventory is the five constants below.
+        /// </summary>
+        public const string FiscalPeriodTypeAttribute = "fiscalperiodtype";
+
+        /// <summary>One period per fiscal year.</summary>
+        public const int FiscalPeriodTypeAnnually = (int)FiscalPeriodType.Annually;
+
+        /// <summary>Two periods per fiscal year.</summary>
+        public const int FiscalPeriodTypeSemiannually = (int)FiscalPeriodType.Semiannually;
+
+        /// <summary>Four periods per fiscal year.</summary>
+        public const int FiscalPeriodTypeQuarterly = (int)FiscalPeriodType.Quarterly;
+
+        /// <summary>Twelve periods per fiscal year.</summary>
+        public const int FiscalPeriodTypeMonthly = (int)FiscalPeriodType.Monthly;
+
+        /// <summary>Thirteen four-week periods per fiscal year.</summary>
+        public const int FiscalPeriodTypeQuadriweekly = (int)FiscalPeriodType.Quadriweekly;
+
+        /// <summary>
+        /// The ratified <c>fiscalperiodtype</c> inventory, 2000 to 2004, in order.  Read off the
+        /// declared <see cref="FiscalPeriodType"/> members rather than written out a second time:
+        /// a hand-kept copy beside the enum is the shape that drifts the first time a member is
+        /// added, and the numbers are the contract.
+        /// </summary>
+        public static IEnumerable<int> FiscalPeriodTypeValues
+        {
+            get
+            {
+                return Enum.GetValues(typeof(FiscalPeriodType))
+                    .Cast<FiscalPeriodType>()
+                    .Select(value => (int)value)
+                    .OrderBy(value => value)
+                    .ToArray();
+            }
+        }
+
+        /// <summary>
+        /// The source every fallback warning is traced under.  Stated explicitly — and asserted by
+        /// the tests — because a warning filed under the wrong source is a warning the user's
+        /// trace filter hides.
+        /// </summary>
+        public const Models.TraceSource WarningTraceSource = Models.TraceSource.OperationTracker;
+
+        /// <summary>Prefix every warning of this resolver carries, so the lines are greppable.</summary>
+        public const string WarningPrefix = "XrmGhost.FrameworkHost.QueryEngine: ";
+
+        /// <summary>
+        /// How deep the user hierarchy is walked when the constructor does not state otherwise.
+        ///
+        /// <para>
+        /// It cites <see cref="MockHierarchyResolver.DefaultDepthCap"/> rather than repeating the
+        /// number: the traversal underneath is that component's, and a second 100 written here
+        /// would be a cap this resolver documents and does not apply.
+        /// </para>
+        /// </summary>
+        public const int DefaultHierarchyDepthCap = MockHierarchyResolver.DefaultDepthCap;
+
+        private readonly IMockQueryClock _clock;
+        private readonly IEnhancedTracingService _tracingService;
+        private readonly MockQueryCaller _caller;
+        private readonly int _hierarchyDepthCap;
+
+        /// <summary>
+        /// Creates a resolver reading "now" from <paramref name="clock"/>, reporting fallbacks
+        /// through <paramref name="tracingService"/>, resolving the records of
+        /// <paramref name="caller"/>, and walking the user hierarchy no deeper than
+        /// <paramref name="hierarchyDepthCap"/>.
+        /// </summary>
+        /// <param name="clock">The instant every condition of a query is evaluated against.</param>
+        /// <param name="tracingService">Where a fallback, and the source it fell back to, is reported.</param>
+        /// <param name="caller">Who the plugin runs as, or <c>null</c> when nothing is known about it.</param>
+        /// <param name="hierarchyDepthCap">
+        /// The greatest number of manager edges the descent may walk before refusing.  A scenario
+        /// deeper than this is <b>refused</b> and never truncated: a truncated set answers a
+        /// hierarchy question with a subset of the right people, which is indistinguishable from a
+        /// correct answer to anyone reading the rows.
+        /// </param>
+        /// <exception cref="ArgumentNullException">
+        /// Thrown when the clock or the tracing service is <c>null</c>.
+        /// </exception>
+        /// <exception cref="ArgumentOutOfRangeException">
+        /// Thrown when <paramref name="hierarchyDepthCap"/> is below 1: a cap of zero would refuse
+        /// every scenario that has a hierarchy at all, which is not a configuration anybody means.
+        /// </exception>
+        public MockQueryExecutionContextResolver(
+            IMockQueryClock clock,
+            IEnhancedTracingService tracingService,
+            MockQueryCaller? caller,
+            int hierarchyDepthCap)
+        {
+            if (clock == null) throw new ArgumentNullException(nameof(clock));
+            if (tracingService == null) throw new ArgumentNullException(nameof(tracingService));
+            if (hierarchyDepthCap < 1)
+                throw new ArgumentOutOfRangeException(
+                    nameof(hierarchyDepthCap), hierarchyDepthCap, "The hierarchy depth cap must be at least 1.");
+
+            _clock = clock;
+            _tracingService = tracingService;
+            _caller = caller ?? MockQueryCaller.Unknown;
+            _hierarchyDepthCap = hierarchyDepthCap;
+        }
+
+        /// <summary>
+        /// Creates a resolver reading "now" from <paramref name="clock"/>, reporting fallbacks
+        /// through <paramref name="tracingService"/>, and resolving the records of
+        /// <paramref name="caller"/>.
+        /// </summary>
+        /// <param name="clock">The instant every condition of a query is evaluated against.</param>
+        /// <param name="tracingService">Where a fallback, and the source it fell back to, is reported.</param>
+        /// <param name="caller">
+        /// Who the plugin runs as, or <c>null</c> / <see cref="MockQueryCaller.Unknown"/> when
+        /// nothing is known about it.  It is a constructor argument and not a
+        /// <see cref="Resolve"/> argument because the caller is fixed for a whole execution while
+        /// the requirements change with every plan: one resolver, one identity, and no call site
+        /// that can accidentally resolve one plan as somebody else.
+        /// </param>
+        /// <exception cref="ArgumentNullException">
+        /// Thrown when the clock or the tracing service is <c>null</c>.  A resolver without a
+        /// tracing service could still answer, but its fallbacks would be invisible — which is the
+        /// failure mode this class exists to avoid.  The caller is not in that company: an
+        /// unstated identity is a documented state, not a wiring mistake.
+        /// </exception>
+        public MockQueryExecutionContextResolver(
+            IMockQueryClock clock,
+            IEnhancedTracingService tracingService,
+            MockQueryCaller? caller)
+            : this(clock, tracingService, caller, DefaultHierarchyDepthCap)
+        {
+        }
+
+        /// <summary>
+        /// Creates a resolver for a caller nobody stated.  It is the legacy shape, kept because a
+        /// scenario with a single user resolves identically either way; a scenario with two does
+        /// not, and that is what the overload above is for.
+        /// </summary>
+        /// <exception cref="ArgumentNullException">Thrown when either argument is <c>null</c>.</exception>
+        public MockQueryExecutionContextResolver(IMockQueryClock clock, IEnhancedTracingService tracingService)
+            : this(clock, tracingService, null)
+        {
+        }
+
+        /// <summary>
+        /// Resolves the context for <paramref name="requirements"/>, reading the records it needs
+        /// from <paramref name="dataSource"/>.
+        /// </summary>
+        /// <param name="requirements">
+        /// The union of the context requirements declared by the operators of the plan being
+        /// executed.  <see cref="OperatorContextRequirement.None"/> resolves to the defaults
+        /// without touching the data source.
+        /// </param>
+        /// <param name="dataSource">The entity registry the scenario's records live in.</param>
+        /// <returns>
+        /// Always a context, never <c>null</c> — and, for every requirement but
+        /// <see cref="OperatorContextRequirement.UserHierarchy"/>, never an exception either.
+        /// </returns>
+        /// <exception cref="ArgumentNullException">Thrown when <paramref name="dataSource"/> is <c>null</c>.</exception>
+        /// <exception cref="MockHierarchyResolutionException">
+        /// Thrown, and only for a plan declaring
+        /// <see cref="OperatorContextRequirement.UserHierarchy"/>, when the caller's hierarchy has
+        /// no answer: two or more self-referential lookups on <c>systemuser</c>, a manager chain
+        /// that loops, or one deeper than the configured cap.  See <see cref="ResolveUserHierarchy"/>.
+        /// </exception>
+        public MockQueryExecutionContext Resolve(OperatorContextRequirement requirements, IDataSource dataSource)
+        {
+            if (dataSource == null) throw new ArgumentNullException(nameof(dataSource));
+
+            var utcNow = _clock.UtcNow;
+
+            bool needsWeekStart = Requires(requirements, OperatorContextRequirement.WeekStart);
+            bool needsFiscalCalendar = Requires(requirements, OperatorContextRequirement.FiscalCalendar);
+
+            // FiscalCalendar pulls the caller's offset in with it: 'fiscalcalendarstart' is a date
+            // in the user's local time, so resolving it without an offset would not fail — it would
+            // quietly read the date as UTC and move every fiscal boundary by the caller's offset.
+            // An operator asking for the fiscal calendar must not have to also declare UserTimeZone
+            // to be answered in the right zone.
+            bool needsOffset = Requires(requirements, OperatorContextRequirement.UserTimeZone)
+                            || needsFiscalCalendar;
+
+            bool needsMembership = Requires(requirements, OperatorContextRequirement.UserMembership);
+            bool needsLanguage = Requires(requirements, OperatorContextRequirement.UserLanguage);
+            bool needsTeams = Requires(requirements, OperatorContextRequirement.UserTeams);
+            bool needsHierarchy = Requires(requirements, OperatorContextRequirement.UserHierarchy);
+
+            // One record answers three questions: the zone, the membership fallback and the
+            // language all live on the caller's 'usersettings' row, and it is read once whatever
+            // mixture was asked for.
+            //
+            // Teams are not among them — the intersect is their source — with one exception, and it
+            // is about identity rather than teams: with no caller stated, the 'usersettings' row is
+            // the only thing that can say WHO the memberships must be scoped to. Without this, two
+            // operators of the same family answer the same scenario differently — 'equaluserteams'
+            // declares UserTeams alone and would find nobody, while 'equaluseroruserteams' also
+            // declares UserMembership and so resolves the identity and answers. A stated caller
+            // needs none of it, and that plan reads no 'usersettings' at all.
+            //
+            // UserHierarchy is in that exception for the same reason and not by analogy: a set of
+            // users can only be walked FROM a user, so with no caller stated the 'usersettings' row
+            // is again the only thing that can say who the descent starts at. Leaving it out would
+            // make 'equaluseroruserhierarchy' answer empty on a single-voice scenario that
+            // 'equaluseroruserteams' answers in full.
+            bool needsUserSettings = needsOffset || needsMembership || needsLanguage
+                                  || ((needsTeams || needsHierarchy) && !_caller.IsKnown);
+
+            // One record answers both: WeekStart and FiscalCalendar live on the same 'organization'
+            // row, and it is read once whether one or both were asked for.
+            bool needsOrganization = needsWeekStart || needsFiscalCalendar;
+
+            // Teams come from their own intersect, so they keep a lookup of their own: a plan with a
+            // STATED caller that wants only their teams reads no 'usersettings' to get them. With
+            // no caller stated the row is read anyway, and for identity rather than for teams —
+            // the clause above says why.
+            // UserHierarchy is named here for the same reason UserTeams is: with a STATED caller it
+            // needs no 'usersettings', so the clause above is false for it and a plan declaring the
+            // hierarchy alone would fall out of this gate onto the defaults — a context with an
+            // empty hierarchy, no warning, and nothing to say it never looked.
+            if (!needsUserSettings && !needsOrganization && !needsTeams && !needsHierarchy)
+                return MockQueryExecutionContext.Defaults(utcNow);
+
+            var utcOffset = MockQueryExecutionContext.DefaultUtcOffset;
+            int? timeZoneCode = null;
+
+            // The stated caller is the identity, and it costs no lookup: past the early return
+            // above the context has an identity whenever the execution context gave it one, and
+            // the records are consulted to CONFIRM or complete it, never to discover it. A record
+            // cannot contradict who the host is running as.
+            Guid? userId = _caller.UserId;
+            Guid? businessUnitId = null;
+            int? userLanguageId = null;
+            IEnumerable<Guid>? userTeamIds = null;
+            IEnumerable<Guid>? userHierarchyIds = null;
+            IEnumerable<Guid>? userHierarchyTeamIds = null;
+
+            // The intersect, read at most once per Resolve and only if something asks for it: with
+            // both UserTeams and UserHierarchy declared the caller's teams and the hierarchy's are
+            // two questions over one table, and reading it twice would put two answers about the
+            // same rows a store mutation apart. Lazy rather than hoisted, because UserTeams with no
+            // caller answers empty WITHOUT reading it, and a read moved earlier would show up in
+            // every scenario's request log.
+            var teamMembershipRows = new Lazy<IList<Entity>>(
+                () => AllOrEmpty(dataSource, TeamMembershipLogicalName));
+
+            // The same discipline for 'systemuser', and here it buys correctness and not only
+            // economy: the parent lookup is DEDUCED from these records and then FOLLOWED over them,
+            // so a second read would let the deduction name an attribute on one snapshot while the
+            // descent walks another — a hierarchy about records that were never all present at
+            // once, and a set nobody could tell from a right one. The business unit fallback reads
+            // the same table and joins the same snapshot rather than opening a third. Lazy for the
+            // reason above: a plan that asks for neither must still read nothing.
+            var systemUserRows = new Lazy<IList<Entity>>(
+                () => AllOrEmpty(dataSource, SystemUserLogicalName));
+
+            var weekStartDay = MockQueryExecutionContext.DefaultWeekStartDay;
+            Guid? organizationId = null;
+
+            // Each fiscal field falls back on its own: an unreadable start date must not drag a
+            // perfectly good period length down with it, and neither fallback refuses the query.
+            DateTime? fiscalCalendarStartLocal = null;
+            var fiscalPeriod = MockQueryExecutionContext.DefaultFiscalPeriod;
+
+            Entity? userSettings = null;
+
+            // Whether that row is the caller's OWN, as opposed to the single row a scenario holds
+            // and which is read for its zone and language out of compatibility. The two are the
+            // same thing for every field except the business unit, where reading somebody else's
+            // is the defect this task exists to stop.
+            var userSettingsNamesCaller = false;
+
+            if (needsUserSettings)
+            {
+                userSettings = FindCallerUserSettings(dataSource, out userSettingsNamesCaller);
+
+                if (userSettings != null)
+                {
+                    if (needsOffset)
+                    {
+                        timeZoneCode = ReadInt(userSettings, TimeZoneCodeAttribute);
+
+                        var bias = ReadInt(userSettings, TimeZoneBiasAttribute);
+                        if (bias.HasValue)
+                        {
+                            // Windows bias convention, the one Dataverse stores: UTC = local + bias,
+                            // so the offset that turns UTC into local time is the negated bias.
+                            utcOffset = TimeSpan.FromMinutes(-bias.Value);
+                        }
+                        else
+                        {
+                            Warn(
+                                "the '{0}' record carries no '{1}'; the query runs as UTC.",
+                                UserSettingsLogicalName,
+                                TimeZoneBiasAttribute);
+                        }
+                    }
+
+                    // The language is read only from the caller's OWN row, unlike the zone. The
+                    // criterion is what being wrong does: a foreign zone shifts the rows by an
+                    // offset, a foreign language SELECTS different rows — 'eq-userlanguage'
+                    // filters against that LCID — and a wrong row set does not announce itself the
+                    // way a date a day out eventually does. Same reason the business unit stops
+                    // here; the zone is the one field the compatibility row may answer for.
+                    if (needsLanguage && userSettingsNamesCaller)
+                    {
+                        userLanguageId = ReadInt(userSettings, UserLanguageAttribute);
+
+                        if (!userLanguageId.HasValue)
+                        {
+                            Warn(
+                                "the '{0}' record carries no usable '{1}'; the query runs with no user language.",
+                                UserSettingsLogicalName,
+                                UserLanguageAttribute);
+                        }
+                    }
+                }
+            }
+
+            // The identity is settled BEFORE anything is scoped to it. Only when the execution
+            // context named nobody: the record is then the sole source of an identity, and its own
+            // primary key answers when the attribute is absent. Deriving it later — after the
+            // business unit, or after the teams — is the same reasoning applied to half its object:
+            // whoever ran first would scope to the stated caller and whoever ran second to the
+            // derived one, and the two would answer the same scenario differently.
+            if (!userId.HasValue && userSettings != null && userSettingsNamesCaller)
+                userId = ReadGuid(userSettings, UserIdAttribute) ?? NonEmpty(userSettings.Id);
+
+            if (needsMembership)
+            {
+                // The foreign single row answers for the zone, never for the business unit: "the
+                // caller's BU is the one on somebody else's record" is exactly the wrong answer,
+                // and it would be indistinguishable from a right one.
+                businessUnitId = ResolveBusinessUnit(
+                    systemUserRows,
+                    userSettingsNamesCaller ? userSettings : null,
+                    userId);
+
+                if (!userId.HasValue && !businessUnitId.HasValue && userSettings != null)
+                {
+                    Warn(
+                        "the '{0}' record names neither '{1}' nor '{2}'; the query runs with no membership.",
+                        UserSettingsLogicalName,
+                        UserIdAttribute,
+                        BusinessUnitIdAttribute);
+                }
+            }
+
+            // The effective identity, settled above — not the stated one.
+            if (needsTeams)
+                userTeamIds = ResolveTeams(teamMembershipRows, userId);
+
+            // Likewise after the identity: a descent is scoped to whoever is asking, so running it
+            // before the 'usersettings' row had been consulted would walk from the stated caller in
+            // one scenario and from nobody in the next — the same half-applied reasoning the
+            // comment above the identity block names.
+            if (needsHierarchy)
+            {
+                var hierarchy = ResolveUserHierarchy(systemUserRows, userId);
+                userHierarchyIds = hierarchy;
+                userHierarchyTeamIds = ResolveHierarchyTeams(teamMembershipRows, hierarchy);
+            }
+
+            if (needsOrganization)
+            {
+                var organization = FirstOrNull(dataSource, OrganizationLogicalName);
+
+                if (organization == null)
+                {
+                    // One missing record, but two independent answers: warning per requirement, so
+                    // a plan that only asked for the fiscal calendar is not told about a week start
+                    // it never reads, and one that asked for both is told about both.
+                    if (needsWeekStart)
+                    {
+                        Warn(
+                            "no '{0}' record in the entity registry; the week starts on {1}. "
+                            + "Register an '{0}' record carrying '{2}' to state the organisation's first day of the week.",
+                            OrganizationLogicalName,
+                            MockQueryExecutionContext.DefaultWeekStartDay,
+                            WeekStartDayAttribute);
+                    }
+
+                    if (needsFiscalCalendar)
+                    {
+                        Warn(
+                            "no '{0}' record in the entity registry; the fiscal year starts on 1 January and the "
+                            + "fiscal period is {1}. Register an '{0}' record carrying '{2}' and '{3}' to state the "
+                            + "organisation's fiscal calendar.",
+                            OrganizationLogicalName,
+                            MockQueryExecutionContext.DefaultFiscalPeriod,
+                            FiscalCalendarStartAttribute,
+                            FiscalPeriodTypeAttribute);
+                    }
+                }
+                else
+                {
+                    organizationId = ReadGuid(organization, OrganizationIdAttribute) ?? NonEmpty(organization.Id);
+
+                    if (needsWeekStart)
+                    {
+                        var code = ReadInt(organization, WeekStartDayAttribute);
+                        if (code.HasValue && code.Value >= (int)DayOfWeek.Sunday && code.Value <= (int)DayOfWeek.Saturday)
+                        {
+                            weekStartDay = (DayOfWeek)code.Value;
+                        }
+                        else
+                        {
+                            Warn(
+                                "the '{0}' record carries no usable '{1}'{2}; the week starts on {3}.",
+                                OrganizationLogicalName,
+                                WeekStartDayAttribute,
+                                code.HasValue
+                                    ? string.Format(CultureInfo.InvariantCulture, " (value {0} is outside 0-6)", code.Value)
+                                    : string.Empty,
+                                MockQueryExecutionContext.DefaultWeekStartDay);
+                        }
+                    }
+
+                    if (needsFiscalCalendar)
+                    {
+                        fiscalCalendarStartLocal = ResolveFiscalCalendarStart(organization);
+                        fiscalPeriod = ResolveFiscalPeriod(organization);
+                    }
+                }
+            }
+
+            // Exists to build the fallback anchor below, and for nothing else — the context
+            // recomputes LocalNow from UtcNow and UtcOffset rather than storing one. Even that
+            // use takes only the YEAR, which reaches no answer: FiscalCalendarModel keeps just
+            // the month and the day of the anchor. Said plainly because this line twice carried a
+            // dependency the code has not — first "computing it before the offset would sit on
+            // the wrong year", then a consumer in LocalNow that does not read it.
+            var localNow = DateTime.SpecifyKind(utcNow + utcOffset, DateTimeKind.Unspecified);
+
+            return new MockQueryExecutionContext(
+                utcNow,
+                utcOffset,
+                timeZoneCode,
+                weekStartDay,
+                userId,
+                businessUnitId,
+                organizationId,
+                fiscalCalendarStartLocal ?? MockQueryExecutionContext.DefaultFiscalCalendarStartFor(localNow),
+                fiscalPeriod,
+                userLanguageId,
+                userTeamIds,
+                userHierarchyIds,
+                userHierarchyTeamIds);
+        }
+
+        /// <summary>
+        /// The <c>usersettings</c> record of the stated caller, or <c>null</c> — each way of
+        /// having none traced under its own warning.
+        ///
+        /// <para>
+        /// With a caller stated the row is picked <b>by identity</b>, which is the whole reason the
+        /// caller is stated: "the first <c>usersettings</c> record" is the right answer only while
+        /// a scenario declares one user, and the wrong one — silently, with somebody else's zone,
+        /// business unit and language — the moment it declares two.
+        /// </para>
+        ///
+        /// <para>
+        /// <b>The count is what decides, not whether a caller was stated.</b>  Exactly one record
+        /// and it is taken as the caller's either way, warned when it does not name them: a
+        /// scenario with one voice has no ambiguity to resolve, and scenarios predating the stated
+        /// caller set <c>ExecutionContext.UserId</c> for impersonation without ever having to make
+        /// it agree with that record.  Refusing them would not be strictness, it would be moving
+        /// working scenarios to UTC without saying so — and a lost time zone is every date operator
+        /// answering about a different day.  <b>That licence is the zone and nothing else:</b> the
+        /// row is flagged through <c>namesCaller</c>, and both the business unit and the language
+        /// skip it.  The criterion is what being wrong does — a foreign zone <i>shifts</i> the rows
+        /// an operator returns, a foreign business unit or language <i>selects different ones</i>,
+        /// and a wrong row set never announces itself.  <b>Two or more, and nothing is
+        /// taken:</b> picking one there would be the multi-user defect wearing the old behaviour's
+        /// clothes, so the resolver answers with the documented defaults and says why.
+        /// </para>
+        /// </summary>
+        /// <param name="namesCaller">
+        /// Whether the row returned is the caller's own.  <c>false</c> only for the compatibility
+        /// row above — the one field it must not answer for is the business unit.
+        /// </param>
+        private Entity? FindCallerUserSettings(IDataSource dataSource, out bool namesCaller)
+        {
+            namesCaller = true;
+
+            var rows = AllOrEmpty(dataSource, UserSettingsLogicalName);
+
+            if (_caller.IsKnown)
+            {
+                var match = rows.FirstOrDefault(row => IdentifiesCaller(row, _caller.UserId!.Value));
+
+                if (match != null)
+                    return match;
+
+                // No record names this caller. A scenario holding exactly one 'usersettings' row
+                // has no ambiguity to resolve, so it is still taken as the caller's — which is what
+                // this resolver did before a caller was ever stated, and scenarios written against
+                // that behaviour set ExecutionContext.UserId for impersonation without ever having
+                // to make it agree with the record's id. Refusing here would move them to UTC
+                // silently, and a time zone lost is every date operator answering about a
+                // different day. The mismatch is warned, never hidden.
+                if (rows.Count == 1)
+                {
+                    // Read for the zone and the language, and declared foreign so the business
+                    // unit chain skips it.
+                    namesCaller = false;
+
+                    Warn(
+                        "no '{0}' record names the caller '{1}', but the entity registry holds exactly one "
+                        + "('{2}'), so its time zone is read as the caller's — its '{3}' and its '{4}' are "
+                        + "not, because those select rows rather than shift them. Set its '{5}' to '{1}' to "
+                        + "make the scenario say what it means.",
+                        UserSettingsLogicalName,
+                        _caller.UserId!.Value,
+                        rows[0].Id,
+                        BusinessUnitIdAttribute,
+                        UserLanguageAttribute,
+                        UserIdAttribute);
+                    return rows[0];
+                }
+
+                Warn(
+                    "no '{0}' record for the caller '{1}' in the entity registry; the query runs as UTC "
+                    + "with no language. Register a '{0}' record whose '{2}' is '{1}' to state that caller's "
+                    + "time zone ('{3}'/'{4}') and language ('{5}').",
+                    UserSettingsLogicalName,
+                    _caller.UserId!.Value,
+                    UserIdAttribute,
+                    TimeZoneCodeAttribute,
+                    TimeZoneBiasAttribute,
+                    UserLanguageAttribute);
+
+                return null;
+            }
+
+            if (rows.Count == 0)
+            {
+                Warn(
+                    "no '{0}' record in the entity registry; the query runs as UTC with no membership. "
+                    + "Register a '{0}' record in the scenario to state the caller's time zone ('{1}'/'{2}') "
+                    + "and identity ('{3}'/'{4}').",
+                    UserSettingsLogicalName,
+                    TimeZoneCodeAttribute,
+                    TimeZoneBiasAttribute,
+                    UserIdAttribute,
+                    BusinessUnitIdAttribute);
+                return null;
+            }
+
+            if (rows.Count > 1)
+            {
+                Warn(
+                    "the execution context names no caller and the entity registry holds {0} '{1}' records; "
+                    + "none was chosen and the query runs as UTC with no language. State the caller on the "
+                    + "execution context so the right record can be picked.",
+                    rows.Count,
+                    UserSettingsLogicalName);
+                return null;
+            }
+
+            return rows[0];
+        }
+
+        /// <summary>
+        /// The caller's business unit, taken from the first of three sources that states one, and
+        /// the source it came from traced so the answer is attributable:
+        /// <list type="number">
+        ///   <item><c>ExecutionContext.BusinessUnitId</c>, which the host was handed;</item>
+        ///   <item><c>systemuser.businessunitid</c> of the caller, the user's own record;</item>
+        ///   <item><c>usersettings.businessunitid</c> of the caller, already read above.</item>
+        /// </list>
+        ///
+        /// <para>
+        /// The order is the point.  Each step is consulted only because the one before it said
+        /// nothing, and the <c>systemuser</c> lookup does not happen at all when the execution
+        /// context already answered — a fallback that runs anyway is a lookup nobody can predict
+        /// from the scenario.
+        /// </para>
+        ///
+        /// <para>
+        /// When none of the three states one the answer is <c>null</c> — never an exception — and
+        /// every record that <i>was</i> read and stayed silent is named for the caller it was read
+        /// for, so "no business unit" comes with the record to go and fix rather than on its own.
+        /// </para>
+        /// </summary>
+        /// <param name="userSettings">
+        /// The caller's <c>usersettings</c> row, or <c>null</c> — and <c>null</c> also when a row
+        /// was read for the zone and the language but does not name the caller: a business unit is
+        /// not a fallback anybody wants guessed, which is the whole point of this task.
+        /// </param>
+        /// <param name="systemUserRows">
+        /// The <c>systemuser</c> snapshot of this <see cref="Resolve"/>, read on first use and
+        /// shared with the hierarchy's deduction and descent.
+        /// </param>
+        /// <param name="callerId">The effective identity, or <c>null</c> when none was established.</param>
+        private Guid? ResolveBusinessUnit(
+            Lazy<IList<Entity>> systemUserRows, Entity? userSettings, Guid? callerId)
+        {
+            if (_caller.BusinessUnitId.HasValue)
+            {
+                Note(
+                    "the caller's '{0}' comes from the execution context (value {1}).",
+                    BusinessUnitIdAttribute,
+                    _caller.BusinessUnitId.Value);
+                return _caller.BusinessUnitId;
+            }
+
+            string? systemUserDefect;
+            var fromSystemUser = ReadCallerSystemUserBusinessUnit(systemUserRows, callerId, out systemUserDefect);
+            if (fromSystemUser.HasValue)
+            {
+                Note(
+                    "the caller's '{0}' comes from the '{1}' record (value {2}).",
+                    BusinessUnitIdAttribute,
+                    SystemUserLogicalName,
+                    fromSystemUser.Value);
+                return fromSystemUser;
+            }
+
+            string? userSettingsDefect;
+            var fromUserSettings = ReadStatedBusinessUnit(userSettings, out userSettingsDefect);
+
+            if (fromUserSettings.HasValue)
+            {
+                Note(
+                    "the caller's '{0}' comes from the '{1}' record (value {2}).",
+                    BusinessUnitIdAttribute,
+                    UserSettingsLogicalName,
+                    fromUserSettings.Value);
+
+                return fromUserSettings;
+            }
+
+            // Nothing stated one.  Each record that was read and stayed silent is named here on
+            // its own line, with the caller it was read for: "the business unit is null" is
+            // otherwise indistinguishable from a business unit legitimately absent, and a reader
+            // filtering the trace has no way to tell which record to go and fix — or that the one
+            // they did register carries a value this engine cannot read.
+            //
+            // Only with a STATED caller, for the same reason the missing-record warning above is:
+            // the records of a single-voice scenario are read for an identity it never claimed to
+            // have, and telling its author to state an attribute "for that caller" would name a
+            // caller they did not write. The fix there is stating the caller, which is traced
+            // elsewhere — not an attribute.
+            // `_caller.IsKnown` implies `callerId.HasValue` — the identity is seeded from the
+            // stated caller and only ever widened — but the compiler cannot see that, and a warning
+            // it cannot distinguish from a real one is a warning nobody reads. Said out loud here.
+            if (_caller.IsKnown && callerId.HasValue)
+            {
+                if (systemUserDefect != null)
+                    WarnNoBusinessUnit(SystemUserLogicalName, systemUserDefect, callerId.Value);
+
+                if (userSettingsDefect != null)
+                    WarnNoBusinessUnit(UserSettingsLogicalName, userSettingsDefect, callerId.Value);
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// <c>businessunitid</c> as stated by a record the caller's lookup already chose, and — in
+        /// <paramref name="defect"/> — why it did not state one when it did not: the attribute is
+        /// absent, or it is present carrying something this engine cannot read as an id.
+        ///
+        /// <para>
+        /// The reason is <b>returned rather than traced here</b> because it is only worth tracing
+        /// when the whole chain ends empty.  A record with no business unit is not a defect while a
+        /// later source states one — warning about it anyway would paint the ordinary fallback red
+        /// on a scenario that is behaving exactly as designed.
+        /// </para>
+        /// </summary>
+        /// <param name="record">
+        /// The caller's record, or <c>null</c> when there is none.  A missing record is not a
+        /// defect of this kind and reports none: the lookup that failed to find it has already
+        /// named it, and saying it twice would read as two separate problems.
+        /// </param>
+        private static Guid? ReadStatedBusinessUnit(Entity? record, out string? defect)
+        {
+            defect = null;
+
+            if (record == null)
+                return null;
+
+            var raw = RawValue(record, BusinessUnitIdAttribute);
+            if (raw == null)
+            {
+                defect = "carries no '" + BusinessUnitIdAttribute + "'";
+                return null;
+            }
+
+            // Guid.Empty is "unstated", not a business unit — the same reading MockQueryCaller
+            // gives it, and for the same reason: an absent lookup is rendered as an empty GUID, so
+            // honouring one here would let a record with nothing in it win over the step below and
+            // make every equally-empty row match. It reports the "not a usable id" defect and not
+            // the "carries none" one, which is the honest line: the attribute IS there, and what
+            // the author has to fix is its value.
+            var value = NonEmpty(ReadGuid(record, BusinessUnitIdAttribute) ?? Guid.Empty);
+            if (!value.HasValue)
+            {
+                defect = "carries a '" + BusinessUnitIdAttribute + "' that is not a usable id (observed '"
+                    + Observed(raw) + "')";
+            }
+
+            return value;
+        }
+
+        /// <summary>
+        /// Names one record that could have stated the caller's business unit and did not, the
+        /// caller it was read for, and what was wrong with it — the line a scenario author needs
+        /// to turn "no business unit" into a record to go and fix.
+        /// </summary>
+        private void WarnNoBusinessUnit(string logicalName, string defect, Guid callerId)
+        {
+            Warn(
+                "the '{0}' record for the caller '{1}' {2}; no source stated a business unit and the query "
+                + "runs with none. State '{3}' on that record for that caller, or hand one on the execution "
+                + "context.",
+                logicalName,
+                callerId,
+                defect,
+                BusinessUnitIdAttribute);
+        }
+
+        /// <summary>
+        /// <c>systemuser.businessunitid</c> for the stated caller, or <c>null</c> when there is no
+        /// caller to scope the lookup to, no such record, or no such attribute on it.
+        ///
+        /// <para>
+        /// With no caller there is <b>no lookup</b> rather than a lookup that takes the first row:
+        /// reading an arbitrary user's business unit is precisely the answer this task exists to
+        /// stop, and it would be indistinguishable from a correct one.
+        /// </para>
+        /// </summary>
+        /// <param name="defect">
+        /// Why the caller's record did not state a business unit, for
+        /// <see cref="ResolveBusinessUnit"/> to trace if nothing else states one either;
+        /// <c>null</c> when it did state one, when there is no caller, or when the record itself is
+        /// missing — that last case is warned about here and now, being a missing record rather
+        /// than a silent one.
+        /// </param>
+        private Guid? ReadCallerSystemUserBusinessUnit(
+            Lazy<IList<Entity>> systemUserRows, Guid? callerId, out string? defect)
+        {
+            defect = null;
+
+            // The effective identity, which a scenario with one voice supplies even when the
+            // execution context states nobody. Guarding the LOOKUP on the stated caller instead
+            // would skip tier 2 of the documented precedence for exactly the scenarios that had
+            // just been given an identity — the answer sitting on 'systemuser', unread.
+            if (!callerId.HasValue)
+                return null;
+
+            var row = systemUserRows.Value
+                .FirstOrDefault(entity => IdentifiesCaller(entity, callerId.Value));
+
+            if (row == null)
+            {
+                // Searched with the derived identity, but only ASKED FOR when the scenario stated
+                // a caller. A scenario that states one is saying "these are my caller's records",
+                // and a missing 'systemuser' is worth naming; one that states none is the legacy
+                // single-voice shape, which was never expected to register 'systemuser' at all and
+                // is not defective for not having done so. The lookup is about the answer, the
+                // warning is about what the author was asked to provide — and painting a healthy
+                // scenario red is how a trace stops being read.
+                if (!_caller.IsKnown)
+                    return null;
+
+                Warn(
+                    "no '{0}' record for the caller '{1}' in the entity registry; the caller's '{2}' is read "
+                    + "from '{3}' instead. Register a '{0}' record whose '{4}' is '{1}' to state it there.",
+                    SystemUserLogicalName,
+                    callerId.Value,
+                    BusinessUnitIdAttribute,
+                    UserSettingsLogicalName,
+                    UserIdAttribute);
+                return null;
+            }
+
+            return ReadStatedBusinessUnit(row, out defect);
+        }
+
+        /// <summary>
+        /// The teams the stated caller belongs to, read from the <c>teammembership</c> intersect on
+        /// its two columns and nothing else; empty — with a warning naming what was missing —
+        /// whenever they cannot be established.
+        ///
+        /// <para>
+        /// Empty is an answer here, not a failure: an operator filtering on the caller's teams must
+        /// then match no rows, which is what a caller with no teams means in Dataverse too.
+        /// </para>
+        /// </summary>
+        /// <param name="membershipRows">
+        /// The intersect, read on first use and shared with the hierarchy's own membership lookup.
+        /// It stays lazy so that the early return below still reads nothing at all.
+        /// </param>
+        /// <param name="callerId">The effective identity, or <c>null</c> when none was established.</param>
+        private IEnumerable<Guid> ResolveTeams(Lazy<IList<Entity>> membershipRows, Guid? callerId)
+        {
+            if (!callerId.HasValue)
+            {
+                Warn(
+                    "no caller could be established — the execution context names none and no record "
+                    + "supplied one — so the '{0}' rows cannot be scoped to one; the query runs with no "
+                    + "teams.",
+                    TeamMembershipLogicalName);
+                return new Guid[0];
+            }
+
+            var rows = membershipRows.Value;
+
+            if (rows.Count == 0)
+            {
+                Warn(
+                    "no '{0}' record in the entity registry; the caller belongs to no team. Register '{0}' "
+                    + "rows carrying '{1}' and '{2}' to state the caller's teams.",
+                    TeamMembershipLogicalName,
+                    UserIdAttribute,
+                    TeamIdAttribute);
+                return new Guid[0];
+            }
+
+            var teams = rows
+                // Matched on the attribute alone, unlike 'usersettings' and 'systemuser': an
+                // intersect row's primary key identifies the MEMBERSHIP, not the user, so taking
+                // Entity.Id as the caller here would match whichever row happened to be keyed on
+                // that GUID — which is nothing to do with who is asking.
+                .Where(row => MatchesAttribute(row, UserIdAttribute, callerId.Value))
+                .Select(row => ReadGuid(row, TeamIdAttribute))
+                .Where(teamId => teamId.HasValue)
+                .Select(teamId => teamId!.Value)
+                .Distinct()
+                .ToArray();
+
+            if (teams.Length == 0)
+            {
+                Warn(
+                    "no '{0}' record names the caller '{1}' on '{2}' with a readable '{3}'; the caller "
+                    + "belongs to no team.",
+                    TeamMembershipLogicalName,
+                    callerId.Value,
+                    UserIdAttribute,
+                    TeamIdAttribute);
+            }
+
+            return teams;
+        }
+
+        // -----------------------------------------------------------------------
+        // The user hierarchy: the caller, their descendants, and that set's teams
+        // -----------------------------------------------------------------------
+
+        /// <summary>
+        /// The caller and <b>every user below them</b> in the <c>systemuser</c> hierarchy, walked
+        /// once for the whole plan.
+        ///
+        /// <para>
+        /// <b>Convention B, deduced and not wired.</b>  The lookup to follow is the single
+        /// attribute the registered <c>systemuser</c> records carry whose value is an
+        /// <see cref="EntityReference"/> naming <see cref="SystemUserLogicalName"/>.  Its real
+        /// Dataverse name is <see cref="ExpectedParentUserAttribute"/> and matching on that name is
+        /// exactly what this does not do: a scenario declares records, not relationship metadata,
+        /// and a name match would miss a lookup spelled otherwise while accepting a bare
+        /// <see cref="Guid"/> that is an identifier rather than a link.
+        /// </para>
+        ///
+        /// <para>
+        /// <b>Three outcomes, and only one of them refuses.</b>  Exactly one candidate is the
+        /// lookup.  <i>Zero</i> candidates is a flat scenario, not a broken one — every mock
+        /// written before this requirement existed has zero — so the answer degrades to the caller
+        /// alone, traced.  <i>Two or more</i> is refused: there is no tie-break that is not a guess,
+        /// and guessing would answer a hierarchy question about a different tree with rows that
+        /// look perfectly ordinary.  The refusal names every candidate it found and names the way
+        /// out, which is stating the hierarchy in explicit metadata.
+        /// </para>
+        ///
+        /// <para>
+        /// <b>The descent itself is not reimplemented here.</b>
+        /// <see cref="MockHierarchyResolver.Resolve(IDataSource, string, string, Guid, MockHierarchyDirection, int)"/>
+        /// owns the visited set and the depth cap, and refuses a cycle naming the record that closes
+        /// it and a cap overrun naming the last record reached — never returning a truncated set.
+        /// A second traversal written here would be a second set of those two rules, free to
+        /// disagree with the one the hierarchy operators will run.
+        /// </para>
+        ///
+        /// <para>
+        /// <b>One snapshot answers both halves.</b>  The deduction reads the <c>systemuser</c>
+        /// records and the descent walks them, and they are the <i>same</i> records: the component
+        /// is handed a <see cref="SnapshotDataSource"/> over the rows already read rather than the
+        /// live registry, so the plan asks the store for <c>systemuser</c> exactly once.  Reading
+        /// it twice would not merely cost a lookup — it would let the lookup be deduced from one
+        /// state of the store and followed over another, and a hierarchy assembled from two
+        /// instants is indistinguishable from one assembled from either.
+        /// </para>
+        /// </summary>
+        /// <exception cref="MockHierarchyResolutionException">
+        /// Thrown when the <c>systemuser</c> records carry more than one self-referential lookup,
+        /// when the descent meets a cycle, or when it exceeds the depth cap.  It happens here —
+        /// inside step 0-bis of <c>InMemoryExecutor</c> — and therefore before the first row of the
+        /// query is read: a refusal raised per row would depend on what the store held, and an
+        /// empty store would answer an unanswerable query with an empty result set.
+        /// </exception>
+        /// <param name="systemUserRows">
+        /// The <c>systemuser</c> snapshot of this <see cref="Resolve"/>: the deduction reads it and
+        /// the descent walks it, so both answer about one set of records.
+        /// </param>
+        /// <param name="callerId">The effective identity, or <c>null</c> when none was established.</param>
+        private IList<Guid> ResolveUserHierarchy(Lazy<IList<Entity>> systemUserRows, Guid? callerId)
+        {
+            if (!callerId.HasValue)
+            {
+                Warn(
+                    "no caller could be established — the execution context names none and no record "
+                    + "supplied one — so the '{0}' hierarchy has nobody to descend from; the query runs "
+                    + "with an empty user hierarchy.",
+                    SystemUserLogicalName);
+                return new Guid[0];
+            }
+
+            var records = systemUserRows.Value;
+            var candidates = SelfReferentialLookupsOf(records);
+
+            if (candidates.Count > 1)
+            {
+                throw new MockHierarchyResolutionException(string.Format(
+                    CultureInfo.InvariantCulture,
+                    WarningPrefix
+                    + "the '{0}' records carry {1} self-referential lookups, so which one is the user "
+                    + "hierarchy cannot be deduced from them. Candidates: {2}. Convention B has only the "
+                    + "records to read and there is no tie-break here that is not a guess; leave exactly "
+                    + "one '{0}'-to-'{0}' EntityReference attribute on those records — '{3}' is what the "
+                    + "platform calls it — or state the hierarchy in explicit relationship metadata, "
+                    + "which names the referencing attribute and ends the deduction.",
+                    SystemUserLogicalName,
+                    candidates.Count,
+                    string.Join(", ", candidates.Select(name => "'" + name + "'").ToArray()),
+                    ExpectedParentUserAttribute));
+            }
+
+            if (candidates.Count == 0)
+            {
+                Warn(
+                    "no '{0}' record carries an EntityReference to '{0}', so no user hierarchy could be "
+                    + "deduced; the query runs with the caller '{1}' alone. Give the subordinates' '{0}' "
+                    + "records a '{2}' holding an EntityReference to their manager to state one — a bare "
+                    + "GUID is an identifier and not a link, and is not read as one.",
+                    SystemUserLogicalName,
+                    callerId.Value,
+                    ExpectedParentUserAttribute);
+                return new[] { callerId.Value };
+            }
+
+            var descent = MockHierarchyResolver.Resolve(
+                new SnapshotDataSource(SystemUserLogicalName, records),
+                SystemUserLogicalName,
+                candidates[0],
+                callerId.Value,
+                MockHierarchyDirection.Descendants,
+                _hierarchyDepthCap);
+
+            // The caller heads their own hierarchy, and the traversal never returns the pivot — so
+            // they are added here rather than hoped for. A leaf caller leaves exactly this one
+            // element, which is the documented flat-hierarchy answer and not a degradation: the
+            // natural end of the tree is an ordinary outcome and is deliberately not traced.
+            var set = new List<Guid> { callerId.Value };
+            set.AddRange(descent.Descendants);
+
+            return set;
+        }
+
+        /// <summary>
+        /// The attributes the registered <c>systemuser</c> records carry that point back at
+        /// <c>systemuser</c>, ordered ordinally so a diagnostic reads the same whatever order the
+        /// scenario registered its rows in.
+        ///
+        /// <para>
+        /// Only a typed <see cref="EntityReference"/> naming <see cref="SystemUserLogicalName"/>
+        /// counts.  A bare <see cref="Guid"/> is not a candidate — which is also why the primary
+        /// key is not one, the registry's convention being to carry it as a plain identifier — and
+        /// the attribute's own name is never evidence, because a <c>parent*</c> heuristic finds a
+        /// lookup on records that have none and misses one spelled otherwise.
+        /// </para>
+        ///
+        /// <para>
+        /// An <see cref="AliasedValue"/> wrapper is deliberately <b>not</b> unwrapped, unlike
+        /// everywhere else in this resolver: the traversal that follows the attribute reads it raw,
+        /// so unwrapping here would let the deduction name a lookup the descent then cannot follow —
+        /// an empty hierarchy where a deduction had just succeeded, and nothing to say why.
+        /// </para>
+        ///
+        /// <para>
+        /// <b>A reference whose <c>Id</c> is empty is an absent lookup and not a candidate</b>, for
+        /// the same reason: <c>HierarchyIndex.ReadParent</c> reads it that way and
+        /// <c>HierarchyIndex.Build</c> registers no edge for it, so a candidate deduced from
+        /// references the descent discards to a record would name a lookup that carries no
+        /// parentage at all.  Sharing one snapshot with the traversal is only half the guarantee —
+        /// both halves must also read those records under the same rule, or a lookup declared but
+        /// never filled in would count here as a second candidate and turn an unambiguous
+        /// hierarchy into a refusal.
+        /// </para>
+        /// </summary>
+        private static IList<string> SelfReferentialLookupsOf(IList<Entity> systemUsers)
+        {
+            var candidates = new List<string>();
+
+            foreach (var record in systemUsers)
+            {
+                foreach (var attribute in record.Attributes)
+                {
+                    var reference = attribute.Value as EntityReference;
+                    if (reference == null) continue;
+                    if (!SystemUserLogicalName.Equals(reference.LogicalName, StringComparison.OrdinalIgnoreCase)) continue;
+
+                    // The edge the descent would refuse to follow is not evidence of a lookup here
+                    // either: MockHierarchyResolver reads an empty Id as an absent parent, and the
+                    // two halves read the one snapshot under one rule or they disagree about it.
+                    if (reference.Id == Guid.Empty) continue;
+
+                    if (!candidates.Contains(attribute.Key, StringComparer.OrdinalIgnoreCase))
+                        candidates.Add(attribute.Key);
+                }
+            }
+
+            candidates.Sort(StringComparer.Ordinal);
+            return candidates;
+        }
+
+        /// <summary>
+        /// The teams <paramref name="userIds"/> — the caller <i>and</i> their descendants — belong
+        /// to, deduplicated across the whole set.
+        ///
+        /// <para>
+        /// It is a helper of its own rather than a widening of <see cref="ResolveTeams"/> because
+        /// the two answer for different populations and both answers can be asked for by one plan:
+        /// folding them together would make <c>equaluserteams</c> return the hierarchy's teams,
+        /// which is a strictly larger set of rows and the kind of over-answer a filter never
+        /// reveals.  The intersect itself is read once and shared.
+        /// </para>
+        ///
+        /// <para>
+        /// Deduplication is the point of the set, not an optimisation: two users of one hierarchy
+        /// in one team is the ordinary case, and a repeated identifier reaching an operator would
+        /// be a membership counted twice.
+        /// </para>
+        /// </summary>
+        private IEnumerable<Guid> ResolveHierarchyTeams(Lazy<IList<Entity>> membershipRows, IList<Guid> userIds)
+        {
+            // No caller, hence no set — and the hierarchy lookup has already said so. A second line
+            // about the teams of nobody would read as a second problem.
+            if (userIds.Count == 0)
+                return new Guid[0];
+
+            var rows = membershipRows.Value;
+
+            if (rows.Count == 0)
+            {
+                Warn(
+                    "no '{0}' record in the entity registry; the caller's user hierarchy belongs to no "
+                    + "team. Register '{0}' rows carrying '{1}' and '{2}' to state them.",
+                    TeamMembershipLogicalName,
+                    UserIdAttribute,
+                    TeamIdAttribute);
+                return new Guid[0];
+            }
+
+            var wanted = new HashSet<Guid>(userIds);
+            var teams = new List<Guid>();
+
+            foreach (var row in rows)
+            {
+                // Matched on the attribute alone, for the reason ResolveTeams gives: an intersect
+                // row's primary key identifies the MEMBERSHIP and has nothing to do with who is in
+                // it.
+                var member = ReadGuid(row, UserIdAttribute);
+                if (!member.HasValue || !wanted.Contains(member.Value)) continue;
+
+                var teamId = ReadGuid(row, TeamIdAttribute);
+                if (!teamId.HasValue) continue;
+
+                if (!teams.Contains(teamId.Value))
+                    teams.Add(teamId.Value);
+            }
+
+            if (teams.Count == 0)
+            {
+                Warn(
+                    "no '{0}' record names any of the {1} user(s) of the caller's hierarchy on '{2}' with a "
+                    + "readable '{3}'; that hierarchy belongs to no team.",
+                    TeamMembershipLogicalName,
+                    userIds.Count,
+                    UserIdAttribute,
+                    TeamIdAttribute);
+            }
+
+            return teams;
+        }
+
+        /// <summary>
+        /// <c>true</c> when <paramref name="entity"/> is a record <i>of</i> the caller: its
+        /// <see cref="UserIdAttribute"/> says so, or — for the tables whose primary key is the user
+        /// — its own id does.  Only for those tables; see <see cref="ResolveTeams"/> for why an
+        /// intersect must not be matched this way.
+        /// </summary>
+        private static bool IdentifiesCaller(Entity entity, Guid callerId)
+        {
+            return MatchesAttribute(entity, UserIdAttribute, callerId) || entity.Id == callerId;
+        }
+
+        private static bool MatchesAttribute(Entity entity, string attributeName, Guid expected)
+        {
+            var value = ReadGuid(entity, attributeName);
+            return value.HasValue && value.Value == expected;
+        }
+
+        /// <summary>
+        /// The organisation's fiscal year start as the record states it — a <b>local</b> date — or
+        /// <c>null</c> when the attribute is absent or unreadable, each traced under its own
+        /// warning.
+        ///
+        /// <para>
+        /// The date is taken as written and not converted here: <c>fiscalcalendarstart</c> has
+        /// <c>DateOnly</c> behaviour, so whatever <see cref="DateTimeKind"/> the scenario happened
+        /// to attach to it says nothing, and only the caller's offset — which
+        /// <see cref="MockQueryExecutionContext.FiscalCalendarStartUtc"/> applies — can turn it into
+        /// an instant.
+        /// </para>
+        /// </summary>
+        private DateTime? ResolveFiscalCalendarStart(Entity organization)
+        {
+            var raw = RawValue(organization, FiscalCalendarStartAttribute);
+
+            if (raw == null)
+            {
+                Warn(
+                    "the '{0}' record carries no '{1}'; the fiscal year starts on 1 January.",
+                    OrganizationLogicalName,
+                    FiscalCalendarStartAttribute);
+                return null;
+            }
+
+            var date = AsDate(raw);
+
+            if (!date.HasValue)
+            {
+                // Absence and malformation are two different fixes — "add the attribute" against
+                // "the attribute holds something that is not a date" — so they are two different
+                // warnings, and this one carries what it actually saw.
+                Warn(
+                    "the '{0}' record carries a '{1}' that is not a date (value '{2}'); "
+                    + "the fiscal year starts on 1 January.",
+                    OrganizationLogicalName,
+                    FiscalCalendarStartAttribute,
+                    Observed(raw));
+                return null;
+            }
+
+            return DateTime.SpecifyKind(date.Value.Date, DateTimeKind.Unspecified);
+        }
+
+        /// <summary>
+        /// The organisation's fiscal period length, or
+        /// <see cref="MockQueryExecutionContext.DefaultFiscalPeriod"/> when the attribute is
+        /// absent, unreadable, or outside the ratified 2000-2004 inventory — each traced under its
+        /// own warning.
+        /// </summary>
+        private FiscalPeriodType ResolveFiscalPeriod(Entity organization)
+        {
+            var raw = RawValue(organization, FiscalPeriodTypeAttribute);
+
+            if (raw == null)
+            {
+                Warn(
+                    "the '{0}' record carries no '{1}'; the fiscal period is {2}.",
+                    OrganizationLogicalName,
+                    FiscalPeriodTypeAttribute,
+                    MockQueryExecutionContext.DefaultFiscalPeriod);
+                return MockQueryExecutionContext.DefaultFiscalPeriod;
+            }
+
+            var code = ReadInt(organization, FiscalPeriodTypeAttribute);
+
+            if (!code.HasValue)
+            {
+                Warn(
+                    "the '{0}' record carries a '{1}' that is not an integer (value '{2}'); the fiscal period is {3}.",
+                    OrganizationLogicalName,
+                    FiscalPeriodTypeAttribute,
+                    Observed(raw),
+                    MockQueryExecutionContext.DefaultFiscalPeriod);
+                return MockQueryExecutionContext.DefaultFiscalPeriod;
+            }
+
+            // Not a picklist, so there is no option set to ask and no "value this host has not
+            // heard of yet": outside 2000-2004 is invalid configuration, and the number it saw goes
+            // into the line — the same thing the weekstartdaycode warning does, and the only way
+            // the reader learns which value to go and fix.
+            if (!Enum.IsDefined(typeof(FiscalPeriodType), code.Value))
+            {
+                Warn(
+                    "the '{0}' record carries an unrecognised '{1}' (value {2} is outside {3}-{4}); "
+                    + "the fiscal period is {5}.",
+                    OrganizationLogicalName,
+                    FiscalPeriodTypeAttribute,
+                    code.Value,
+                    FiscalPeriodTypeAnnually,
+                    FiscalPeriodTypeQuadriweekly,
+                    MockQueryExecutionContext.DefaultFiscalPeriod);
+                return MockQueryExecutionContext.DefaultFiscalPeriod;
+            }
+
+            return (FiscalPeriodType)code.Value;
+        }
+
+        private static bool Requires(OperatorContextRequirement requirements, OperatorContextRequirement flag)
+        {
+            return (requirements & flag) == flag;
+        }
+
+        private void Warn(string format, params object[] args)
+        {
+            _tracingService.Trace(
+                WarningTraceSource,
+                WarningPrefix + string.Format(CultureInfo.InvariantCulture, format, args));
+        }
+
+        /// <summary>
+        /// States something the resolver <i>did</i> rather than something it fell back from — which
+        /// of three sources answered for the caller's business unit — on the same source and with
+        /// the same prefix as a warning.
+        ///
+        /// <para>
+        /// One stream, deliberately: "where did this business unit come from" and "what was
+        /// missing" are the same question asked from two sides, and a reader who filters the trace
+        /// down to <see cref="WarningTraceSource"/> must see the answer either way.  A line here
+        /// costs nothing on a plan that asked for no membership, because nothing calls it.
+        /// </para>
+        /// </summary>
+        private void Note(string format, params object[] args)
+        {
+            _tracingService.Trace(
+                WarningTraceSource,
+                WarningPrefix + string.Format(CultureInfo.InvariantCulture, format, args));
+        }
+
+        /// <summary>
+        /// The records of one logical name, already read, served back through
+        /// <see cref="IDataSource"/> so a component that only knows how to take a data source can
+        /// be given a <i>snapshot</i> instead of the live registry.
+        ///
+        /// <para>
+        /// It exists for <see cref="ResolveUserHierarchy"/>, where the parent lookup is deduced
+        /// from the <c>systemuser</c> records and then followed over them: handing the traversal
+        /// this instead of the registry is what makes those two reads one read, and therefore one
+        /// set of records rather than two that a store mutation could have moved apart.
+        /// </para>
+        ///
+        /// <para>
+        /// It answers for <b>its</b> logical name and empty for every other, deliberately: a
+        /// snapshot that silently forwarded an unexpected table to the registry would put the
+        /// second read back, in the one place nobody would look for it.
+        /// </para>
+        /// </summary>
+        private sealed class SnapshotDataSource : IDataSource
+        {
+            private readonly string _logicalName;
+            private readonly IList<Entity> _rows;
+
+            public SnapshotDataSource(string logicalName, IList<Entity> rows)
+            {
+                _logicalName = logicalName;
+                _rows = rows;
+            }
+
+            /// <inheritdoc/>
+            public IEnumerable<Entity> GetEntities(string logicalName)
+            {
+                return _logicalName.Equals(logicalName, StringComparison.OrdinalIgnoreCase)
+                    ? _rows
+                    : (IEnumerable<Entity>)new Entity[0];
+            }
+
+            /// <inheritdoc/>
+            public Entity GetById(string logicalName, Guid id)
+            {
+                return GetEntities(logicalName).FirstOrDefault(row => row.Id == id)!;
+            }
+        }
+
+        /// <summary>
+        /// The first record of <paramref name="logicalName"/>, or <c>null</c> when the registry
+        /// holds none.  A data source that throws is treated as "no record": the resolver's whole
+        /// contract is that it degrades instead of taking the query down with it.
+        /// </summary>
+        private static Entity? FirstOrNull(IDataSource dataSource, string logicalName)
+        {
+            try
+            {
+                var rows = dataSource.GetEntities(logicalName);
+                return rows == null ? null : rows.FirstOrDefault();
+            }
+            catch (Exception)
+            {
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Every record of <paramref name="logicalName"/>, or an empty list when the registry holds
+        /// none.  Materialised, and a data source that throws treated as "no record", for the same
+        /// reason <see cref="FirstOrNull"/> does both: the lookup is walked more than once by the
+        /// caller, and this resolver degrades rather than taking the query down with it.
+        /// </summary>
+        private static IList<Entity> AllOrEmpty(IDataSource dataSource, string logicalName)
+        {
+            try
+            {
+                var rows = dataSource.GetEntities(logicalName);
+                return rows == null ? new List<Entity>() : rows.Where(row => row != null).ToList();
+            }
+            catch (Exception)
+            {
+                return new List<Entity>();
+            }
+        }
+
+        private static Guid? NonEmpty(Guid id)
+        {
+            return id == Guid.Empty ? (Guid?)null : id;
+        }
+
+        private static object? RawValue(Entity entity, string attributeName)
+        {
+            if (!entity.Contains(attributeName))
+                return null;
+
+            var value = entity[attributeName];
+
+            // Mock records arrive from the registry in whatever shape the scenario wrote them:
+            // a bare value, an SDK wrapper, or an aliased value carried over from a join.
+            var aliased = value as AliasedValue;
+            if (aliased != null) value = aliased.Value;
+
+            var reference = value as EntityReference;
+            if (reference != null) return reference.Id;
+
+            var optionSet = value as OptionSetValue;
+            if (optionSet != null) return optionSet.Value;
+
+            return value;
+        }
+
+        private static Guid? ReadGuid(Entity entity, string attributeName)
+        {
+            var value = RawValue(entity, attributeName);
+            if (value == null) return null;
+
+            if (value is Guid) return (Guid)value;
+
+            var text = value as string;
+            Guid parsed;
+            if (text != null && Guid.TryParse(text, out parsed)) return parsed;
+
+            return null;
+        }
+
+        /// <summary>
+        /// The raw attribute value rendered for a warning line, culture-invariantly so the message
+        /// reads the same wherever the host runs.
+        /// </summary>
+        private static string Observed(object raw)
+        {
+            return Convert.ToString(raw, CultureInfo.InvariantCulture) ?? string.Empty;
+        }
+
+        /// <summary>
+        /// The date a raw attribute value states <b>and this engine can honour</b>, or
+        /// <c>null</c> for either failure — the value states no date, or it states one before
+        /// <see cref="EarliestHonouredAnchor"/>. The caller traces both the same way, because to a
+        /// scenario they are the same fix: state a usable <c>fiscalcalendarstart</c>.
+        /// </summary>
+        private static DateTime? AsDate(object raw)
+        {
+            var stated = AsStatedDate(raw);
+
+            if (!stated.HasValue) return null;
+
+            // The bound applies to every shape and not only to the parsed one. A scenario builder
+            // that leaves the attribute at default(DateTime) states 1 January of year 1 just as
+            // surely as the literal "08:00" does, and until this check sat here that value became
+            // the anchor with no warning — after which reading FiscalCalendarStartUtc on it threw
+            // for any caller east of UTC. An invariant enforced on one of three branches is not an
+            // invariant; the other two arrived here as objects, so they were never asked.
+            if (stated.Value < EarliestHonouredAnchor) return null;
+
+            return stated;
+        }
+
+        /// <summary>
+        /// The date a value states, in whichever of the three shapes it arrives — before the
+        /// question of whether that date is one this engine honours, which is
+        /// <see cref="AsDate"/>'s.  A string is
+        /// parsed invariantly and its own offset, if it carries one, is discarded: the attribute is
+        /// a date, and honouring an offset here would be the UTC reading this task exists to avoid.
+        ///
+        /// <para>
+        /// The string goes through <see cref="DateTimeOffset"/> and not <c>DateTime.TryParse</c>
+        /// for a reason that only shows up on another machine: given a literal carrying <c>Z</c> or
+        /// an explicit offset, <c>DateTime.TryParse</c> does not discard it — it <b>converts</b>
+        /// the value into the host's own zone and returns <see cref="DateTimeKind.Local"/>. The
+        /// anchor of the fiscal year would then be the machine's: <c>2026-04-01T00:00:00Z</c> would
+        /// open the fiscal year on 1 April on a UTC runner and on 31 March on a developer box five
+        /// hours behind, and every fiscal operator would answer differently on the same store.
+        /// Parsing as an offset and taking <see cref="DateTimeOffset.DateTime"/> keeps the wall
+        /// clock the scenario wrote — the same thing the <see cref="DateTimeOffset"/> branch above
+        /// already does.
+        /// </para>
+        ///
+        /// <para>
+        /// <see cref="DateTimeStyles.AssumeUniversal"/> settles the literals that carry no offset:
+        /// it pins theirs at zero instead of the host's. The value they yield is the same either
+        /// way, but the host's offset can push the extremes of the range past
+        /// <see cref="DateTimeOffset"/>'s own bounds, and there a date the engine reads on one
+        /// machine becomes "not a date" on another.
+        /// </para>
+        /// </summary>
+        private static DateTime? AsStatedDate(object raw)
+        {
+            if (raw is DateTime) return (DateTime)raw;
+            if (raw is DateTimeOffset) return ((DateTimeOffset)raw).DateTime;
+
+            var text = raw as string;
+            if (text == null) return null;
+
+            // Asked first, and of the text alone: does this literal state a date at all?
+            // NoCurrentDateDefault is the only flag that answers it, and DateTimeOffset.TryParse
+            // rejects that flag outright — so without this probe "08:00" would read as *today*,
+            // and the anchor would move every day and differ between hosts, which is the same
+            // dependence on the machine that the offset handling below exists to remove.
+            //
+            // The other two flags are what make the probe ask the TEXT rather than the machine,
+            // and they are not decoration: by default DateTime.TryParse converts an offset-bearing
+            // literal into the host's zone, and that conversion can roll a dateless value off
+            // 1 January of year 1 — "23:00Z" probes to 0001-01-02T01:00 anywhere east of UTC, so
+            // the gate below lets it through and the date gets filled in with today's. Measured
+            // at Europe/Rome, Asia/Kolkata and Pacific/Kiritimati, where it read as today and
+            // said nothing; at UTC and America/New_York the same literal was refused.
+            DateTime probe;
+            if (!DateTime.TryParse(
+                    text,
+                    CultureInfo.InvariantCulture,
+                    DateTimeStyles.NoCurrentDateDefault | DateTimeStyles.AllowWhiteSpaces
+                        | DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal,
+                    out probe))
+            {
+                return null;
+            }
+
+            // A dateless literal leaves 1 January of year 1 — but comparing against that one day
+            // is not the gate, because the literal's own offset moves it: "20:00-05:00" normalises
+            // to 0001-01-02T01:00, which is not that day, so a gate written as an equality let it
+            // through and the date got filled in with today's, silently. Measured: it read as
+            // today on all four zones tried, together with "23:00-05:00", "19:30-08:00",
+            // "12:00-14:00" and "23:59:59-00:01".
+            //
+            // This check is NOT the one AsDate applies to every shape, and deleting it as a
+            // duplicate would reopen the defect: by the time the value is parsed below, a dateless
+            // literal has already been given today's date, so the outer bound sees a perfectly
+            // ordinary 2026 and passes it. Only the probe still knows the date was never stated.
+            //
+            // What bounds a dateless literal is the widest offset a timestamp can carry, ±14h: no
+            // matter the time it states, it cannot normalise past 1 January of year 1 plus that
+            // much. Anything earlier is refused with it — a fiscal year opening inside the first
+            // two days of year 1 is not a date this engine can honour either, and the caller's
+            // warning names what it saw, so neither case passes in silence.
+            if (probe < EarliestHonouredAnchor) return null;
+
+            DateTimeOffset parsed;
+            if (DateTimeOffset.TryParse(
+                    text,
+                    CultureInfo.InvariantCulture,
+                    DateTimeStyles.AllowWhiteSpaces | DateTimeStyles.AssumeUniversal,
+                    out parsed))
+            {
+                return parsed.DateTime;
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// The first instant a <c>fiscalcalendarstart</c> may normalise to and still be read as a
+        /// date: 1 January of year 1 plus fourteen hours, the widest offset a timestamp carries.
+        /// <para>
+        /// Below it sits everything <see cref="DateTimeStyles.NoCurrentDateDefault"/> leaves
+        /// behind for a literal that states no date, wherever that literal's own offset pushes it
+        /// — which is why the check is a bound and not an equality against a single day.
+        /// </para>
+        /// <para>
+        /// <b>What that costs, stated rather than discovered:</b> the refused window is the whole
+        /// of 1 January of year 1 and 2 January until 14:00 — about thirty-eight hours, not "the
+        /// first hours" — and it catches literals that do state a date when their offset carries
+        /// them into it, <c>0001-01-03T00:00+14:00</c> among them. No fiscal year opens in year 1,
+        /// so the price is nil; it is written down because nobody should have to rediscover it.
+        /// </para>
+        /// <para>
+        /// The instant is <see cref="DateTimeKind.Utc"/> because the probe it is compared against
+        /// is, by way of <see cref="DateTimeStyles.AdjustToUniversal"/>. Comparison ignores
+        /// <see cref="DateTimeKind"/>, so this states the coupling rather than enforcing it: drop
+        /// that flag and the bound silently starts being read in the host's zone — at UTC+14,
+        /// <c>23:59:59-14:00</c> would land on 3 January and pass, and every test would stay green
+        /// because they all run in one zone.
+        /// </para>
+        /// </summary>
+        private static readonly DateTime EarliestHonouredAnchor =
+            new DateTime(1, 1, 2, 14, 0, 0, DateTimeKind.Utc);
+
+        private static int? ReadInt(Entity entity, string attributeName)
+        {
+            var value = RawValue(entity, attributeName);
+            if (value == null) return null;
+
+            if (value is int) return (int)value;
+
+            if (value is long)
+            {
+                var wide = (long)value;
+
+                // An unchecked narrowing cast is the failure that reads as a success: 2147483648
+                // would arrive as int.MinValue, and the warning would then report a value the
+                // record never carried. Outside the Int32 range the attribute simply does not
+                // state an integer, so it is unreadable — the caller falls back and traces what
+                // it actually saw.
+                if (wide < int.MinValue || wide > int.MaxValue) return null;
+
+                return (int)wide;
+            }
+
+            if (value is short) return (short)value;
+
+            var text = value as string;
+            int parsed;
+            if (text != null && int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out parsed))
+                return parsed;
+
+            return null;
+        }
+    }
+}
