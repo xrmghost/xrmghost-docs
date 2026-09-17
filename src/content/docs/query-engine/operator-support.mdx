@@ -1,0 +1,478 @@
+---
+title: Operator Support
+description: Every condition operator the pinned Dataverse SDK declares, with its FetchXML spelling, the answer the XrmGhost QueryEngine gives for it, the execution context it needs, and the reason behind each deliberate refusal.
+---
+
+# Operator Support
+
+This page is the complete, static reference for the condition operators the XrmGhost mock
+QueryEngine answers. It covers **all 89** members of the condition-operator inventory the pinned
+Dataverse SDK declares — nothing is filtered out and nothing is summarised away.
+
+It is **transcribed by hand** from frozen snapshots of `xrmghost-framework-host` that live in this
+repository next to the page. See [Provenance](#provenance) for the commit, the SDK pin and the date.
+
+## The Three Dispositions
+
+"Supported" is not a yes/no here. It is one of three dispositions the registry declares, and the
+difference between the two negative ones is the point:
+
+| Disposition | Meaning |
+|---|---|
+| `yes` | An evaluator is registered for that canonical key and the engine can answer the operator. |
+| `no (deliberate)` | The engine refuses the operator **on purpose**, and the **Reason** says why — a decision with a cause behind it. |
+| `no` | No evaluator is registered and nothing has been decided: a gap, not a judgement. |
+
+Both frontends ask the same registry, so an operator that is not `yes` is refused identically
+whether the query arrived as a `QueryExpression` or as FetchXML, and the reason travels with the
+refusal into the `NotSupportedQueryOperatorException` message.
+
+**Nothing on this page is in the third disposition.** Every operator is either answered or refused
+with a stated reason:
+
+| | |
+| --- | --- |
+| Operators in the SDK inventory | **89** |
+| Supported | **87** |
+| Not supported | **2** |
+| — of those, deliberately rejected with a reason | **2** |
+| — of those, not covered and not classified | **0** |
+
+## How to Read a Row
+
+- **Canonical key** is the name every part of the engine uses for the operator: the SDK member name
+  lowercased, derived the way `QueryExpressionFrontend` derives it.
+- **SDK member** and **SDK value** are the `Microsoft.Xrm.Sdk.Query.ConditionOperator` member and
+  its integer value in the pinned inventory.
+- **FetchXML spelling** is what you write in a `<condition operator="...">`. It is **not** a
+  separate operator: spellings such as `not-begin-with` or `last-seven-days` are translated to the
+  canonical key before anything is looked up. `Equal` and `NotEqual` each accept more than one
+  spelling, which is why the 89 operators carry **92** spellings between them.
+- **Context required** is what the evaluator declares it needs beyond the record itself. See
+  [Execution Context](#execution-context).
+- **Reason** is filled in only for a deliberate refusal.
+
+### A FetchXML Spelling Is Not Support
+
+Resolving a spelling and supporting an operator are two different questions with two different
+answers. The spelling table answers "which operator is this"; whether the engine can evaluate it is
+`IConditionEvaluatorRegistry.IsSupported`'s answer. **Both of the refused operators have a FetchXML
+spelling** — `child-of` and `masks-select` — and both are refused: the spelling resolves to the
+canonical identity and the identity is then declined. Never read the presence of a spelling as
+evidence of support.
+
+## The Operators
+
+#### Scalar comparison — 12 operators
+
+| Canonical key | SDK member | SDK value | FetchXML spelling | Supported | Context required | Reason |
+| --- | --- | ---: | --- | --- | --- | --- |
+| `equal` | `Equal` | 0 | `eq`, `equal` | yes | none | — |
+| `notequal` | `NotEqual` | 1 | `ne`, `neq`, `notequal` | yes | none | — |
+| `greaterthan` | `GreaterThan` | 2 | `gt` | yes | none | — |
+| `greaterequal` | `GreaterEqual` | 4 | `ge` | yes | none | — |
+| `lessthan` | `LessThan` | 3 | `lt` | yes | none | — |
+| `lessequal` | `LessEqual` | 5 | `le` | yes | none | — |
+| `in` | `In` | 8 | `in` | yes | none | — |
+| `notin` | `NotIn` | 9 | `not-in` | yes | none | — |
+| `between` | `Between` | 10 | `between` | yes | none | — |
+| `notbetween` | `NotBetween` | 11 | `not-between` | yes | none | — |
+| `null` | `Null` | 12 | `null` | yes | none | — |
+| `notnull` | `NotNull` | 13 | `not-null` | yes | none | — |
+
+#### String matching — 8 operators
+
+| Canonical key | SDK member | SDK value | FetchXML spelling | Supported | Context required | Reason |
+| --- | --- | ---: | --- | --- | --- | --- |
+| `like` | `Like` | 6 | `like` | yes | none | — |
+| `notlike` | `NotLike` | 7 | `not-like` | yes | none | — |
+| `beginswith` | `BeginsWith` | 54 | `begins-with` | yes | none | — |
+| `doesnotbeginwith` | `DoesNotBeginWith` | 55 | `not-begin-with` | yes | none | — |
+| `endswith` | `EndsWith` | 56 | `ends-with` | yes | none | — |
+| `doesnotendwith` | `DoesNotEndWith` | 57 | `not-end-with` | yes | none | — |
+| `contains` | `Contains` | 49 | `contains` | yes | none | — |
+| `doesnotcontain` | `DoesNotContain` | 50 | `not-contain` | yes | none | — |
+
+#### Multi-select choice membership — 2 operators
+
+| Canonical key | SDK member | SDK value | FetchXML spelling | Supported | Context required | Reason |
+| --- | --- | ---: | --- | --- | --- | --- |
+| `containvalues` | `ContainValues` | 87 | `contain-values` | yes | none | — |
+| `doesnotcontainvalues` | `DoesNotContainValues` | 88 | `not-contain-values` | yes | none | — |
+
+#### Bitwise — 2 operators
+
+| Canonical key | SDK member | SDK value | FetchXML spelling | Supported | Context required | Reason |
+| --- | --- | ---: | --- | --- | --- | --- |
+| `mask` | `Mask` | 46 | `mask` | yes | none | — |
+| `notmask` | `NotMask` | 47 | `not-mask` | yes | none | — |
+
+#### Explicit date — 4 operators
+
+| Canonical key | SDK member | SDK value | FetchXML spelling | Supported | Context required | Reason |
+| --- | --- | ---: | --- | --- | --- | --- |
+| `on` | `On` | 25 | `on` | yes | `UserTimeZone` | — |
+| `noton` | `NotOn` | 52 | `not-on` | yes | `UserTimeZone` | — |
+| `onorbefore` | `OnOrBefore` | 26 | `on-or-before` | yes | `UserTimeZone` | — |
+| `onorafter` | `OnOrAfter` | 27 | `on-or-after` | yes | `UserTimeZone` | — |
+
+#### Named calendar period — 14 operators
+
+| Canonical key | SDK member | SDK value | FetchXML spelling | Supported | Context required | Reason |
+| --- | --- | ---: | --- | --- | --- | --- |
+| `yesterday` | `Yesterday` | 14 | `yesterday` | yes | `CurrentInstant`, `UserTimeZone` | — |
+| `today` | `Today` | 15 | `today` | yes | `CurrentInstant`, `UserTimeZone` | — |
+| `tomorrow` | `Tomorrow` | 16 | `tomorrow` | yes | `CurrentInstant`, `UserTimeZone` | — |
+| `last7days` | `Last7Days` | 17 | `last-seven-days` | yes | `CurrentInstant`, `UserTimeZone` | — |
+| `next7days` | `Next7Days` | 18 | `next-seven-days` | yes | `CurrentInstant`, `UserTimeZone` | — |
+| `lastweek` | `LastWeek` | 19 | `last-week` | yes | `CurrentInstant`, `UserTimeZone`, `WeekStart` | — |
+| `thisweek` | `ThisWeek` | 20 | `this-week` | yes | `CurrentInstant`, `UserTimeZone`, `WeekStart` | — |
+| `nextweek` | `NextWeek` | 21 | `next-week` | yes | `CurrentInstant`, `UserTimeZone`, `WeekStart` | — |
+| `lastmonth` | `LastMonth` | 22 | `last-month` | yes | `CurrentInstant`, `UserTimeZone` | — |
+| `thismonth` | `ThisMonth` | 23 | `this-month` | yes | `CurrentInstant`, `UserTimeZone` | — |
+| `nextmonth` | `NextMonth` | 24 | `next-month` | yes | `CurrentInstant`, `UserTimeZone` | — |
+| `lastyear` | `LastYear` | 28 | `last-year` | yes | `CurrentInstant`, `UserTimeZone` | — |
+| `thisyear` | `ThisYear` | 29 | `this-year` | yes | `CurrentInstant`, `UserTimeZone` | — |
+| `nextyear` | `NextYear` | 30 | `next-year` | yes | `CurrentInstant`, `UserTimeZone` | — |
+
+#### Rolling count of units — 10 operators
+
+| Canonical key | SDK member | SDK value | FetchXML spelling | Supported | Context required | Reason |
+| --- | --- | ---: | --- | --- | --- | --- |
+| `lastxhours` | `LastXHours` | 31 | `last-x-hours` | yes | `CurrentInstant`, `UserTimeZone` | — |
+| `nextxhours` | `NextXHours` | 32 | `next-x-hours` | yes | `CurrentInstant`, `UserTimeZone` | — |
+| `lastxdays` | `LastXDays` | 33 | `last-x-days` | yes | `CurrentInstant`, `UserTimeZone` | — |
+| `nextxdays` | `NextXDays` | 34 | `next-x-days` | yes | `CurrentInstant`, `UserTimeZone` | — |
+| `lastxweeks` | `LastXWeeks` | 35 | `last-x-weeks` | yes | `CurrentInstant`, `UserTimeZone` | — |
+| `nextxweeks` | `NextXWeeks` | 36 | `next-x-weeks` | yes | `CurrentInstant`, `UserTimeZone` | — |
+| `lastxmonths` | `LastXMonths` | 37 | `last-x-months` | yes | `CurrentInstant`, `UserTimeZone` | — |
+| `nextxmonths` | `NextXMonths` | 38 | `next-x-months` | yes | `CurrentInstant`, `UserTimeZone` | — |
+| `lastxyears` | `LastXYears` | 39 | `last-x-years` | yes | `CurrentInstant`, `UserTimeZone` | — |
+| `nextxyears` | `NextXYears` | 40 | `next-x-years` | yes | `CurrentInstant`, `UserTimeZone` | — |
+
+#### Older than — 6 operators
+
+| Canonical key | SDK member | SDK value | FetchXML spelling | Supported | Context required | Reason |
+| --- | --- | ---: | --- | --- | --- | --- |
+| `olderthanxminutes` | `OlderThanXMinutes` | 86 | `olderthan-x-minutes` | yes | `CurrentInstant`, `UserTimeZone` | — |
+| `olderthanxhours` | `OlderThanXHours` | 85 | `olderthan-x-hours` | yes | `CurrentInstant`, `UserTimeZone` | — |
+| `olderthanxdays` | `OlderThanXDays` | 84 | `olderthan-x-days` | yes | `CurrentInstant`, `UserTimeZone` | — |
+| `olderthanxweeks` | `OlderThanXWeeks` | 83 | `olderthan-x-weeks` | yes | `CurrentInstant`, `UserTimeZone` | — |
+| `olderthanxmonths` | `OlderThanXMonths` | 53 | `olderthan-x-months` | yes | `CurrentInstant`, `UserTimeZone` | — |
+| `olderthanxyears` | `OlderThanXYears` | 82 | `olderthan-x-years` | yes | `CurrentInstant`, `UserTimeZone` | — |
+
+#### Fiscal calendar — 15 operators
+
+| Canonical key | SDK member | SDK value | FetchXML spelling | Supported | Context required | Reason |
+| --- | --- | ---: | --- | --- | --- | --- |
+| `thisfiscalyear` | `ThisFiscalYear` | 58 | `this-fiscal-year` | yes | `CurrentInstant`, `UserTimeZone`, `FiscalCalendar` | — |
+| `thisfiscalperiod` | `ThisFiscalPeriod` | 59 | `this-fiscal-period` | yes | `CurrentInstant`, `UserTimeZone`, `FiscalCalendar` | — |
+| `nextfiscalyear` | `NextFiscalYear` | 60 | `next-fiscal-year` | yes | `CurrentInstant`, `UserTimeZone`, `FiscalCalendar` | — |
+| `nextfiscalperiod` | `NextFiscalPeriod` | 61 | `next-fiscal-period` | yes | `CurrentInstant`, `UserTimeZone`, `FiscalCalendar` | — |
+| `lastfiscalyear` | `LastFiscalYear` | 62 | `last-fiscal-year` | yes | `CurrentInstant`, `UserTimeZone`, `FiscalCalendar` | — |
+| `lastfiscalperiod` | `LastFiscalPeriod` | 63 | `last-fiscal-period` | yes | `CurrentInstant`, `UserTimeZone`, `FiscalCalendar` | — |
+| `lastxfiscalyears` | `LastXFiscalYears` | 64 | `last-x-fiscal-years` | yes | `CurrentInstant`, `UserTimeZone`, `FiscalCalendar` | — |
+| `lastxfiscalperiods` | `LastXFiscalPeriods` | 65 | `last-x-fiscal-periods` | yes | `CurrentInstant`, `UserTimeZone`, `FiscalCalendar` | — |
+| `nextxfiscalyears` | `NextXFiscalYears` | 66 | `next-x-fiscal-years` | yes | `CurrentInstant`, `UserTimeZone`, `FiscalCalendar` | — |
+| `nextxfiscalperiods` | `NextXFiscalPeriods` | 67 | `next-x-fiscal-periods` | yes | `CurrentInstant`, `UserTimeZone`, `FiscalCalendar` | — |
+| `infiscalyear` | `InFiscalYear` | 68 | `in-fiscal-year` | yes | `CurrentInstant`, `UserTimeZone`, `FiscalCalendar` | — |
+| `infiscalperiod` | `InFiscalPeriod` | 69 | `in-fiscal-period` | yes | `CurrentInstant`, `UserTimeZone`, `FiscalCalendar` | — |
+| `infiscalperiodandyear` | `InFiscalPeriodAndYear` | 70 | `in-fiscal-period-and-year` | yes | `CurrentInstant`, `UserTimeZone`, `FiscalCalendar` | — |
+| `inorbeforefiscalperiodandyear` | `InOrBeforeFiscalPeriodAndYear` | 71 | `in-or-before-fiscal-period-and-year` | yes | `CurrentInstant`, `UserTimeZone`, `FiscalCalendar` | — |
+| `inorafterfiscalperiodandyear` | `InOrAfterFiscalPeriodAndYear` | 72 | `in-or-after-fiscal-period-and-year` | yes | `CurrentInstant`, `UserTimeZone`, `FiscalCalendar` | — |
+
+#### Contextual identity — 9 operators
+
+| Canonical key | SDK member | SDK value | FetchXML spelling | Supported | Context required | Reason |
+| --- | --- | ---: | --- | --- | --- | --- |
+| `equaluserid` | `EqualUserId` | 41 | `eq-userid` | yes | `UserMembership` | — |
+| `notequaluserid` | `NotEqualUserId` | 42 | `ne-userid` | yes | `UserMembership` | — |
+| `equalbusinessid` | `EqualBusinessId` | 43 | `eq-businessid` | yes | `UserMembership` | — |
+| `notequalbusinessid` | `NotEqualBusinessId` | 44 | `ne-businessid` | yes | `UserMembership` | — |
+| `equaluserlanguage` | `EqualUserLanguage` | 51 | `eq-userlanguage` | yes | `UserLanguage` | — |
+| `equaluserteams` | `EqualUserTeams` | 73 | `eq-userteams` | yes | `UserTeams` | — |
+| `equaluseroruserteams` | `EqualUserOrUserTeams` | 74 | `eq-useroruserteams` | yes | `UserMembership`, `UserTeams` | — |
+| `equaluseroruserhierarchy` | `EqualUserOrUserHierarchy` | 80 | `eq-useroruserhierarchy` | yes | `UserHierarchy` | — |
+| `equaluseroruserhierarchyandteams` | `EqualUserOrUserHierarchyAndTeams` | 81 | `eq-useroruserhierarchyandteams` | yes | `UserHierarchy` | — |
+
+#### Structural hierarchy — 5 operators
+
+| Canonical key | SDK member | SDK value | FetchXML spelling | Supported | Context required | Reason |
+| --- | --- | ---: | --- | --- | --- | --- |
+| `above` | `Above` | 78 | `above` | yes | none | — |
+| `aboveorequal` | `AboveOrEqual` | 79 | `eq-or-above` | yes | none | — |
+| `under` | `Under` | 75 | `under` | yes | none | — |
+| `underorequal` | `UnderOrEqual` | 77 | `eq-or-under` | yes | none | — |
+| `notunder` | `NotUnder` | 76 | `not-under` | yes | none | — |
+
+#### Deliberately rejected — 2 operators
+
+| Canonical key | SDK member | SDK value | FetchXML spelling | Supported | Context required | Reason |
+| --- | --- | ---: | --- | --- | --- | --- |
+| `childof` | `ChildOf` | 45 | `child-of` | no (deliberate) | — | [see note](#why-childof-is-refused) |
+| `masksselect` | `MasksSelect` | 48 | `masks-select` | no (deliberate) | — | [see note](#why-masksselect-is-refused) |
+
+## The Two Deliberate Refusals
+
+Neither of these two is unfinished, and they are **not one family**: each is out for a fact somebody
+measured, and the two facts are different. An evaluator written anyway would answer a query
+Dataverse itself declines.
+
+### Why childof is refused
+
+The SDK reference marks `ChildOf` **"for internal use only"**, and the platform refuses it on every
+attribute it has been tried on — ADO-2307 recorded **eight rejections out of eight**. So there is
+no observed behaviour an evaluator could mirror.
+
+### Why masksselect is refused
+
+The Dataverse server rejects **every spelling tried** — `masks-select`, `masksselect`,
+`maskselect` and `masks_select` — with **HTTP 400 `Unknown Condition Operator`**. There is
+therefore no observed behaviour an evaluator could mirror.
+
+**The bound of that measurement, stated:** it was taken through the **FetchXML frontend alone**. If
+`MasksSelect` were accepted on the `QueryExpression` path of the SDK, this probe would not have seen
+it. This page makes **no claim** about the `QueryExpression` path for this operator — it says only
+that nobody looked there. The bound is not itself the reason for the exclusion; the four HTTP 400
+responses are.
+
+## mask and notmask Are Not Privilege Masks
+
+`mask` and `notmask` are **generic bitwise AND predicates over any integer attribute**, and they are
+worth stating on their own because the obvious reading of the name is the wrong one:
+
+| Operator | Predicate |
+|---|---|
+| `mask` | `(value & operand) != 0` |
+| `notmask` | `(value & operand) == 0` |
+
+`mask` is the bitwise predicate `(value & operand) != 0` over the integer value a row holds for
+**any** integer attribute of **any** table, and `notmask` is `(value & operand) == 0` over the same
+pair; **the privilege mask is the most famous use of that predicate, not its semantics.** The
+counterproof is `systemuser.accessmode`: `mask 1` matches 1, 3 and 5, because each has bit 0 set,
+and nothing in answering it reads a privilege, a role or an entitlement.
+
+Accordingly, both declare **no** execution-context requirement: neither asks for anything the row
+cannot supply.
+
+## Execution Context
+
+An operator that cannot be answered from the record alone declares **what it needs to know**. The
+host resolves exactly the union of what the plan's operators asked for — a plan whose operators need
+nothing causes no lookup at all.
+
+### The Eight Context Requirements
+
+These are the eight flags of `OperatorContextRequirement`. They are requirements, not entitlements —
+see [Not a Licence Surface](#not-a-licence-surface).
+
+| Requirement | What the operator needs | Where it is read from |
+|---|---|---|
+| `CurrentInstant` | "Now" — and every condition of the query agreeing on it | The injected clock, not a record |
+| `UserTimeZone` | The caller's time zone | `usersettings` (`timezonecode`, `timezonebias`) |
+| `WeekStart` | The organisation's first day of the week | `organization` (`weekstartdaycode`) |
+| `UserMembership` | Who is asking: the caller and the business unit they belong to | `usersettings` (`systemuserid`, `businessunitid`) and `systemuser` (`businessunitid`) |
+| `FiscalCalendar` | Where the organisation's fiscal year starts and how long a fiscal period is | `organization` (`fiscalcalendarstart`, `fiscalperiodtype`), plus `usersettings` for the caller's offset |
+| `UserLanguage` | The caller's interface language, as an LCID | `usersettings` (`uilanguageid`) |
+| `UserTeams` | The teams the caller belongs to | `teammembership`, on `systemuserid` and `teamid` and nothing else |
+| `UserHierarchy` | The caller **and every user below them**, plus the teams that whole set belongs to | `systemuser` (self-referential lookup) and `teammembership` |
+
+Three separations in that table are load-bearing and are not tidiness:
+
+- **`FiscalCalendar` is its own flag, not a widening of `WeekStart`,** even though both land on the
+  `organization` record. `thisweek` wants the first day of the week and nothing else;
+  `thisfiscalyear` wants the fiscal anchor and nothing else. That they share a record is the
+  resolver's business, and it reads that record once for both.
+- **`FiscalCalendar` carries the caller's offset with it.**
+  `organization.fiscalcalendarstart` is a date in the user's local time, so resolving it without an
+  offset would silently read it as UTC. An operator that needs the fiscal calendar does not have to
+  also declare `UserTimeZone` to be answered in the right zone.
+- **`UserHierarchy` (bit 128) is not a widening of `UserTeams` (bit 64).** 64 is already "the teams
+  of the caller"; the hybrid family needs the teams of the caller **and of every descendant**.
+  Folding them together would make `equaluserteams` enumerate a hierarchy it never reads, or make
+  the hierarchy answer with the caller's teams alone. Both keep working and both answer wrongly.
+
+**`UserLanguage` is `uilanguageid` and not `localeid`.** The two sit side by side on the same record
+and both read as "the user's language": `localeid` is the formatting locale, `uilanguageid` is the
+language the interface — and the operator — speaks. The resolver **deliberately does not read**
+`localeid`. Reading the wrong one answers with a plausible number Dataverse would never have matched
+on, which is why the attribute is named here rather than inferred.
+
+**`UserHierarchy` is descendants, never ancestors.** The two operators behind it answer "mine and my
+reports'", so the traversal runs *down* the manager chain from the caller. Walking it upwards would
+return the caller's managers, which is a different and plausible-looking answer nothing would flag;
+and the business-unit hierarchy is a third thing again, belonging to `UserMembership`'s table and
+not to this one.
+
+### The Four Dataverse Records
+
+The eight requirements above are resolved from four records, which a scenario declares the way it
+declares any other record. The requirements are the whole input: there is no second list of "context
+operators" to keep in step with the registry and no typed scenario contract to fill in.
+
+| Record | What it answers | Attributes read |
+|---|---|---|
+| `usersettings` | The caller's time zone, business unit and language | `systemuserid`, `businessunitid`, `uilanguageid`, `timezonecode`, `timezonebias` |
+| `systemuser` | The caller's business unit when the execution context did not state one, and the user hierarchy below them | `systemuserid` (primary key), `businessunitid`; the self-referential lookup Dataverse calls `parentsystemuserid` |
+| `teammembership` | The teams of the caller and of that hierarchy — the platform **intersect**, one row per (user, team) pair | `systemuserid`, `teamid` |
+| `organization` | The organisation's first day of the week and fiscal calendar | `organizationid`, `weekstartdaycode`, `fiscalcalendarstart`, `fiscalperiodtype` |
+
+Two notes on how records are picked, because both are easy to get wrong:
+
+- **The caller is stated, not guessed.** The identity comes in from `ExecutionContext.UserId` — the
+  user the plugin runs *as*, not `InitiatingUserId` — and every per-user record is picked by
+  matching it. Reading "the first `usersettings` record" instead is correct while a scenario
+  declares one user and quietly answers with a different person's settings as soon as it declares
+  two.
+- **The `systemuser` hierarchy lookup is deduced, not wired.** The attribute followed is the single
+  one the registered records carry whose value is an `EntityReference` naming `systemuser`.
+  `parentsystemuserid` is what the platform calls it and is named here because the diagnostics name
+  it — but matching on that name is exactly what the resolver does not do: a scenario declares
+  records, not relationship metadata, and a bare `Guid` under that name is an identifier and not a
+  link.
+
+### A Missing Record Is a Documented Default, Traced
+
+**Nothing here refuses a query for lack of context.** A missing record produces a documented
+default, and each fallback **names which record was missing** — "some context was defaulted" is not
+a fix anybody can act on.
+
+Every one of these lines is traced through `IEnhancedTracingService` under
+`TraceSource.OperationTracker`, so it reaches you as a `TraceEntry` of the execution response rather
+than sitting in a field somebody has to know to look at. Every line carries the prefix
+`XrmGhost.FrameworkHost.QueryEngine: `, so the lines are greppable.
+
+| What was missing | The documented default |
+|---|---|
+| No `usersettings` record at all | The query runs as UTC with no membership |
+| No `usersettings` record names the stated caller | The query runs as UTC with no language |
+| No caller stated **and** more than one `usersettings` record | None is chosen; the query runs as UTC with no language |
+| The `usersettings` record carries no `timezonebias` | The query runs as UTC |
+| The `usersettings` record carries no usable `uilanguageid` | The query runs with no user language |
+| The `usersettings` record names neither `systemuserid` nor `businessunitid` | The query runs with no membership |
+| No `systemuser` record for the caller | The caller's `businessunitid` is read from `usersettings` instead |
+| No source stated a business unit — not the execution context, not `systemuser`, not `usersettings` | The query runs with none — and **each of those records that was read and stayed silent is named**, with the caller it was read for and what was wrong with it |
+| No `teammembership` record at all | The caller belongs to no team |
+| No `teammembership` row names the caller with a readable `teamid` | The caller belongs to no team |
+| No caller could be established, for `UserTeams` | The `teammembership` rows cannot be scoped to anyone; the query runs with no teams |
+| No `organization` record, for `WeekStart` | The week starts on **Monday** |
+| No `organization` record, for `FiscalCalendar` | The fiscal year starts on **1 January** and the fiscal period is **monthly** |
+| The `organization` record carries no usable `weekstartdaycode` | The week starts on **Monday** |
+| The `organization` record carries no usable `fiscalcalendarstart` or `fiscalperiodtype` | 1 January, and monthly — **each field falls back on its own**, so an unreadable start date does not drag a good period length down with it |
+| No `systemuser` record carries an `EntityReference` to `systemuser` | No hierarchy could be deduced; the query runs with **the caller alone** |
+| No caller could be established, for `UserHierarchy` | The `systemuser` hierarchy has nobody to descend from; the query runs with an empty user hierarchy |
+
+One case is a deliberate half-measure and is worth reading twice. When a caller **is** stated and no
+`usersettings` record names them, but the registry holds **exactly one** such record, its **time
+zone** is read as the caller's — and its `businessunitid` and its `uilanguageid` are **not**. The
+criterion is what being wrong does: a foreign zone *shifts* the rows an operator returns, whereas a
+foreign business unit or language *selects different ones*, and a wrong row set never announces
+itself. Two or more records and nothing is taken at all. The mismatch is warned about, never hidden.
+
+One missing `organization` record produces **two independent warnings**, one per requirement: a plan
+that asked only for the fiscal calendar is not told about a week start it never reads, and one that
+asked for both is told about both.
+
+### The One Thing That Is Not a Default
+
+A missing record has a documented answer and a defaulted one is still an answer. An **unanswerable
+hierarchy** has none, and inventing one would return rows about a different tree. Three cases
+therefore refuse, with a `MockHierarchyResolutionException`:
+
+1. The `systemuser` records carry **two or more** self-referential lookups, so which one is the user
+   hierarchy cannot be deduced from them. The refusal names every candidate it found, and the way
+   out is stating the hierarchy in explicit relationship metadata. There is no tie-break here that
+   is not a guess.
+2. The manager chain **loops**. The refusal names the record that closes the cycle.
+3. The descent goes **deeper than the configured cap**. The refusal names the last record reached —
+   never a truncated set. The default cap is `MockHierarchyResolver.DefaultDepthCap`, and the
+   traversal that applies it owns it.
+
+Three things bound that exception, and all three matter:
+
+- It happens **only for a plan that declared `UserHierarchy`**. No other requirement can raise it.
+- It happens in **step 0-bis of `InMemoryExecutor`**, which is **before the first row of the query
+  is read**. A refusal raised per row would depend on what the store held, and an empty store would
+  answer an unanswerable query with an empty result set.
+- It is an `InvalidOperationException` underneath — what the QueryEngine already throws for a
+  structurally unanswerable query — and it is the **only** way the context resolver ever throws.
+
+Note that **zero** self-referential lookups is not one of the three. A flat scenario is not a broken
+one: the answer degrades to the caller alone, traced.
+
+### The Five Structural Hierarchy Operators
+
+`above`, `aboveorequal`, `under`, `underorequal` and `notunder` say `none` in the **Context
+required** column, and that is the right answer: where a record sits in a tree has nothing to do with
+who is asking, and an operator of this family that declared a context requirement would make every
+hierarchy query read `usersettings` to no purpose.
+
+**What it must not be read as is "answerable from the row alone."** What these five need is a
+traversal of the records the query itself names, resolved once per plan by `InMemoryExecutor` before
+the first row. They declare it through `IHierarchyAwareConditionEvaluator` — a separate interface
+rather than a member of `OperatorContextRequirement`, because that enum is the input of the context
+resolver, which never sees a condition. "What does the caller's context hold" is a different
+question, and it is the only one the **Context required** column asks.
+
+They also validate the **shape** of the condition before the first row: the pivot is a value the
+condition carries, so "exactly one value, readable as an identifier" is a refusal no store can
+rescue.
+
+The two hybrid identity operators — `equaluseroruserhierarchy` and
+`equaluseroruserhierarchyandteams` — are **not** in this family. They answer about the *caller's*
+hierarchy and read it off the execution context under `UserHierarchy`, and they declare no
+traversal capability.
+
+## Not a Licence Surface
+
+A context requirement says **what an operator needs to know**, never what the caller is entitled to.
+Nothing in the requirements, the records or the resolver consults a tier, a licence flag or an
+entitlement, and nothing downstream turns a requirement into a refusal: an operator that needs
+context and finds none is evaluated against documented defaults, not gated. Keeping the two apart is
+deliberate — the moment "this operator needs the caller's identity" can be read as "this operator is
+Pro", a mock query becomes a paywall.
+
+## Provenance
+
+| | |
+|---|---|
+| Repo | `xrmghost-framework-host` |
+| Branch | `dev` |
+| Commit | **`67e9d3e`** |
+| Snapshot taken | **17 September 2026** |
+| SDK pin | **`Microsoft.CrmSdk.CoreAssemblies` 9.0.2.45** |
+| `AssemblyVersion` of that assembly | `9.0.0.0` — **not the pin** |
+| `FileVersion` of that assembly | `9.2.47.9489` |
+| Inventory transcribed from | `docs/query-engine/operator-support-matrix.generated.md` |
+
+### Why two version numbers appear
+
+`AssemblyVersion 9.0.0.0` is the version the shipped `Microsoft.Xrm.Sdk` assembly carries whatever
+package version brought it in: it is `9.0.0.0` for **every** 9.x package, so it **does not identify
+the operator inventory** this engine is written against. Citing it as the pin would make this
+reference non-reproducible, because two different inventories would present themselves under the
+same number. The number that does identify the inventory is the **package** pin,
+`Microsoft.CrmSdk.CoreAssemblies` **9.0.2.45** — and the only place it is visible is
+`docs/query-engine/sources/OperatorContractTests.cs.txt`. The generated matrix does not carry it:
+its header writes `SDK Microsoft.Xrm.Sdk 9.0.0.0` and refers to that test for the pin, so taking the
+number from the matrix header gets you the `AssemblyVersion` in the belief that it is the pin.
+
+### Why the count is 89
+
+89 is the size of the condition-operator inventory of the **pinned** package. The SDK's inventory
+grew to **90** members from **9.0.2.49** (May 2023), which added `EqualRoleBusinessId`. This engine
+stays pinned to **9.0.2.45**, so **89 is the right number for this page** — and 87 of 89 is the
+right coverage claim. A page that quoted 90 would be describing an SDK this engine is not written
+against.
+
+### How this page is kept true
+
+This page is **transcribed by hand**; there is no generator behind it, no CI comparison between the
+two repositories and no automatic cross-repo link. When the engine changes, the snapshots are
+replaced whole from a new commit and this page is re-transcribed and re-reviewed against them; that
+comparison against the sources **is** the review, and no tool performs it. The only automated gate
+on this flow is `npm run build`, which proves the site compiles — not that the page tells the truth.
+
+The procedure, the order the snapshots must be replaced in, and the failure mode to avoid are
+written in one place only: the contributor guide,
+[How to Add a New Docs Page](/contributing/public-docs-workflow/).

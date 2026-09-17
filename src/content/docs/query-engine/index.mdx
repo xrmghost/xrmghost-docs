@@ -1,0 +1,41 @@
+---
+title: Query Engine
+description: How the XrmGhost mock QueryEngine answers Dataverse queries locally, which condition operators it covers, and where the two it refuses are documented.
+---
+
+# Query Engine
+
+The XrmGhost framework host answers Dataverse queries **locally**, against the records a scenario
+registers, with no organisation on the other end. A query arrives either as a `QueryExpression` or
+as FetchXML, both frontends translate it into the same plan, and one condition evaluator registry
+answers — or refuses — every condition in it.
+
+Two consequences are worth knowing before you write a query against the mock:
+
+- **Both doors give the same answer.** A `QueryExpression` and the FetchXML that means the same
+  thing resolve to the same operator identity and reach the same registry, so an operator the engine
+  refuses is refused identically whichever way the query arrived, and the refusal carries the same
+  reason with it.
+- **Coverage is a closed, stated number, not a promise.** Of the 89 condition operators the pinned
+  Dataverse SDK declares, this engine answers **87**. The remaining two are refused **on purpose**,
+  each for a measured reason, and there is no operator left that is merely uncovered.
+
+## Pages in This Section
+
+| Page | Description |
+|---|---|
+| [Operator Support](/query-engine/operator-support/) | Every one of the 89 SDK condition operators, its FetchXML spelling, its disposition, the execution context it needs, and the reason behind each of the two refusals. |
+
+## What the engine needs beyond the row
+
+Most operators are answerable from the record alone — `equal`, `like`, `greaterthan`. Some are not:
+"created this week" needs an instant and a first day of the week, "owned by me" needs to know who is
+asking. Those answers come from an **execution context**, which the host resolves from the same
+Dataverse records a real organisation would read: `usersettings`, `systemuser`, `teammembership` and
+`organization`.
+
+A context requirement is a **resolution requirement and never an entitlement**. Nothing in it names
+a tier, a licence or a plan: an operator that needs context and finds none is evaluated against
+documented defaults — each one traced, naming the record that was missing — not refused and not
+gated. The full list of requirements, records, defaults and traces is on
+[Operator Support](/query-engine/operator-support/).
