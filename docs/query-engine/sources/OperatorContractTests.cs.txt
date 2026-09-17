@@ -1,0 +1,1214 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using Microsoft.Xrm.Sdk;
+using Microsoft.Xrm.Sdk.Query;
+using XrmGhost.FrameworkHost.QueryEngine;
+using XrmGhost.FrameworkHost.QueryEngine.Abstractions;
+using XrmGhost.FrameworkHost.QueryEngine.Exceptions;
+using XrmGhost.FrameworkHost.QueryEngine.Execution;
+using XrmGhost.FrameworkHost.QueryEngine.Frontends;
+using XrmGhost.FrameworkHost.QueryEngine.Hierarchy;
+using XrmGhost.FrameworkHost.QueryEngine.IR;
+using XrmGhost.FrameworkHost.QueryEngine.Operators;
+using Xunit;
+
+namespace XrmGhost.FrameworkHost.Tests.QueryEngine
+{
+    /// <summary>
+    /// Freezes the two inventories the QueryEngine's operator contract rests on: the
+    /// <see cref="ConditionOperator"/> enum of the pinned SDK, and the set of operators the
+    /// registry actually covers once <see cref="OperatorEvaluatorBootstrapper.RegisterAll"/> has
+    /// run — plus the parity between the two frontends over that contract.
+    ///
+    /// <para>
+    /// The SDK inventory is declared here as a literal name→value list rather than checked against
+    /// an assembly version, because the pin cannot be read from the assembly: the
+    /// <c>Microsoft.CrmSdk.CoreAssemblies</c> 9.0.2.45 package ships an assembly whose
+    /// AssemblyVersion is 9.0.0.0 and whose FileVersion is 9.2.47.9489.  A changed pin therefore
+    /// shows up as a changed inventory, and nowhere else.
+    /// </para>
+    /// </summary>
+    public sealed class OperatorContractTests
+    {
+        // -----------------------------------------------------------------------
+        // The SDK inventory: Microsoft.Xrm.Sdk.Query.ConditionOperator, SDK 9.0.2.45
+        // -----------------------------------------------------------------------
+
+        private static readonly (string Name, int Value)[] ExpectedSdkInventory =
+        {
+            ("Equal", 0),
+            ("NotEqual", 1),
+            ("GreaterThan", 2),
+            ("LessThan", 3),
+            ("GreaterEqual", 4),
+            ("LessEqual", 5),
+            ("Like", 6),
+            ("NotLike", 7),
+            ("In", 8),
+            ("NotIn", 9),
+            ("Between", 10),
+            ("NotBetween", 11),
+            ("Null", 12),
+            ("NotNull", 13),
+            ("Yesterday", 14),
+            ("Today", 15),
+            ("Tomorrow", 16),
+            ("Last7Days", 17),
+            ("Next7Days", 18),
+            ("LastWeek", 19),
+            ("ThisWeek", 20),
+            ("NextWeek", 21),
+            ("LastMonth", 22),
+            ("ThisMonth", 23),
+            ("NextMonth", 24),
+            ("On", 25),
+            ("OnOrBefore", 26),
+            ("OnOrAfter", 27),
+            ("LastYear", 28),
+            ("ThisYear", 29),
+            ("NextYear", 30),
+            ("LastXHours", 31),
+            ("NextXHours", 32),
+            ("LastXDays", 33),
+            ("NextXDays", 34),
+            ("LastXWeeks", 35),
+            ("NextXWeeks", 36),
+            ("LastXMonths", 37),
+            ("NextXMonths", 38),
+            ("LastXYears", 39),
+            ("NextXYears", 40),
+            ("EqualUserId", 41),
+            ("NotEqualUserId", 42),
+            ("EqualBusinessId", 43),
+            ("NotEqualBusinessId", 44),
+            ("ChildOf", 45),
+            ("Mask", 46),
+            ("NotMask", 47),
+            ("MasksSelect", 48),
+            ("Contains", 49),
+            ("DoesNotContain", 50),
+            ("EqualUserLanguage", 51),
+            ("NotOn", 52),
+            ("OlderThanXMonths", 53),
+            ("BeginsWith", 54),
+            ("DoesNotBeginWith", 55),
+            ("EndsWith", 56),
+            ("DoesNotEndWith", 57),
+            ("ThisFiscalYear", 58),
+            ("ThisFiscalPeriod", 59),
+            ("NextFiscalYear", 60),
+            ("NextFiscalPeriod", 61),
+            ("LastFiscalYear", 62),
+            ("LastFiscalPeriod", 63),
+            ("LastXFiscalYears", 64),
+            ("LastXFiscalPeriods", 65),
+            ("NextXFiscalYears", 66),
+            ("NextXFiscalPeriods", 67),
+            ("InFiscalYear", 68),
+            ("InFiscalPeriod", 69),
+            ("InFiscalPeriodAndYear", 70),
+            ("InOrBeforeFiscalPeriodAndYear", 71),
+            ("InOrAfterFiscalPeriodAndYear", 72),
+            ("EqualUserTeams", 73),
+            ("EqualUserOrUserTeams", 74),
+            ("Under", 75),
+            ("NotUnder", 76),
+            ("UnderOrEqual", 77),
+            ("Above", 78),
+            ("AboveOrEqual", 79),
+            ("EqualUserOrUserHierarchy", 80),
+            ("EqualUserOrUserHierarchyAndTeams", 81),
+            ("OlderThanXYears", 82),
+            ("OlderThanXWeeks", 83),
+            ("OlderThanXDays", 84),
+            ("OlderThanXHours", 85),
+            ("OlderThanXMinutes", 86),
+            ("ContainValues", 87),
+            ("DoesNotContainValues", 88),
+        };
+
+        // -----------------------------------------------------------------------
+        // The registry coverage, measured against the SDK enum itself
+        // -----------------------------------------------------------------------
+
+        /// <summary>
+        /// How many of the SDK's 89 condition operators this engine can evaluate, as of ADO-2346.
+        ///
+        /// <para>
+        /// <b>This number is the contract.</b>  It is checked by walking
+        /// <see cref="ConditionOperator"/> by reflection, deriving each member's canonical identity
+        /// with the production frontend's own rule, and asking a bootstrapped registry whether it
+        /// answers — never by counting registry keys (aliases and duplicates would inflate it),
+        /// never by counting evaluator classes (one class serves several operators), and never by
+        /// trusting a list of names written by hand.
+        /// </para>
+        /// </summary>
+        private const int ExpectedCoveredOperatorCount = 87;
+
+        /// <summary>The SDK inventory this engine is written against: 89 members, values 0-88.</summary>
+        private const int SdkOperatorCount = 89;
+
+        /// <summary>
+        /// The operators expected to be covered, by name.
+        ///
+        /// <para>
+        /// <b>This list is a diagnostic, not the measurement.</b>  Nothing derives coverage from
+        /// it: <see cref="RegisterAll_CoversExactlyEightySevenOfTheSdksEightyNineOperators"/>
+        /// asserts the count produced by reflection, and reads this list only to say <i>which</i>
+        /// members are missing or unexpected when that count is wrong.  A failure that printed
+        /// nothing but "expected 87, got 86" would leave the reader to find the one by hand.
+        /// </para>
+        ///
+        /// <para>
+        /// The 2 it omits are <c>childof</c> and <c>masksselect</c>, and they are omitted for two
+        /// different measured reasons rather than as a family — see the paragraph below.  The
+        /// fifteen fiscal-calendar operators left that list in ADO-2316, the
+        /// seven contextual identity ones — the two user-id, the two business-id,
+        /// <c>equaluserlanguage</c> and the two team ones — in ADO-2326, in ADO-2337 the five
+        /// structural hierarchy ones (<c>above</c>, <c>aboveorequal</c>, <c>under</c>,
+        /// <c>underorequal</c>, <c>notunder</c>) together with the two hybrid identity ones, and in
+        /// ADO-2346 the two bitwise ones.
+        /// </para>
+        ///
+        /// <para>
+        /// <b>Why <c>mask</c> and <c>notmask</c> are here now.</b>  They stood out of this list on
+        /// the belief that answering them would mean modelling Dataverse's access masks, and that
+        /// belief named the wrong thing.  <c>mask</c> is the bitwise predicate
+        /// <c>(value &amp; operand) != 0</c> over the integer value a row holds for <i>any</i>
+        /// integer attribute of <i>any</i> table, and <c>notmask</c> is
+        /// <c>(value &amp; operand) == 0</c> over the same pair; the privilege mask is the most
+        /// famous use of that predicate, not its semantics.  The counterproof is
+        /// <c>systemuser.accessmode</c>: <c>mask 1</c> matches 1, 3 and 5, because each has bit 0
+        /// set, and nothing in answering it reads a privilege, a role or an entitlement.
+        /// </para>
+        ///
+        /// <para>
+        /// <b>Why the two <c>equaluseroruserhierarchy*</c> ones are here now.</b>  They stood out
+        /// of this list while ADO-2326 registered their seven siblings, and the reason recorded at
+        /// the time — "answering them means walking the business-unit hierarchy" — named the wrong
+        /// tree.  The hierarchy these two operators answer for is <c>systemuser</c>'s: the caller
+        /// and every user <i>below</i> them in the manager chain, plus the teams that whole set
+        /// belongs to.  ADO-2336 resolved exactly that set, once per plan, under
+        /// <see cref="OperatorContextRequirement.UserHierarchy"/>; what was missing was never an
+        /// implementation but the hierarchy, and it was never the business unit's.
+        /// </para>
+        ///
+        /// <para>
+        /// <b>And why the two that are left are not here.</b>  Neither is unfinished, and they are
+        /// not one family: each is out for a fact somebody measured.  The SDK reference marks
+        /// <c>ChildOf</c> "for internal use only" and the platform refuses it on every attribute it
+        /// has been tried on (ADO-2307: eight rejections out of eight).  <c>MasksSelect</c> is
+        /// answered with HTTP 400 <c>Unknown Condition Operator</c> on every spelling tried —
+        /// <c>masks-select</c>, <c>masksselect</c>, <c>maskselect</c>, <c>masks_select</c> —
+        /// measured through the FetchXML frontend.  In both cases there is no observed behaviour
+        /// for an evaluator to mirror, and one written anyway would answer a query Dataverse itself
+        /// declines.  They are deliberate non-operators, not unfinished ones.
+        /// </para>
+        /// </summary>
+        private static readonly string[] ExpectedCoverageRoster =
+        {
+            "above",                    // ADO-2337
+            "aboveorequal",             // ADO-2337
+            "beginswith",
+            "between",
+            "contains",
+            "containvalues",
+            "doesnotbeginwith",
+            "doesnotcontain",
+            "doesnotcontainvalues",
+            "doesnotendwith",
+            "endswith",
+            "equal",
+            "equalbusinessid",          // ADO-2326
+            "equaluserid",              // ADO-2326
+            "equaluserlanguage",        // ADO-2326
+            "equaluseroruserhierarchy",          // ADO-2337
+            "equaluseroruserhierarchyandteams",  // ADO-2337
+            "equaluseroruserteams",     // ADO-2326
+            "equaluserteams",           // ADO-2326
+            "greaterequal",
+            "greaterthan",
+            "in",
+            "infiscalperiod",                 // ADO-2316
+            "infiscalperiodandyear",          // ADO-2316
+            "infiscalyear",                   // ADO-2316
+            "inorafterfiscalperiodandyear",   // ADO-2316
+            "inorbeforefiscalperiodandyear",  // ADO-2316
+            "last7days",             // ADO-2292
+            "lastfiscalperiod",      // ADO-2316
+            "lastfiscalyear",        // ADO-2316
+            "lastmonth",             // ADO-2291
+            "lastweek",              // ADO-2291
+            "lastxdays",             // ADO-2292
+            "lastxfiscalperiods",    // ADO-2316
+            "lastxfiscalyears",      // ADO-2316
+            "lastxhours",            // ADO-2292
+            "lastxmonths",           // ADO-2292
+            "lastxweeks",            // ADO-2292
+            "lastxyears",            // ADO-2292
+            "lastyear",              // ADO-2291
+            "lessequal",
+            "lessthan",
+            "like",
+            "mask",                  // ADO-2346
+            "next7days",             // ADO-2292
+            "nextfiscalperiod",      // ADO-2316
+            "nextfiscalyear",        // ADO-2316
+            "nextmonth",             // ADO-2291
+            "nextweek",              // ADO-2291
+            "nextxdays",             // ADO-2292
+            "nextxfiscalperiods",    // ADO-2316
+            "nextxfiscalyears",      // ADO-2316
+            "nextxhours",            // ADO-2292
+            "nextxmonths",           // ADO-2292
+            "nextxweeks",            // ADO-2292
+            "nextxyears",            // ADO-2292
+            "nextyear",              // ADO-2291
+            "notbetween",            // ADO-2290
+            "notequal",
+            "notequalbusinessid",       // ADO-2326
+            "notequaluserid",           // ADO-2326
+            "notin",
+            "notlike",
+            "notmask",               // ADO-2346
+            "notnull",
+            "noton",                 // ADO-2291
+            "notunder",              // ADO-2337
+            "null",
+            "olderthanxdays",        // ADO-2292
+            "olderthanxhours",       // ADO-2292
+            "olderthanxminutes",     // ADO-2292
+            "olderthanxmonths",      // ADO-2292
+            "olderthanxweeks",       // ADO-2292
+            "olderthanxyears",       // ADO-2292
+            "on",                    // ADO-2291
+            "onorafter",             // ADO-2291
+            "onorbefore",            // ADO-2291
+            "thisfiscalperiod",      // ADO-2316
+            "thisfiscalyear",        // ADO-2316
+            "thismonth",             // ADO-2291
+            "thisweek",              // ADO-2291
+            "thisyear",              // ADO-2291
+            "today",                 // ADO-2291
+            "tomorrow",              // ADO-2291
+            "under",                 // ADO-2337
+            "underorequal",          // ADO-2337
+            "yesterday",             // ADO-2291
+        };
+
+        // -----------------------------------------------------------------------
+        // SDK inventory freeze
+        // -----------------------------------------------------------------------
+
+        [Fact]
+        public void ConditionOperator_MatchesThePinnedSdkInventory()
+        {
+            var actual = Enum.GetNames(typeof(ConditionOperator))
+                .Select(name => (Name: name, Value: (int)(ConditionOperator)Enum.Parse(typeof(ConditionOperator), name)))
+                .ToArray();
+
+            // The pin is only visible as an inventory, for the reason the class doc states — but
+            // the assembly the inventory was read from is not, so it is named here.
+            Assert.Equal("Microsoft.Xrm.Sdk", typeof(ConditionOperator).Assembly.GetName().Name);
+
+            Assert.Equal(SdkOperatorCount, actual.Length);
+            Assert.Equal(ExpectedSdkInventory, actual);
+        }
+
+        [Fact]
+        public void ConditionOperator_ValuesAreContiguousFromZero()
+        {
+            var values = Enum.GetValues(typeof(ConditionOperator))
+                .Cast<ConditionOperator>()
+                .Select(v => (int)v)
+                .OrderBy(v => v)
+                .ToArray();
+
+            Assert.Equal(Enumerable.Range(0, SdkOperatorCount).ToArray(), values);
+        }
+
+        [Fact]
+        public void OperatorIdentity_CoversTheWholeSdkInventoryAndNothingElse()
+        {
+            var expected = ExpectedSdkInventory
+                .Select(e => e.Name.ToLowerInvariant())
+                .OrderBy(n => n, StringComparer.Ordinal)
+                .ToArray();
+
+            Assert.Equal(expected, OperatorIdentity.All.ToArray());
+            Assert.All(expected, name => Assert.True(OperatorIdentity.IsCanonical(name)));
+            Assert.False(OperatorIdentity.TryCanonicalize("frobnicate", out _));
+        }
+
+        // -----------------------------------------------------------------------
+        // Registry coverage freeze
+        // -----------------------------------------------------------------------
+
+        /// <summary>
+        /// The coverage claim of ADO-2346, measured the only way that cannot drift: enumerate
+        /// <see cref="ConditionOperator"/> by reflection off the pinned SDK assembly, turn each
+        /// member into its canonical identity with the <b>production frontend's own rule</b>, and
+        /// ask a registry built by <see cref="OperatorEvaluatorBootstrapper.RegisterAll"/> whether
+        /// it answers.  87 of the 89 must.
+        ///
+        /// <para>
+        /// Three ways of getting the same number are deliberately not used here.  Counting the
+        /// registry's keys would count anything registered under a spelling no SDK member carries
+        /// — the exact defect ADO-2286 removed — and would still report 78 the day an alias crept
+        /// back in.  Counting distinct evaluator classes would undercount: one
+        /// <c>CalendarPeriodEvaluator</c> serves nine operators.  And asserting a hand-written list
+        /// of names would freeze the list rather than the engine: the list would be edited to match
+        /// whatever the bootstrapper happened to do, which is how a freeze stops freezing.
+        /// </para>
+        ///
+        /// <para>
+        /// The inventory guards come first on purpose.  If the pin moved and the enum grew a 90th
+        /// member, "87 are covered" would still be true and would still mean something different,
+        /// so the test refuses to interpret the count until it has confirmed the denominator.
+        /// </para>
+        /// </summary>
+        [Fact]
+        public void RegisterAll_CoversExactlyEightySevenOfTheSdksEightyNineOperators()
+        {
+            var members = Enum.GetValues(typeof(ConditionOperator)).Cast<ConditionOperator>().ToArray();
+
+            // The denominator, before anything is read into the numerator.
+            Assert.Equal(SdkOperatorCount, members.Length);
+            Assert.Equal(
+                Enumerable.Range(0, SdkOperatorCount).ToArray(),
+                members.Select(m => (int)m).OrderBy(v => v).ToArray());
+
+            var registry = BootstrappedRegistry();
+
+            var covered = members
+                .Where(m => registry.IsSupported(CanonicalIdentityAsProductionDerivesIt(m)))
+                .Select(m => m.ToString())
+                .OrderBy(n => n, StringComparer.Ordinal)
+                .ToArray();
+
+            var expected = ExpectedCoverageRoster
+                .Select(canonical => members.Single(m => OperatorIdentity.Of(m) == canonical).ToString())
+                .ToArray();
+
+            string diagnosis =
+                $"Expected {ExpectedCoveredOperatorCount} of {SdkOperatorCount} ConditionOperator members to " +
+                $"resolve in the bootstrapped registry, but {covered.Length} did." +
+                Listing("expected but not resolving", expected.Except(covered)) +
+                Listing("resolving but not expected", covered.Except(expected));
+
+            Assert.True(covered.Length == ExpectedCoveredOperatorCount, diagnosis);
+
+            // Same claim, said by name: 87 of a different 87 would pass the count alone.
+            Assert.True(!expected.Except(covered).Any() && !covered.Except(expected).Any(), diagnosis);
+        }
+
+        /// <summary>
+        /// The registration claim of ADO-2346, said on its own so a regression names the operator
+        /// rather than only moving the count: the bitwise pair resolves under the canonical
+        /// identities <c>mask</c> and <c>notmask</c> and under <b>nothing else</b>, to the two
+        /// evaluators written for it and not to a borrowed one.
+        ///
+        /// <para>
+        /// The "nothing else" half is the point the count cannot make.  A registry entry under a
+        /// FetchXml spelling would be a second place coverage is declared — the defect ADO-2286
+        /// removed — and it is unnecessary here: <c>not-mask</c> reaches <c>notmask</c> through
+        /// <see cref="OperatorIdentity.Normalize"/>, which strips the separator, so no alias entry
+        /// in <c>FetchXmlOperatorMap</c> was added or needed.
+        /// </para>
+        /// </summary>
+        [Fact]
+        public void RegisterAll_RegistersTheBitwisePairUnderItsCanonicalIdentitiesAndNothingElse()
+        {
+            var registry = BootstrappedRegistry();
+
+            Assert.IsType<MaskEvaluator>(registry.Resolve("mask"));
+            Assert.IsType<NotMaskEvaluator>(registry.Resolve("notmask"));
+
+            Assert.Equal(OperatorSupportStatus.Supported, registry.SupportOf("mask").Status);
+            Assert.Equal(OperatorSupportStatus.Supported, registry.SupportOf("notmask").Status);
+            Assert.Null(registry.SupportOf("mask").Reason);
+            Assert.Null(registry.SupportOf("notmask").Reason);
+
+            // The identities are the ones production derives, and they are the SDK member names
+            // lowercased — not a spelling invented for the registry.
+            Assert.Equal("mask", CanonicalIdentityAsProductionDerivesIt(ConditionOperator.Mask));
+            Assert.Equal("notmask", CanonicalIdentityAsProductionDerivesIt(ConditionOperator.NotMask));
+
+            // The FetchXml spelling arrives at the same entry without an alias entry existing.
+            Assert.Equal("notmask", FetchXmlOperatorMap.Resolve("not-mask"));
+            Assert.Same(registry.Resolve("notmask"), registry.Resolve(FetchXmlOperatorMap.Resolve("not-mask")));
+
+            // Neither asks for anything the row cannot supply.
+            Assert.Equal(OperatorContextRequirement.None, registry.ContextRequirementsOf("mask"));
+            Assert.Equal(OperatorContextRequirement.None, registry.ContextRequirementsOf("notmask"));
+        }
+
+        /// <summary>
+        /// The other half of the same claim: after ADO-2346 the operators the engine does not
+        /// answer are exactly <c>childof</c> and <c>masksselect</c>, both of them
+        /// <see cref="OperatorSupportStatus.DeliberatelyRejected"/> with the reason the registry
+        /// declares — so there is no operator left that is merely not covered, and a third one
+        /// appearing in either disposition turns this red.
+        /// </summary>
+        [Fact]
+        public void RegisterAll_LeavesChildOfAndMasksSelectAsTheOnlyTwoOperatorsItDoesNotAnswer()
+        {
+            var registry = BootstrappedRegistry();
+
+            var unsupported = OperatorIdentity.All
+                .Where(key => !registry.IsSupported(key))
+                .OrderBy(key => key, StringComparer.Ordinal)
+                .ToArray();
+
+            Assert.Equal(new[] { "childof", "masksselect" }, unsupported);
+
+            Assert.All(unsupported, key =>
+            {
+                var support = registry.SupportOf(key);
+                Assert.Equal(OperatorSupportStatus.DeliberatelyRejected, support.Status);
+                Assert.False(string.IsNullOrWhiteSpace(support.Reason), key);
+            });
+
+            // Nothing is left in the "nobody has got to it" disposition: mask and notmask were the
+            // last two, and ADO-2346 answered them rather than reclassifying them.
+            Assert.Empty(OperatorIdentity.All
+                .Where(key => registry.SupportOf(key).Status == OperatorSupportStatus.NotCovered));
+        }
+
+        /// <summary>
+        /// The identity a member gets in production, derived here exactly as
+        /// <c>QueryExpressionFrontend.TranslateCondition</c> derives it — through
+        /// <see cref="OperatorIdentity.Of"/>, which is the SDK member name lowercased.
+        ///
+        /// <para>
+        /// The second assertion is the point: it pins that <see cref="OperatorIdentity.Of"/> still
+        /// <i>is</i> <c>ToString().ToLowerInvariant()</c>.  Writing the lowercasing out by hand
+        /// instead would measure coverage against a rule the frontend no longer uses, and the test
+        /// would go green while real queries were refused.
+        /// </para>
+        /// </summary>
+        private static string CanonicalIdentityAsProductionDerivesIt(ConditionOperator op)
+        {
+            string canonical = OperatorIdentity.Of(op);
+            Assert.Equal(op.ToString().ToLowerInvariant(), canonical);
+            return canonical;
+        }
+
+        private static string Listing(string label, IEnumerable<string> names)
+        {
+            var list = names.ToArray();
+            return list.Length == 0 ? string.Empty : $"  {label}: {string.Join(", ", list)}.";
+        }
+
+        [Fact]
+        public void RegisterAll_RegistersEveryCoveredOperatorUnderItsCanonicalIdentity()
+        {
+            var registry = BootstrappedRegistry();
+
+            foreach (string canonical in ExpectedCoverageRoster)
+            {
+                Assert.True(OperatorIdentity.IsCanonical(canonical), $"'{canonical}' is not a canonical identity");
+                Assert.NotNull(registry.Resolve(canonical));
+            }
+        }
+
+        [Theory]
+        // Frontend spellings the pre-canonicalisation bootstrapper used to register, and invented
+        // names it registered alongside them.  A registry keyed on these would declare coverage
+        // twice; translating them is FetchXmlOperatorMap's job.  (Hyphenated spellings of an SDK
+        // member name — "not-like", "not-in" — are not in this list: those ARE the operator,
+        // written with separators, and OperatorIdentity resolves them.)
+        [InlineData("eq")]
+        [InlineData("ne")]
+        [InlineData("gt")]
+        [InlineData("ge")]
+        [InlineData("lt")]
+        [InlineData("le")]
+        [InlineData("not-begin-with")]
+        [InlineData("greaterthanorequal")]
+        [InlineData("greaterthanorequals")]
+        [InlineData("lessthanorequal")]
+        [InlineData("lessthanorequals")]
+        // Never an operator of any inventory: the old bootstrapper's misspelling of ContainValues.
+        [InlineData("containsvalues")]
+        // The FetchXml spellings of the seven contextual identity operators (ADO-2326).  They
+        // resolve — FetchXmlOperatorMap translates every one of them — but they are not registry
+        // keys, and a registry that answered them would declare the same coverage twice.
+        [InlineData("eq-userid")]
+        [InlineData("ne-userid")]
+        [InlineData("eq-businessid")]
+        [InlineData("ne-businessid")]
+        [InlineData("eq-userlanguage")]
+        [InlineData("eq-userteams")]
+        [InlineData("eq-useroruserteams")]
+        public void RegisterAll_DoesNotRegisterAliasOrInventedKeys(string key)
+        {
+            Assert.False(BootstrappedRegistry().IsSupported(key));
+        }
+
+        // -----------------------------------------------------------------------
+        // The seven contextual identity operators (ADO-2326)
+        // -----------------------------------------------------------------------
+
+        /// <summary>
+        /// Each of the seven answers under its canonical identity, is bound to the evaluator
+        /// written for it, and declares exactly the context that evaluator reads.
+        ///
+        /// <para>
+        /// The requirement is the load-bearing half.  <c>MockQueryExecutionContextResolver</c>
+        /// resolves precisely what the plan's operators asked for, so an operator that declared
+        /// too little would be handed a context whose field it reads is <c>null</c> — and, by the
+        /// guard those evaluators carry, would answer no rows for every query instead of failing.
+        /// A silent empty result set is the one answer this engine must never give by accident.
+        /// </para>
+        /// </summary>
+        [Theory]
+        [InlineData(ConditionOperator.EqualUserId, "equaluserid", typeof(EqualUserIdEvaluator),
+                    OperatorContextRequirement.UserMembership)]
+        [InlineData(ConditionOperator.NotEqualUserId, "notequaluserid", typeof(NotEqualUserIdEvaluator),
+                    OperatorContextRequirement.UserMembership)]
+        [InlineData(ConditionOperator.EqualBusinessId, "equalbusinessid", typeof(EqualBusinessIdEvaluator),
+                    OperatorContextRequirement.UserMembership)]
+        [InlineData(ConditionOperator.NotEqualBusinessId, "notequalbusinessid", typeof(NotEqualBusinessIdEvaluator),
+                    OperatorContextRequirement.UserMembership)]
+        [InlineData(ConditionOperator.EqualUserLanguage, "equaluserlanguage", typeof(EqualUserLanguageEvaluator),
+                    OperatorContextRequirement.UserLanguage)]
+        [InlineData(ConditionOperator.EqualUserTeams, "equaluserteams", typeof(EqualUserTeamsEvaluator),
+                    OperatorContextRequirement.UserTeams)]
+        [InlineData(ConditionOperator.EqualUserOrUserTeams, "equaluseroruserteams", typeof(EqualUserOrUserTeamsEvaluator),
+                    OperatorContextRequirement.UserMembership | OperatorContextRequirement.UserTeams)]
+        // The two hybrids of ADO-2337.  Each declares UserHierarchy — bit 128 — and NOTHING else:
+        // the separation from UserTeams (bit 64) is the load-bearing part of these two rows, since
+        // the team half of "andteams" is the teams of the WHOLE hierarchy and not the caller's own.
+        [InlineData(ConditionOperator.EqualUserOrUserHierarchy, "equaluseroruserhierarchy",
+                    typeof(EqualUserOrUserHierarchyEvaluator), OperatorContextRequirement.UserHierarchy)]
+        [InlineData(ConditionOperator.EqualUserOrUserHierarchyAndTeams, "equaluseroruserhierarchyandteams",
+                    typeof(EqualUserOrUserHierarchyAndTeamsEvaluator), OperatorContextRequirement.UserHierarchy)]
+        public void ContextualIdentityOperators_AreRegisteredCanonicallyAndDeclareTheContextTheyRead(
+            ConditionOperator op, string canonical, Type expectedEvaluator, OperatorContextRequirement expected)
+        {
+            var registry = BootstrappedRegistry();
+
+            Assert.Equal(canonical, OperatorIdentity.Of(op));
+            Assert.True(OperatorIdentity.IsCanonical(canonical));
+            Assert.True(registry.IsSupported(canonical));
+
+            Assert.IsType(expectedEvaluator, registry.Resolve(canonical));
+            Assert.Equal(expected, registry.ContextRequirementsOf(canonical));
+        }
+
+        /// <summary>
+        /// The count is the guard on the theory above: a tenth contextual registration added
+        /// without a row there would declare whatever it liked and nothing would say so.  It is
+        /// measured off the registry — every key whose evaluator is one of this family — and not
+        /// off the list, which is the same discipline the coverage freeze uses.
+        /// </summary>
+        [Fact]
+        public void TheContextualIdentityFamilyIsNineOperators()
+        {
+            var registry = BootstrappedRegistry();
+
+            var family = OperatorIdentity.All
+                .Where(key => registry.Resolve(key) is ContextualUserEvaluator)
+                .OrderBy(key => key, StringComparer.Ordinal)
+                .ToArray();
+
+            Assert.Equal(
+                new[]
+                {
+                    "equalbusinessid",
+                    "equaluserid",
+                    "equaluserlanguage",
+                    "equaluseroruserhierarchy",
+                    "equaluseroruserhierarchyandteams",
+                    "equaluseroruserteams",
+                    "equaluserteams",
+                    "notequalbusinessid",
+                    "notequaluserid",
+                },
+                family);
+        }
+
+        /// <summary>
+        /// The five structural hierarchy operators of ADO-2337: registered under their canonical
+        /// identity, bound to the evaluator written for each, declaring <b>no</b> execution-context
+        /// requirement — and declaring, through
+        /// <see cref="IHierarchyAwareConditionEvaluator"/>, the one thing they do need.
+        ///
+        /// <para>
+        /// Both halves matter, and the first is the counter-intuitive one.  "Needs nothing from the
+        /// execution context" is the right answer here: where a record sits in a tree has nothing
+        /// to do with who is asking, and an operator of this family that declared a context
+        /// requirement would make every hierarchy query read <c>usersettings</c> to no purpose.
+        /// What it must not be read as is "answerable from the row alone" — which is why the
+        /// capability is asserted beside it, and why it is a separate interface rather than a
+        /// member of <see cref="OperatorContextRequirement"/>: that enum is the input of
+        /// <c>MockQueryExecutionContextResolver.Resolve</c>, which never sees a condition.
+        /// </para>
+        ///
+        /// <para>
+        /// The shape validator is the third half: the pivot is a value the CONDITION carries, so
+        /// "exactly one value, readable as an identifier" is a refusal no store can rescue and it
+        /// belongs before the first row — for the reason <see cref="IConditionShapeValidator"/>
+        /// states in full.
+        /// </para>
+        /// </summary>
+        [Theory]
+        [InlineData(ConditionOperator.Above, "above", typeof(AboveEvaluator))]
+        [InlineData(ConditionOperator.AboveOrEqual, "aboveorequal", typeof(AboveOrEqualEvaluator))]
+        [InlineData(ConditionOperator.Under, "under", typeof(UnderEvaluator))]
+        [InlineData(ConditionOperator.UnderOrEqual, "underorequal", typeof(UnderOrEqualEvaluator))]
+        [InlineData(ConditionOperator.NotUnder, "notunder", typeof(NotUnderEvaluator))]
+        public void StructuralHierarchyOperators_DeclareTheTraversalCapabilityAndNoContextRequirement(
+            ConditionOperator op, string canonical, Type expectedEvaluator)
+        {
+            var registry = BootstrappedRegistry();
+
+            Assert.Equal(canonical, OperatorIdentity.Of(op));
+            Assert.True(OperatorIdentity.IsCanonical(canonical));
+            Assert.True(registry.IsSupported(canonical));
+
+            var evaluator = registry.Resolve(canonical);
+            Assert.IsType(expectedEvaluator, evaluator);
+
+            // The capability, read through the same class that reads the context requirement.
+            Assert.True(OperatorCapabilities.RequiresHierarchy(evaluator));
+            Assert.IsAssignableFrom<IHierarchyAwareConditionEvaluator>(evaluator);
+            Assert.IsAssignableFrom<IConditionShapeValidator>(evaluator);
+
+            Assert.Equal(OperatorContextRequirement.None, registry.ContextRequirementsOf(canonical));
+        }
+
+        /// <summary>
+        /// The capability is declared by those five and by nobody else — in particular not by the
+        /// two hybrid identity operators, which answer about the caller's hierarchy and read it off
+        /// the execution context.  Measured off the registry, so an eleventh hierarchy registration
+        /// cannot slip in without this saying so.
+        /// </summary>
+        [Fact]
+        public void TheStructuralHierarchyFamilyIsFiveOperators()
+        {
+            var registry = BootstrappedRegistry();
+
+            var family = OperatorIdentity.All
+                .Where(key => OperatorCapabilities.RequiresHierarchy(registry.Resolve(key)))
+                .OrderBy(key => key, StringComparer.Ordinal)
+                .ToArray();
+
+            Assert.Equal(
+                new[] { "above", "aboveorequal", "notunder", "under", "underorequal" },
+                family);
+
+            // And the converse, which is the half that would rot silently: the two hybrids read a
+            // hierarchy too, and they must not be reaching it through this door.
+            Assert.False(OperatorCapabilities.RequiresHierarchy(registry.Resolve("equaluseroruserhierarchy")));
+            Assert.False(OperatorCapabilities.RequiresHierarchy(registry.Resolve("equaluseroruserhierarchyandteams")));
+        }
+
+        /// <summary>
+        /// The two hybrid requirements are two bits, and this is where the separation is frozen:
+        /// 128 for the caller's hierarchy, 64 for the caller's own teams, and neither implying the
+        /// other.
+        ///
+        /// <para>
+        /// Folding them together keeps every query running and answers one of the two families
+        /// wrongly — <c>equaluserteams</c> enumerating a hierarchy it never reads, or the hierarchy
+        /// answering with the caller's teams alone.  A wrong set of the right shape is what no
+        /// assertion on cardinality catches, so the bits themselves are asserted.
+        /// </para>
+        /// </summary>
+        [Fact]
+        public void TheHybridRequirementIsBit128AndUserTeamsStaysBit64()
+        {
+            Assert.Equal(128, (int)OperatorContextRequirement.UserHierarchy);
+            Assert.Equal(64, (int)OperatorContextRequirement.UserTeams);
+
+            var registry = BootstrappedRegistry();
+
+            foreach (string canonical in new[] { "equaluseroruserhierarchy", "equaluseroruserhierarchyandteams" })
+            {
+                var declared = registry.ContextRequirementsOf(canonical);
+
+                Assert.Equal(OperatorContextRequirement.UserHierarchy, declared);
+                Assert.False((declared & OperatorContextRequirement.UserTeams) == OperatorContextRequirement.UserTeams);
+            }
+
+            // ...and the team-only operator has not acquired the hierarchy along the way.
+            var teamsOnly = registry.ContextRequirementsOf("equaluserteams");
+            Assert.Equal(OperatorContextRequirement.UserTeams, teamsOnly);
+            Assert.False((teamsOnly & OperatorContextRequirement.UserHierarchy) == OperatorContextRequirement.UserHierarchy);
+        }
+
+        /// <summary>
+        /// The two operators the family stopped short of until ADO-2337, answered now — and
+        /// answered through the FetchXml door too, which is the half that used to be asserted the
+        /// other way round.
+        ///
+        /// <para>
+        /// The freeze this replaces said they were left out because "answering them also means
+        /// walking the business-unit hierarchy".  That named the wrong tree: the hierarchy these
+        /// two operators are about is <c>systemuser</c>'s — the caller and every user below them in
+        /// the manager chain, plus the teams that whole set belongs to — and ADO-2336 resolves it
+        /// once per plan.  The business unit is a third thing again and belongs to
+        /// <see cref="OperatorContextRequirement.UserMembership"/>'s table.
+        /// </para>
+        /// </summary>
+        [Theory]
+        [InlineData(ConditionOperator.EqualUserOrUserHierarchy, "equaluseroruserhierarchy")]
+        [InlineData(ConditionOperator.EqualUserOrUserHierarchyAndTeams, "equaluseroruserhierarchyandteams")]
+        public void HierarchyIdentityOperators_AreAnsweredThroughBothDoors(ConditionOperator op, string canonical)
+        {
+            var registry = BootstrappedRegistry();
+
+            Assert.Equal(canonical, OperatorIdentity.Of(op));
+            Assert.True(registry.IsSupported(canonical));
+            Assert.NotNull(registry.Resolve(canonical));
+
+            // Through the FetchXml door: the map resolves the spelling, and the registry now
+            // answers it — under the canonical key, never under the hyphenated one.
+            string fetchXml = "eq-" + canonical.Substring("equal".Length);
+            Assert.Equal(canonical, FetchXmlOperatorMap.Resolve(fetchXml));
+            Assert.True(FetchXmlOperatorMap.IsSupported(fetchXml, registry));
+            Assert.False(registry.IsSupported(fetchXml));
+        }
+
+        // -----------------------------------------------------------------------
+        // Multi-valued optionset membership is not a substring match
+        // -----------------------------------------------------------------------
+
+        /// <summary>
+        /// ADO-2286 froze these two as unsupported; ADO-2290 gave them evaluators of their own.
+        /// What the freeze was actually protecting survives the change and is asserted here: the
+        /// operators must never resolve to <see cref="ContainsEvaluator"/>, because "this
+        /// multi-select choice contains that option" and "this text contains that substring" are
+        /// different questions, and answering the first with the second returns wrong rows instead
+        /// of refusing the query.
+        /// </summary>
+        [Theory]
+        [InlineData(ConditionOperator.ContainValues, "containvalues", typeof(ContainValuesEvaluator))]
+        [InlineData(ConditionOperator.DoesNotContainValues, "doesnotcontainvalues", typeof(DoesNotContainValuesEvaluator))]
+        public void ContainValuesOperators_AreBoundToAMembershipEvaluatorAndNeverToASubstringOne(
+            ConditionOperator op, string canonical, Type expectedEvaluator)
+        {
+            var registry = BootstrappedRegistry();
+
+            Assert.Equal(canonical, OperatorIdentity.Of(op));
+            Assert.True(registry.IsSupported(canonical));
+
+            var evaluator = registry.Resolve(canonical);
+            Assert.IsType(expectedEvaluator, evaluator);
+            Assert.IsNotType<ContainsEvaluator>(evaluator);
+
+            // The substring evaluator is reachable only through its own operator.
+            Assert.IsType<ContainsEvaluator>(registry.Resolve("contains"));
+        }
+
+        // -----------------------------------------------------------------------
+        // Frontend parity: the whole FetchXml spelling table, same identity or same refusal
+        // -----------------------------------------------------------------------
+
+        /// <summary>
+        /// The FetchXml spelling of every operator of the pinned inventory — the complete table a
+        /// FetchXml query can draw from, not a sample.  Several operators have more than one
+        /// accepted spelling (<c>eq</c> and <c>equal</c>, <c>ne</c>, <c>neq</c> and
+        /// <c>notequal</c>); every one of the 89 SDK members appears at least once, and
+        /// <see cref="FetchXmlSpellingTable_CoversEverySdkOperator"/> is what keeps that true.
+        ///
+        /// <para>
+        /// Spellings whose FetchXml form is the SDK member name with hyphens
+        /// (<c>on-or-before</c>, <c>in-or-after-fiscal-period-and-year</c>) are listed alongside
+        /// the ones that need an alias, because the point of the table is that the frontend
+        /// answers identically for all of them — not that the map happens to carry a row.
+        /// </para>
+        /// </summary>
+        private static readonly (ConditionOperator Operator, string FetchXml)[] FetchXmlSpellings =
+        {
+            (ConditionOperator.Equal,                             "eq"),
+            (ConditionOperator.Equal,                             "equal"),
+            (ConditionOperator.NotEqual,                          "ne"),
+            (ConditionOperator.NotEqual,                          "neq"),
+            (ConditionOperator.NotEqual,                          "notequal"),
+            (ConditionOperator.GreaterThan,                       "gt"),
+            (ConditionOperator.LessThan,                          "lt"),
+            (ConditionOperator.GreaterEqual,                      "ge"),
+            (ConditionOperator.LessEqual,                         "le"),
+            (ConditionOperator.Like,                              "like"),
+            (ConditionOperator.NotLike,                           "not-like"),
+            (ConditionOperator.In,                                "in"),
+            (ConditionOperator.NotIn,                             "not-in"),
+            (ConditionOperator.Between,                           "between"),
+            (ConditionOperator.NotBetween,                        "not-between"),
+            (ConditionOperator.Null,                              "null"),
+            (ConditionOperator.NotNull,                           "not-null"),
+            (ConditionOperator.Yesterday,                         "yesterday"),
+            (ConditionOperator.Today,                             "today"),
+            (ConditionOperator.Tomorrow,                          "tomorrow"),
+            (ConditionOperator.Last7Days,                         "last-seven-days"),
+            (ConditionOperator.Next7Days,                         "next-seven-days"),
+            (ConditionOperator.LastWeek,                          "last-week"),
+            (ConditionOperator.ThisWeek,                          "this-week"),
+            (ConditionOperator.NextWeek,                          "next-week"),
+            (ConditionOperator.LastMonth,                         "last-month"),
+            (ConditionOperator.ThisMonth,                         "this-month"),
+            (ConditionOperator.NextMonth,                         "next-month"),
+            (ConditionOperator.On,                                "on"),
+            (ConditionOperator.OnOrBefore,                        "on-or-before"),
+            (ConditionOperator.OnOrAfter,                         "on-or-after"),
+            (ConditionOperator.NotOn,                             "not-on"),
+            (ConditionOperator.LastYear,                          "last-year"),
+            (ConditionOperator.ThisYear,                          "this-year"),
+            (ConditionOperator.NextYear,                          "next-year"),
+            (ConditionOperator.LastXHours,                        "last-x-hours"),
+            (ConditionOperator.NextXHours,                        "next-x-hours"),
+            (ConditionOperator.LastXDays,                         "last-x-days"),
+            (ConditionOperator.NextXDays,                         "next-x-days"),
+            (ConditionOperator.LastXWeeks,                        "last-x-weeks"),
+            (ConditionOperator.NextXWeeks,                        "next-x-weeks"),
+            (ConditionOperator.LastXMonths,                       "last-x-months"),
+            (ConditionOperator.NextXMonths,                       "next-x-months"),
+            (ConditionOperator.LastXYears,                        "last-x-years"),
+            (ConditionOperator.NextXYears,                        "next-x-years"),
+            (ConditionOperator.EqualUserId,                       "eq-userid"),
+            (ConditionOperator.NotEqualUserId,                    "ne-userid"),
+            (ConditionOperator.EqualBusinessId,                   "eq-businessid"),
+            (ConditionOperator.NotEqualBusinessId,                "ne-businessid"),
+            (ConditionOperator.EqualUserLanguage,                 "eq-userlanguage"),
+            (ConditionOperator.EqualUserTeams,                    "eq-userteams"),
+            (ConditionOperator.EqualUserOrUserTeams,              "eq-useroruserteams"),
+            (ConditionOperator.EqualUserOrUserHierarchy,          "eq-useroruserhierarchy"),
+            (ConditionOperator.EqualUserOrUserHierarchyAndTeams,  "eq-useroruserhierarchyandteams"),
+            (ConditionOperator.ChildOf,                           "child-of"),
+            (ConditionOperator.Mask,                              "mask"),
+            (ConditionOperator.NotMask,                           "not-mask"),
+            (ConditionOperator.MasksSelect,                       "masks-select"),
+            (ConditionOperator.Contains,                          "contains"),
+            (ConditionOperator.DoesNotContain,                    "not-contain"),
+            (ConditionOperator.BeginsWith,                        "begins-with"),
+            (ConditionOperator.DoesNotBeginWith,                  "not-begin-with"),
+            (ConditionOperator.EndsWith,                          "ends-with"),
+            (ConditionOperator.DoesNotEndWith,                    "not-end-with"),
+            (ConditionOperator.ThisFiscalYear,                    "this-fiscal-year"),
+            (ConditionOperator.ThisFiscalPeriod,                  "this-fiscal-period"),
+            (ConditionOperator.NextFiscalYear,                    "next-fiscal-year"),
+            (ConditionOperator.NextFiscalPeriod,                  "next-fiscal-period"),
+            (ConditionOperator.LastFiscalYear,                    "last-fiscal-year"),
+            (ConditionOperator.LastFiscalPeriod,                  "last-fiscal-period"),
+            (ConditionOperator.LastXFiscalYears,                  "last-x-fiscal-years"),
+            (ConditionOperator.LastXFiscalPeriods,                "last-x-fiscal-periods"),
+            (ConditionOperator.NextXFiscalYears,                  "next-x-fiscal-years"),
+            (ConditionOperator.NextXFiscalPeriods,                "next-x-fiscal-periods"),
+            (ConditionOperator.InFiscalYear,                      "in-fiscal-year"),
+            (ConditionOperator.InFiscalPeriod,                    "in-fiscal-period"),
+            (ConditionOperator.InFiscalPeriodAndYear,             "in-fiscal-period-and-year"),
+            (ConditionOperator.InOrBeforeFiscalPeriodAndYear,     "in-or-before-fiscal-period-and-year"),
+            (ConditionOperator.InOrAfterFiscalPeriodAndYear,      "in-or-after-fiscal-period-and-year"),
+            (ConditionOperator.Under,                             "under"),
+            (ConditionOperator.NotUnder,                          "not-under"),
+            (ConditionOperator.UnderOrEqual,                      "eq-or-under"),
+            (ConditionOperator.Above,                             "above"),
+            (ConditionOperator.AboveOrEqual,                      "eq-or-above"),
+            (ConditionOperator.OlderThanXMinutes,                 "olderthan-x-minutes"),
+            (ConditionOperator.OlderThanXHours,                   "olderthan-x-hours"),
+            (ConditionOperator.OlderThanXDays,                    "olderthan-x-days"),
+            (ConditionOperator.OlderThanXWeeks,                   "olderthan-x-weeks"),
+            (ConditionOperator.OlderThanXMonths,                  "olderthan-x-months"),
+            (ConditionOperator.OlderThanXYears,                   "olderthan-x-years"),
+            (ConditionOperator.ContainValues,                     "contain-values"),
+            (ConditionOperator.DoesNotContainValues,              "not-contain-values"),
+        };
+
+        public static IEnumerable<object[]> FetchXmlSpellingTable() =>
+            FetchXmlSpellings.Select(s => new object[] { s.Operator, s.FetchXml });
+
+        public static IEnumerable<object[]> FrontendParityCases() =>
+            FetchXmlSpellings.Select(
+                s => new object[] { s.Operator, s.FetchXml, SampleValuesFor(s.Operator) });
+
+        /// <summary>
+        /// The values a parity case puts in its condition.  A generic "1" used to serve every
+        /// operator, and since ADO-2291 it cannot: the shape of a condition is now validated
+        /// before the first row is read, so an operator that wants a date or a count of values
+        /// other than one refuses the probe itself — and the theory would then be comparing two
+        /// frontends on a malformed query instead of on the operator contract.  So the sample
+        /// value carries the type and the arity its operator asks for.
+        /// </summary>
+        private static string[] SampleValuesFor(ConditionOperator op)
+        {
+            switch (op)
+            {
+                // The four explicit-date operators compare against a date named in the condition,
+                // and ExplicitDateEvaluator.ValidateCondition refuses anything that names no
+                // instant.  The relative date operators are not here: their parameter is a count,
+                // and "1" is a valid one.
+                case ConditionOperator.On:
+                case ConditionOperator.NotOn:
+                case ConditionOperator.OnOrBefore:
+                case ConditionOperator.OnOrAfter:
+                    return new[] { "2026-01-15T00:00:00Z" };
+
+                case ConditionOperator.Null:
+                case ConditionOperator.NotNull:
+                    return new string[0];
+
+                case ConditionOperator.Between:
+                case ConditionOperator.NotBetween:
+                    return new[] { "1", "2" };
+
+                // The fiscal trio names a COORDINATE and carries two values, in the SDK's
+                // documented order: the period number first, the fiscal year second (ADO-2316).
+                // Until ADO-2316 registered them the arity did not matter — an unregistered
+                // operator is refused before any shape is looked at — but a registered one is
+                // validated before the first row, and a single value makes
+                // FiscalPeriodAndYearEvaluator.ValidateCondition throw InvalidOperationException,
+                // which RefusalFrom does not catch and which would fail the theory rather than
+                // answer it.
+                case ConditionOperator.InFiscalPeriodAndYear:
+                case ConditionOperator.InOrBeforeFiscalPeriodAndYear:
+                case ConditionOperator.InOrAfterFiscalPeriodAndYear:
+                    return new[] { "1", "2026" };
+
+                // One value, but a year and not a count: InFiscalYearEvaluator refuses anything
+                // outside 1-9999, and a plausible year says what the operator is for.
+                case ConditionOperator.InFiscalYear:
+                    return new[] { "2026" };
+
+                // The five structural hierarchy operators name a RECORD — the pivot the tree is
+                // walked from — so their single value has to read as an identifier (ADO-2337).
+                // "1" would be refused by their shape validator before the first row, and the
+                // theory would then be comparing two frontends on a malformed query instead of on
+                // the operator contract.
+                case ConditionOperator.Above:
+                case ConditionOperator.AboveOrEqual:
+                case ConditionOperator.Under:
+                case ConditionOperator.UnderOrEqual:
+                case ConditionOperator.NotUnder:
+                    return new[] { "8f14e45f-ceea-467a-9575-1c6aefd5e402" };
+
+                default:
+                    return new[] { "1" };
+            }
+        }
+
+        /// <summary>
+        /// An operator of the inventory with no FetchXml spelling in the table above is an
+        /// operator nobody checked the frontends agree on.
+        /// </summary>
+        [Fact]
+        public void FetchXmlSpellingTable_CoversEverySdkOperator()
+        {
+            var covered = FetchXmlSpellings
+                .Select(s => s.Operator.ToString())
+                .Distinct()
+                .OrderBy(n => n, StringComparer.Ordinal)
+                .ToArray();
+
+            var expected = ExpectedSdkInventory
+                .Select(e => e.Name)
+                .OrderBy(n => n, StringComparer.Ordinal)
+                .ToArray();
+
+            Assert.Equal(expected, covered);
+        }
+
+        [Theory]
+        [MemberData(nameof(FetchXmlSpellingTable))]
+        public void BothFrontends_ProduceTheSameIdentity(ConditionOperator op, string fetchXmlOperator)
+        {
+            Assert.Equal(OperatorIdentity.Of(op), FetchXmlOperatorMap.Resolve(fetchXmlOperator));
+        }
+
+        [Theory]
+        [MemberData(nameof(FrontendParityCases))]
+        public void BothFrontends_AgreeOnSupportAndOnRefusal(
+            ConditionOperator op, string fetchXmlOperator, string[] values)
+        {
+            var registry = BootstrappedRegistry();
+
+            bool supportedViaQueryExpression = registry.IsSupported(OperatorIdentity.Of(op));
+            bool supportedViaFetchXml = FetchXmlOperatorMap.IsSupported(fetchXmlOperator, registry);
+
+            Assert.Equal(supportedViaQueryExpression, supportedViaFetchXml);
+
+            // Same answer from the shared rejection point whichever door the query came through:
+            // the same operator in the same exception when unsupported, null on both when not.
+            Assert.Equal(
+                RefusalFrom(QueryExpressionPlan(op, values)),
+                RefusalFrom(FetchXmlPlan(fetchXmlOperator, values)));
+        }
+
+        [Fact]
+        public void ProductionChain_AcceptsContainValuesIdenticallyOnBothFrontends()
+        {
+            // The chain production builds: bootstrapped registry → InMemoryExecutor → frontends
+            // constructed with no arguments (PluginRunnerService, FrameworkOrganizationServiceAdapter).
+            // ADO-2286 asserted here that this chain refused contain-values; ADO-2290 registered an
+            // evaluator for it, so the chain must now accept it — through both doors, or neither.
+            var values = SampleValuesFor(ConditionOperator.ContainValues);
+
+            Assert.Null(RefusalFrom(QueryExpressionPlan(ConditionOperator.ContainValues, values)));
+            Assert.Null(RefusalFrom(FetchXmlPlan("contain-values", values)));
+        }
+
+        /// <summary>
+        /// The refusal half of the same claim, kept on an operator that still has no evaluator:
+        /// an engine that accepts everything would pass the test above while having stopped
+        /// refusing anything.
+        /// </summary>
+        [Theory]
+        // The rows are the two operators nothing is coming for, which is what makes them last.
+        // Above and Under stood on the first and last rows until ADO-2337 registered the five
+        // structural hierarchy operators — and ThisFiscalYear and LastXFiscalPeriods stood on two
+        // more until ADO-2316 registered the fiscal family: rows lost in two nodes, each chosen
+        // because some brief had put its family outside its perimeter, which is a fact about a plan
+        // and not about the operator.  Mask and NotMask were the same kind of bet and went the same
+        // way in ADO-2346: they were kept here on the belief that answering them needed Dataverse's
+        // access-mask model, and they need nothing of the sort — `mask` is
+        // `(value & operand) != 0` over the integer value a row holds for any integer attribute of
+        // any table, and the privilege mask is that predicate's most famous use, not its meaning.
+        //
+        // What is left does not depend on anyone's perimeter, and it is two separate measurements
+        // rather than a family.  ChildOf is marked "for internal use only" by the SDK reference and
+        // the platform refuses it on every attribute it has been tried on (ADO-2307), so there is
+        // no observed behaviour an evaluator could mirror — it is a deliberate non-operator and not
+        // an unfinished one, and that is why it did NOT come along with the hierarchy family it
+        // used to be listed beside.  MasksSelect is answered with HTTP 400 'Unknown Condition
+        // Operator' on every spelling tried, measured through the FetchXML frontend, so there is no
+        // behaviour to mirror there either — and that is a different fact from ChildOf's, not
+        // another member of one uncovered family.
+        //
+        // LastXDays stood here before all of them and was the wrong kind of choice — unregistered
+        // on the ADO-2291 branch, but registered by ADO-2292 on its own, so the freeze went red
+        // only once the two were integrated, and neither branch could see it alone.
+        [InlineData(ConditionOperator.MasksSelect, "masks-select", "masksselect")]
+        [InlineData(ConditionOperator.ChildOf, "child-of", "childof")]
+        public void ProductionChain_RefusesAnUnregisteredOperatorIdenticallyOnBothFrontends(
+            ConditionOperator op, string fetchXmlOperator, string canonical)
+        {
+            var values = SampleValuesFor(op);
+
+            var qeRefusal = RefusalFrom(QueryExpressionPlan(op, values));
+            var fetchRefusal = RefusalFrom(FetchXmlPlan(fetchXmlOperator, values));
+
+            Assert.Equal($"{canonical} on statuscode", qeRefusal);
+            Assert.Equal(qeRefusal, fetchRefusal);
+        }
+
+        /// <summary>
+        /// The refusal witness that no future node can register away: a name that is not a member
+        /// of the SDK enum at all — <c>(ConditionOperator)9999</c> on the QueryExpression side, an
+        /// invented keyword on the FetchXml one.
+        ///
+        /// <para>
+        /// <b>Why this exists beside the theory above.</b>  Every witness that theory has ever used
+        /// was an operator of the inventory that happened to have no evaluator yet, and three of
+        /// them have since been registered — twice by a sibling node of the same swarm, so the
+        /// freeze went red only at integration.  The two rows left are durable on the merits, but
+        /// "durable on the merits" is a judgement, and this one is not: the identity space is
+        /// <i>exactly</i> the pinned enum, so a member outside it cannot become supported without
+        /// the pin moving, which <see cref="ConditionOperator_MatchesThePinnedSdkInventory"/>
+        /// already refuses.
+        /// </para>
+        ///
+        /// <para>
+        /// The refusal lands in a different place on each side, and that is the point rather than
+        /// an asymmetry to paper over: the FetchXml frontend cannot even name the operator, so it
+        /// refuses while building the plan, whereas a cast integer survives translation and is
+        /// refused by <see cref="OperatorIdentity.Of"/> inside it.  Both raise the same exception
+        /// type carrying the same spelling the caller wrote.
+        /// </para>
+        /// </summary>
+        [Fact]
+        public void ProductionChain_RefusesANameOutsideTheSdkInventoryOnBothFrontends()
+        {
+            var outsideTheEnum = (ConditionOperator)9999;
+
+            var qeEx = Assert.Throws<NotSupportedQueryOperatorException>(
+                () => QueryExpressionPlan(outsideTheEnum, new[] { "1" }));
+            Assert.Equal("9999", qeEx.OperatorName);
+
+            var fetchEx = Assert.Throws<NotSupportedQueryOperatorException>(
+                () => FetchXmlPlan("frobnicate", new[] { "1" }));
+            Assert.Equal("frobnicate", fetchEx.OperatorName);
+
+            // Neither spelling is a registry key, and neither resolves to one.
+            var registry = BootstrappedRegistry();
+            Assert.False(registry.IsSupported("9999"));
+            Assert.False(registry.IsSupported("frobnicate"));
+            Assert.False(OperatorIdentity.TryCanonicalize("frobnicate", out _));
+        }
+
+        // -----------------------------------------------------------------------
+        // Helpers — the production chain, assembled exactly as production assembles it
+        // -----------------------------------------------------------------------
+
+        private static ConditionEvaluatorRegistry BootstrappedRegistry()
+        {
+            var registry = new ConditionEvaluatorRegistry();
+            OperatorEvaluatorBootstrapper.RegisterAll(registry);
+            return registry;
+        }
+
+        private static MockQueryPlan QueryExpressionPlan(ConditionOperator op, string[] values)
+        {
+            var qe = new QueryExpression("account");
+            qe.Criteria.AddCondition("statuscode", op, values);
+            return new QueryExpressionFrontend().BuildPlan(qe);
+        }
+
+        private static MockQueryPlan FetchXmlPlan(string fetchXmlOperator, string[] values)
+        {
+            // One value is the attribute form and any other count is the <value> child form:
+            // the two are the same condition to the frontend, but only the second can carry
+            // none or two.
+            string condition = values.Length == 1
+                ? $"<condition attribute=\"statuscode\" operator=\"{fetchXmlOperator}\" value=\"{values[0]}\"/>"
+                : $"<condition attribute=\"statuscode\" operator=\"{fetchXmlOperator}\">"
+                  + string.Concat(values.Select(v => $"<value>{v}</value>"))
+                  + "</condition>";
+
+            string xml =
+                "<fetch><entity name=\"account\"><filter>" + condition + "</filter></entity></fetch>";
+
+            return new FetchXmlFrontend().BuildPlan(new FetchExpression(xml));
+        }
+
+        /// <summary>
+        /// Runs the plan through the shared rejection point and returns the refusal as
+        /// "operator on attribute", or <c>null</c> when the plan was accepted.
+        ///
+        /// <para>
+        /// A hierarchy that cannot be resolved is a refusal of a different kind and is reported as
+        /// one rather than escaping: the store here is empty, so the five structural operators of
+        /// ADO-2337 cannot name a target entity and are refused before the first row — on both
+        /// frontends, identically, which is exactly the claim the callers are making.  Letting it
+        /// escape would fail the parity theory instead of answering it.
+        /// </para>
+        /// </summary>
+        private static string? RefusalFrom(MockQueryPlan plan)
+        {
+            var executor = new InMemoryExecutor(BootstrappedRegistry());
+
+            try
+            {
+                executor.Execute(plan, new EmptyDataSource()).ToList();
+                return null;
+            }
+            catch (NotSupportedQueryOperatorException ex)
+            {
+                return $"{ex.OperatorName} on {ex.AttributeName}";
+            }
+            catch (MockHierarchyResolutionException ex)
+            {
+                return $"unresolvable hierarchy: {ex.Message}";
+            }
+        }
+
+        private sealed class EmptyDataSource : IDataSource
+        {
+            public IEnumerable<Entity> GetEntities(string logicalName) => new List<Entity>();
+
+            public Entity GetById(string logicalName, Guid id) => null!;
+        }
+    }
+}

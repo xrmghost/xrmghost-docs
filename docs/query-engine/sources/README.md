@@ -11,8 +11,10 @@ l'engine dichiara, e non si inventa. La matrice generata
 (`../operator-support-matrix.generated.md`) risponde a «quali operatori, con quale disposizione, e
 con quale contesto richiesto», ma **non** contiene due cose che la pagina deve dire al cliente:
 
-- **la grafia FetchXML** di ogni operatore — è quella che il cliente scrive, e sta in
-  `FetchXmlOperatorMap`;
+- **la grafia FetchXML** di ogni operatore — è quella che il cliente scrive. `FetchXmlOperatorMap`
+  porta le sole grafie che la normalizzazione non raggiunge da sé; l'elenco completo, operatore per
+  operatore, sta in `OperatorContractTests`, che è anche l'unico posto dove è visibile il **pin di
+  pacchetto** (l'assembly dice `9.0.0.0` qualunque versione l'abbia portato);
 - **cosa succede se il contesto non c'è** — i default documentati e la traccia, non un errore —
   che sta nel risolutore del contesto di esecuzione.
 
@@ -30,6 +32,7 @@ evoluzione continua, quindi una copia datata e firmata costa meno di un'infrastr
 | `NotSupportedQueryOperatorException.cs.txt` | che cosa legge chi incontra un rifiuto |
 | `MockQueryExecutionContext.cs.txt` | cosa contiene il contesto di esecuzione |
 | `MockQueryExecutionContextResolver.cs.txt` | come il contesto si risolve, e i default quando i record non ci sono |
+| `OperatorContractTests.cs.txt` | l'inventario congelato: le grafie FetchXML di tutti gli 89 operatori e il pin di pacchetto `Microsoft.CrmSdk.CoreAssemblies` 9.0.2.45 |
 
 ## Se un giorno l'engine cambia
 
