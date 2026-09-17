@@ -1,0 +1,167 @@
+using System;
+using XrmGhost.FrameworkHost.QueryEngine.Abstractions;
+
+namespace XrmGhost.FrameworkHost.QueryEngine.Exceptions
+{
+    /// <summary>
+    /// Thrown when the QueryEngine encounters an operator that has no registered
+    /// <c>IConditionEvaluator</c> or that is structurally unsupported by the current
+    /// query frontend or executor.
+    ///
+    /// <para>
+    /// <b>A refusal says which kind of refusal it is (ADO-2345).</b>  <see cref="Status"/> and
+    /// <see cref="Reason"/> carry the registry's own declaration, and when there is a reason it is
+    /// appended to <see cref="Exception.Message"/> — because the caller who reads the message in a
+    /// log is exactly the one who cannot inspect the properties.  The sentence that was already
+    /// emitted stays the prefix, unchanged: a consumer matching on it keeps matching.
+    /// </para>
+    /// </summary>
+    public sealed class NotSupportedQueryOperatorException : Exception
+    {
+        /// <summary>
+        /// The operator identifier that triggered this exception.
+        /// </summary>
+        public string OperatorName { get; }
+
+        /// <summary>
+        /// Optional attribute name that the unsupported operator was applied to.
+        /// May be <c>null</c> when the operator is rejected before attribute resolution.
+        /// </summary>
+        public string? AttributeName { get; }
+
+        /// <summary>
+        /// What the registry had declared about the operator.
+        /// <see cref="OperatorSupportStatus.DeliberatelyRejected"/> when the engine refuses it on
+        /// purpose, and <see cref="OperatorSupportStatus.NotCovered"/> — the value the three
+        /// original constructors leave — when nothing was declared about it, which is also the
+        /// honest answer for a name that is not an operator at all.
+        /// </summary>
+        public OperatorSupportStatus Status { get; }
+
+        /// <summary>
+        /// Why the engine refuses the operator, when the refusal is deliberate; <c>null</c> for an
+        /// operator that is simply not covered.
+        /// </summary>
+        public string? Reason { get; }
+
+        /// <summary>
+        /// Initializes a new instance with the operator name that caused the failure.
+        /// </summary>
+        /// <param name="operatorName">The unsupported operator identifier.</param>
+        public NotSupportedQueryOperatorException(string operatorName)
+            : this(operatorName, null, WithoutAttribute(operatorName), OperatorSupportStatus.NotCovered, null, null)
+        {
+        }
+
+        /// <summary>
+        /// Initializes a new instance with the operator name and the attribute it was applied to.
+        /// </summary>
+        /// <param name="operatorName">The unsupported operator identifier.</param>
+        /// <param name="attributeName">The attribute the operator was applied to.</param>
+        public NotSupportedQueryOperatorException(string operatorName, string attributeName)
+            : this(operatorName, attributeName, WithAttribute(operatorName, attributeName), OperatorSupportStatus.NotCovered, null, null)
+        {
+        }
+
+        /// <summary>
+        /// Initializes a new instance with full context: operator, attribute, and an inner cause.
+        /// </summary>
+        /// <param name="operatorName">The unsupported operator identifier.</param>
+        /// <param name="attributeName">The attribute the operator was applied to.</param>
+        /// <param name="innerException">The exception that caused this failure.</param>
+        public NotSupportedQueryOperatorException(string operatorName, string attributeName, Exception innerException)
+            : this(operatorName, attributeName, WithAttribute(operatorName, attributeName), OperatorSupportStatus.NotCovered, null, innerException)
+        {
+        }
+
+        /// <summary>
+        /// Initializes a new instance carrying the registry's declaration about the operator.
+        /// </summary>
+        /// <param name="operatorName">The unsupported operator identifier.</param>
+        /// <param name="attributeName">
+        /// The attribute the operator was applied to, or <c>null</c> when the operator is rejected
+        /// before attribute resolution.
+        /// </param>
+        /// <param name="support">
+        /// What the registry declares about the operator. A <c>null</c> declaration is read as
+        /// <see cref="OperatorSupportStatus.NotCovered"/>.
+        /// </param>
+        public NotSupportedQueryOperatorException(string operatorName, string? attributeName, OperatorSupport? support)
+            : this(
+                operatorName,
+                attributeName,
+                attributeName == null ? WithoutAttribute(operatorName) : WithAttribute(operatorName, attributeName),
+                support == null ? OperatorSupportStatus.NotCovered : support.Status,
+                support?.Reason,
+                null)
+        {
+        }
+
+        /// <summary>
+        /// Initializes a new instance carrying the registry's declaration about the operator and an
+        /// inner cause.
+        /// </summary>
+        /// <param name="operatorName">The unsupported operator identifier.</param>
+        /// <param name="attributeName">
+        /// The attribute the operator was applied to, or <c>null</c> when the operator is rejected
+        /// before attribute resolution.
+        /// </param>
+        /// <param name="support">
+        /// What the registry declares about the operator. A <c>null</c> declaration is read as
+        /// <see cref="OperatorSupportStatus.NotCovered"/>.
+        /// </param>
+        /// <param name="innerException">The exception that caused this failure.</param>
+        public NotSupportedQueryOperatorException(
+            string operatorName, string? attributeName, OperatorSupport? support, Exception innerException)
+            : this(
+                operatorName,
+                attributeName,
+                attributeName == null ? WithoutAttribute(operatorName) : WithAttribute(operatorName, attributeName),
+                support == null ? OperatorSupportStatus.NotCovered : support.Status,
+                support?.Reason,
+                innerException)
+        {
+        }
+
+        private NotSupportedQueryOperatorException(
+            string operatorName,
+            string? attributeName,
+            string baseMessage,
+            OperatorSupportStatus status,
+            string? reason,
+            Exception? innerException)
+            : base(Append(baseMessage, reason), innerException)
+        {
+            OperatorName = operatorName;
+            AttributeName = attributeName;
+            Status = status;
+            Reason = reason;
+        }
+
+        /// <summary>The sentence emitted when the operator was rejected before attribute resolution.</summary>
+        private static string WithoutAttribute(string operatorName)
+        {
+            return $"Query operator '{operatorName}' is not supported by the QueryEngine.";
+        }
+
+        /// <summary>The sentence emitted when the attribute the operator was applied to is known.</summary>
+        private static string WithAttribute(string operatorName, string? attributeName)
+        {
+            return $"Query operator '{operatorName}' on attribute '{attributeName}' is not supported by the QueryEngine.";
+        }
+
+        /// <summary>
+        /// The sentence this exception has always emitted, with the registry's reason appended to
+        /// it when there is one.
+        ///
+        /// <para>
+        /// Appended and not substituted: the prefix is what every existing consumer and test reads,
+        /// and a message rewritten around the reason would make the new information cost the old.
+        /// </para>
+        /// </summary>
+        private static string Append(string baseMessage, string? reason)
+        {
+            return string.IsNullOrWhiteSpace(reason) ? baseMessage : baseMessage + " " + reason;
+        }
+    }
+}

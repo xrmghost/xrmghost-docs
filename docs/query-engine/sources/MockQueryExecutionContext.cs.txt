@@ -1,0 +1,668 @@
+using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Linq;
+
+namespace XrmGhost.FrameworkHost.QueryEngine.Context
+{
+    /// <summary>
+    /// The instant source the QueryEngine evaluates against.
+    ///
+    /// <para>
+    /// It exists so that "now" is an <i>injected</i> value rather than a reading each operator
+    /// takes for itself: two conditions of the same query must not land on two different
+    /// instants, and a test must be able to state the instant instead of tolerating it.
+    /// </para>
+    ///
+    /// <para>
+    /// <b>It is the QueryEngine's clock and nothing else.</b>  Telemetry timestamps and execution
+    /// durations stay on <see cref="DateTime.UtcNow"/>: routing those through this clock would let
+    /// a fixed test instant silently report a plugin that ran in zero milliseconds.
+    /// </para>
+    /// </summary>
+    public interface IMockQueryClock
+    {
+        /// <summary>The current instant, in UTC.</summary>
+        DateTime UtcNow { get; }
+    }
+
+    /// <summary>
+    /// The clock of a process that is not under test: it reads the machine.
+    /// </summary>
+    public sealed class SystemMockQueryClock : IMockQueryClock
+    {
+        /// <summary>The shared instance; the type carries no state.</summary>
+        public static readonly IMockQueryClock Instance = new SystemMockQueryClock();
+
+        /// <inheritdoc/>
+        public DateTime UtcNow
+        {
+            get { return DateTime.UtcNow; }
+        }
+    }
+
+    /// <summary>
+    /// A clock pinned to one instant, for tests and for any caller that needs a query evaluated
+    /// "as of" a stated moment.
+    /// </summary>
+    public sealed class FixedMockQueryClock : IMockQueryClock
+    {
+        /// <summary>
+        /// Pins the clock to <paramref name="utcNow"/>.  A <see cref="DateTimeKind.Local"/> value
+        /// is converted; an unspecified one is taken as already being UTC, because guessing the
+        /// machine's zone here is the non-determinism this type exists to remove.
+        /// </summary>
+        public FixedMockQueryClock(DateTime utcNow)
+        {
+            if (utcNow.Kind == DateTimeKind.Local)
+                utcNow = utcNow.ToUniversalTime();
+
+            UtcNow = DateTime.SpecifyKind(utcNow, DateTimeKind.Utc);
+        }
+
+        /// <inheritdoc/>
+        public DateTime UtcNow { get; private set; }
+    }
+
+    /// <summary>
+    /// How long one fiscal period of the organisation's fiscal calendar lasts, i.e. the
+    /// <c>organization.fiscalperiodtype</c> value.
+    ///
+    /// <para>
+    /// The five integers are the ratified inventory of that attribute and the enum is declared on
+    /// them directly, so <c>2000</c> is written once in this repository and the resolver names the
+    /// same numbers by naming these members.  <b>It is not a picklist:</b> the attribute is a
+    /// full-range <c>Integer</c> whose <c>stringmap</c> carries no rows, so there is no option set
+    /// to interrogate and no sixth value to discover — anything outside this inventory is invalid
+    /// configuration, not an option this host has not heard of yet.
+    /// </para>
+    /// </summary>
+    public enum FiscalPeriodType
+    {
+        /// <summary>One period per fiscal year.</summary>
+        Annually = 2000,
+
+        /// <summary>Two periods per fiscal year.</summary>
+        Semiannually = 2001,
+
+        /// <summary>Four periods per fiscal year.</summary>
+        Quarterly = 2002,
+
+        /// <summary>Twelve periods per fiscal year.</summary>
+        Monthly = 2003,
+
+        /// <summary>Thirteen four-week periods per fiscal year.</summary>
+        Quadriweekly = 2004
+    }
+
+    /// <summary>
+    /// Who is asking, as the host already knows it: the identity carried by the plugin execution
+    /// context, handed to the resolver instead of being guessed from the store.
+    ///
+    /// <para>
+    /// <b>This is the whole point of stating a caller.</b>  Without one, "the caller's settings"
+    /// can only mean "the first <c>usersettings</c> record the registry hands back", which is
+    /// correct exactly as long as a scenario declares one user — and silently answers with
+    /// somebody else's time zone, business unit, language or teams the moment it declares two.
+    /// The identity comes from <c>ExecutionContext.UserId</c> (<c>user_id_guid</c>), the user the
+    /// plugin runs <i>as</i>, and not from <c>InitiatingUserId</c>, which is who triggered it: on
+    /// an impersonated step those are two different people, and Dataverse resolves these records
+    /// for the former.
+    /// </para>
+    ///
+    /// <para>
+    /// <see cref="BusinessUnitId"/> comes from <c>ExecutionContext.BusinessUnitId</c>
+    /// (<c>business_unit_id_guid</c>) and is the <i>first</i> answer about the caller's business
+    /// unit, not the only one: when the context does not state it, the resolver goes to the
+    /// records.  It is carried here rather than looked up because a value the host was handed
+    /// cannot be improved on by reading a mock.
+    /// </para>
+    /// </summary>
+    public sealed class MockQueryCaller
+    {
+        /// <summary>
+        /// The caller nobody stated: every identity-shaped question falls back to the records, and
+        /// a question that cannot be answered without an identity — the caller's teams — answers
+        /// empty with a warning rather than picking a row.
+        /// </summary>
+        public static readonly MockQueryCaller Unknown = new MockQueryCaller(null, null);
+
+        /// <summary>
+        /// Builds a caller from already-parsed identifiers.  <see cref="Guid.Empty"/> is
+        /// normalised to <c>null</c> in both positions: the gRPC contract makes these fields
+        /// optional and the adapters render an absent one as <see cref="Guid.Empty"/>, so an empty
+        /// GUID means "unstated" and must not be matched against a record.
+        /// </summary>
+        public MockQueryCaller(Guid? userId, Guid? businessUnitId)
+        {
+            UserId = userId.HasValue && userId.Value != Guid.Empty ? userId : null;
+            BusinessUnitId = businessUnitId.HasValue && businessUnitId.Value != Guid.Empty ? businessUnitId : null;
+        }
+
+        /// <summary>
+        /// Builds a caller from the two <c>ExecutionContextData</c> strings, which is the shape
+        /// both production bootstraps hold them in.  A value that is absent, blank or not a GUID
+        /// leaves that half unstated: the identity of the caller is not the place to throw, and a
+        /// malformed one is indistinguishable from an unstated one as far as reading records goes.
+        /// </summary>
+        /// <param name="userIdGuid">The <c>user_id_guid</c> field, or <c>null</c>.</param>
+        /// <param name="businessUnitIdGuid">The <c>business_unit_id_guid</c> field, or <c>null</c>.</param>
+        public static MockQueryCaller From(string? userIdGuid, string? businessUnitIdGuid)
+        {
+            return new MockQueryCaller(Parse(userIdGuid), Parse(businessUnitIdGuid));
+        }
+
+        private static Guid? Parse(string? value)
+        {
+            Guid parsed;
+            return !string.IsNullOrWhiteSpace(value) && Guid.TryParse(value, out parsed)
+                ? (Guid?)parsed
+                : null;
+        }
+
+        /// <summary>The user the plugin runs as, or <c>null</c> when the context stated none.</summary>
+        public Guid? UserId { get; private set; }
+
+        /// <summary>
+        /// The business unit the execution context states for the caller, or <c>null</c> when it
+        /// states none — in which case the resolver reads it from the records.
+        /// </summary>
+        public Guid? BusinessUnitId { get; private set; }
+
+        /// <summary>
+        /// <c>true</c> when the caller can be used to pick a record.  It is
+        /// <see cref="UserId"/> and only that: a business unit identifies a group, not the person
+        /// whose settings, language and teams are being asked for.
+        /// </summary>
+        public bool IsKnown
+        {
+            get { return UserId.HasValue; }
+        }
+    }
+
+    /// <summary>
+    /// The execution context a query is evaluated in: the instant, the caller's time zone, the
+    /// organisation's first day of the week and fiscal calendar, and the caller's membership,
+    /// language, teams and user hierarchy.
+    ///
+    /// <para>
+    /// Every field here is something a <i>row</i> cannot supply — it comes from the environment
+    /// the query runs in.  Dataverse answers these questions from the <c>usersettings</c>,
+    /// <c>systemuser</c>, <c>teammembership</c> and <c>organization</c> records, and so does
+    /// <see cref="MockQueryExecutionContextResolver"/>: the mock host reads them out of the entity
+    /// registry, which is where a scenario's records live.  <b>Which caller they are read for is
+    /// stated</b> — see <see cref="MockQueryCaller"/> — rather than taken as "the first record of
+    /// that kind", which is the same answer only while a scenario has one user.
+    /// </para>
+    ///
+    /// <para>
+    /// <b>This is not a licence surface.</b>  A context requirement says what an operator needs to
+    /// know, never what the caller is entitled to; nothing in this type or its resolver consults a
+    /// tier, a licence flag or an entitlement.
+    /// </para>
+    /// </summary>
+    public sealed class MockQueryExecutionContext
+    {
+        /// <summary>
+        /// The offset used when no <c>usersettings</c> record states one: UTC.
+        /// </summary>
+        public static readonly TimeSpan DefaultUtcOffset = TimeSpan.Zero;
+
+        /// <summary>
+        /// The first day of the week used when no <c>organization</c> record states one: Monday.
+        /// </summary>
+        public const DayOfWeek DefaultWeekStartDay = DayOfWeek.Monday;
+
+        /// <summary>
+        /// The fiscal period length used when no <c>organization</c> record states a usable one:
+        /// monthly.
+        /// </summary>
+        public const FiscalPeriodType DefaultFiscalPeriod = FiscalPeriodType.Monthly;
+
+        /// <summary>
+        /// The fiscal year start used when no <c>organization</c> record states a usable one:
+        /// the first of January, i.e. a fiscal year that is the calendar year.
+        ///
+        /// <para>
+        /// It takes the year from <paramref name="localNow"/> so that the fallback reads, at the
+        /// point it is built, as the year the query is being evaluated in — but <b>the year does
+        /// not reach any answer</b>, and nothing here may be written as though it did:
+        /// <c>FiscalCalendarModel</c> keeps only the month and the day of the anchor and rebuilds
+        /// each fiscal year start from the year it is asking about, quadriweekly periods included,
+        /// since their 28-day steps restart from that year's own start.  A 1 January pinned to any
+        /// arbitrary year would therefore give identical results <b>from the model</b> — and only
+        /// from the model: <see cref="FiscalCalendarStartUtc"/> does carry the year, and pinning
+        /// the anchor to year 1 would make it clamp to <see cref="DateTime.MinValue"/> for every
+        /// caller east of UTC — silently, which is why the resolver refuses such an anchor at the
+        /// door instead.  This is said explicitly because
+        /// the opposite claim — that the pinned year would move a period boundary — is the kind of
+        /// invented dependency someone later either preserves for nothing, or honours by changing
+        /// the model, which is where it would stop being harmless.
+        /// </para>
+        /// </summary>
+        /// <param name="localNow">The evaluation instant in the caller's zone.</param>
+        public static DateTime DefaultFiscalCalendarStartFor(DateTime localNow)
+        {
+            return new DateTime(localNow.Year, 1, 1, 0, 0, 0, DateTimeKind.Unspecified);
+        }
+
+        /// <summary>
+        /// Builds a context from already-resolved values.
+        /// </summary>
+        /// <param name="utcNow">The instant the query is evaluated at, from the injected clock.</param>
+        /// <param name="utcOffset">The caller's offset from UTC; <see cref="TimeSpan.Zero"/> means UTC.</param>
+        /// <param name="timeZoneCode">The raw <c>usersettings.timezonecode</c> value, or <c>null</c> when unknown.</param>
+        /// <param name="weekStartDay">The organisation's first day of the week.</param>
+        /// <param name="userId">The caller, from <c>usersettings.systemuserid</c>, or <c>null</c>.</param>
+        /// <param name="businessUnitId">The caller's business unit, from <c>usersettings.businessunitid</c>, or <c>null</c>.</param>
+        /// <param name="organizationId">The organisation, from <c>organization.organizationid</c>, or <c>null</c>.</param>
+        public MockQueryExecutionContext(
+            DateTime utcNow,
+            TimeSpan utcOffset,
+            int? timeZoneCode,
+            DayOfWeek weekStartDay,
+            Guid? userId,
+            Guid? businessUnitId,
+            Guid? organizationId)
+            : this(
+                utcNow,
+                utcOffset,
+                timeZoneCode,
+                weekStartDay,
+                userId,
+                businessUnitId,
+                organizationId,
+                DefaultFiscalCalendarStartFor(DateTime.SpecifyKind(utcNow + utcOffset, DateTimeKind.Unspecified)),
+                DefaultFiscalPeriod)
+        {
+        }
+
+        /// <summary>
+        /// Builds a context from already-resolved values, fiscal calendar included.
+        /// </summary>
+        /// <param name="utcNow">The instant the query is evaluated at, from the injected clock.</param>
+        /// <param name="utcOffset">The caller's offset from UTC; <see cref="TimeSpan.Zero"/> means UTC.</param>
+        /// <param name="timeZoneCode">The raw <c>usersettings.timezonecode</c> value, or <c>null</c> when unknown.</param>
+        /// <param name="weekStartDay">The organisation's first day of the week.</param>
+        /// <param name="userId">The caller, from <c>usersettings.systemuserid</c>, or <c>null</c>.</param>
+        /// <param name="businessUnitId">The caller's business unit, from <c>usersettings.businessunitid</c>, or <c>null</c>.</param>
+        /// <param name="organizationId">The organisation, from <c>organization.organizationid</c>, or <c>null</c>.</param>
+        /// <param name="fiscalCalendarStartLocal">
+        /// The organisation's fiscal year start as <c>organization.fiscalcalendarstart</c> states
+        /// it: a date in the caller's local time, not an instant.  The kind is forced to
+        /// <see cref="DateTimeKind.Unspecified"/>, because a local date that claims to be UTC is
+        /// exactly the confusion <see cref="FiscalCalendarStartUtc"/> exists to resolve.
+        /// </param>
+        /// <param name="fiscalPeriod">The organisation's fiscal period length.</param>
+        public MockQueryExecutionContext(
+            DateTime utcNow,
+            TimeSpan utcOffset,
+            int? timeZoneCode,
+            DayOfWeek weekStartDay,
+            Guid? userId,
+            Guid? businessUnitId,
+            Guid? organizationId,
+            DateTime fiscalCalendarStartLocal,
+            FiscalPeriodType fiscalPeriod)
+            : this(
+                utcNow,
+                utcOffset,
+                timeZoneCode,
+                weekStartDay,
+                userId,
+                businessUnitId,
+                organizationId,
+                fiscalCalendarStartLocal,
+                fiscalPeriod,
+                null,
+                null,
+                null,
+                null)
+        {
+        }
+
+        /// <summary>
+        /// Builds a context from already-resolved values, the caller's language and teams
+        /// included, and the caller's user hierarchy left unstated.
+        /// </summary>
+        /// <param name="utcNow">The instant the query is evaluated at, from the injected clock.</param>
+        /// <param name="utcOffset">The caller's offset from UTC; <see cref="TimeSpan.Zero"/> means UTC.</param>
+        /// <param name="timeZoneCode">The raw <c>usersettings.timezonecode</c> value, or <c>null</c> when unknown.</param>
+        /// <param name="weekStartDay">The organisation's first day of the week.</param>
+        /// <param name="userId">The caller, or <c>null</c>.</param>
+        /// <param name="businessUnitId">The caller's business unit, or <c>null</c>.</param>
+        /// <param name="organizationId">The organisation, from <c>organization.organizationid</c>, or <c>null</c>.</param>
+        /// <param name="fiscalCalendarStartLocal">
+        /// The organisation's fiscal year start as <c>organization.fiscalcalendarstart</c> states
+        /// it: a date in the caller's local time, not an instant.
+        /// </param>
+        /// <param name="fiscalPeriod">The organisation's fiscal period length.</param>
+        /// <param name="userLanguageId">
+        /// The caller's <c>usersettings.uilanguageid</c>, or <c>null</c> when unknown.
+        /// </param>
+        /// <param name="userTeamIds">
+        /// The teams the caller belongs to, or <c>null</c> for "none known" — which is the same
+        /// answer as an empty sequence, because a caller with no teams and a caller whose teams
+        /// nobody stated must both make a team filter match nothing rather than match everything.
+        /// </param>
+        public MockQueryExecutionContext(
+            DateTime utcNow,
+            TimeSpan utcOffset,
+            int? timeZoneCode,
+            DayOfWeek weekStartDay,
+            Guid? userId,
+            Guid? businessUnitId,
+            Guid? organizationId,
+            DateTime fiscalCalendarStartLocal,
+            FiscalPeriodType fiscalPeriod,
+            int? userLanguageId,
+            IEnumerable<Guid>? userTeamIds)
+            : this(
+                utcNow,
+                utcOffset,
+                timeZoneCode,
+                weekStartDay,
+                userId,
+                businessUnitId,
+                organizationId,
+                fiscalCalendarStartLocal,
+                fiscalPeriod,
+                userLanguageId,
+                userTeamIds,
+                null,
+                null)
+        {
+        }
+
+        /// <summary>
+        /// Builds a context from already-resolved values, the caller's user hierarchy included.
+        /// It is the one constructor that assigns: the shorter overloads exist so that a caller
+        /// who has nothing to say about a portion of the context does not have to write out its
+        /// default, and they reach their defaults through here rather than beside it.
+        /// </summary>
+        /// <param name="utcNow">The instant the query is evaluated at, from the injected clock.</param>
+        /// <param name="utcOffset">The caller's offset from UTC; <see cref="TimeSpan.Zero"/> means UTC.</param>
+        /// <param name="timeZoneCode">The raw <c>usersettings.timezonecode</c> value, or <c>null</c> when unknown.</param>
+        /// <param name="weekStartDay">The organisation's first day of the week.</param>
+        /// <param name="userId">The caller, or <c>null</c>.</param>
+        /// <param name="businessUnitId">The caller's business unit, or <c>null</c>.</param>
+        /// <param name="organizationId">The organisation, from <c>organization.organizationid</c>, or <c>null</c>.</param>
+        /// <param name="fiscalCalendarStartLocal">
+        /// The organisation's fiscal year start as <c>organization.fiscalcalendarstart</c> states
+        /// it: a date in the caller's local time, not an instant.
+        /// </param>
+        /// <param name="fiscalPeriod">The organisation's fiscal period length.</param>
+        /// <param name="userLanguageId">
+        /// The caller's <c>usersettings.uilanguageid</c>, or <c>null</c> when unknown.
+        /// </param>
+        /// <param name="userTeamIds">
+        /// The teams the caller belongs to, or <c>null</c> for "none known".
+        /// </param>
+        /// <param name="userHierarchyIds">
+        /// The caller and every user below them, or <c>null</c> for "not resolved" — which is the
+        /// same answer as an empty sequence, for the reason <paramref name="userTeamIds"/> is.
+        /// <b>The caller is a member of their own hierarchy</b> and the resolver puts them there;
+        /// this constructor stores what it is handed rather than adding them, because a context
+        /// built directly by a test must be able to state an empty set and get one.
+        /// </param>
+        /// <param name="userHierarchyTeamIds">
+        /// The teams that whole set belongs to, deduplicated, or <c>null</c> for "not resolved".
+        /// </param>
+        public MockQueryExecutionContext(
+            DateTime utcNow,
+            TimeSpan utcOffset,
+            int? timeZoneCode,
+            DayOfWeek weekStartDay,
+            Guid? userId,
+            Guid? businessUnitId,
+            Guid? organizationId,
+            DateTime fiscalCalendarStartLocal,
+            FiscalPeriodType fiscalPeriod,
+            int? userLanguageId,
+            IEnumerable<Guid>? userTeamIds,
+            IEnumerable<Guid>? userHierarchyIds,
+            IEnumerable<Guid>? userHierarchyTeamIds)
+        {
+            UtcNow = utcNow;
+            UtcOffset = utcOffset;
+            TimeZoneCode = timeZoneCode;
+            WeekStartDay = weekStartDay;
+            UserId = userId;
+            BusinessUnitId = businessUnitId;
+            OrganizationId = organizationId;
+            FiscalCalendarStartLocal = DateTime.SpecifyKind(fiscalCalendarStartLocal, DateTimeKind.Unspecified);
+            FiscalPeriod = fiscalPeriod;
+            UserLanguageId = userLanguageId;
+
+            // Copied, and never aliased to what the caller passed: the context is resolved once
+            // for a whole plan and read by every condition of it, so a list an evaluator could
+            // still be holding a reference to would let one condition change what the next one
+            // sees.
+            UserTeamIds = Freeze(userTeamIds);
+
+            // Frozen for the reason above, and it matters more here than anywhere else in this
+            // type: these two are the only sets a plan resolves from a traversal, so the list the
+            // resolver built is still in its hand when the context is returned. Aliasing it would
+            // let the next plan's traversal append to the set this one is being evaluated against.
+            UserHierarchyIds = Freeze(userHierarchyIds);
+            UserHierarchyTeamIds = Freeze(userHierarchyTeamIds);
+        }
+
+        /// <summary>
+        /// The "nothing here" answer for every identifier set of this type, shared because it
+        /// carries no state — and a read-only view for the same reason the populated sets are one:
+        /// an empty set that could be written through is a set the first plan to find it empty
+        /// could fill for everybody after it.
+        /// </summary>
+        private static readonly IReadOnlyList<Guid> NoTeams =
+            new ReadOnlyCollection<Guid>(new Guid[0]);
+
+        /// <summary>
+        /// A private copy of <paramref name="values"/>, exposed through a view that cannot write
+        /// back to it.
+        ///
+        /// <para>
+        /// The copy and the view answer two different attacks and both are needed.  Copying stops
+        /// whoever handed the sequence over from mutating the context afterwards; the
+        /// <see cref="ReadOnlyCollection{T}"/> stops whoever <i>reads</i> the context from
+        /// mutating it, which a bare array does not — <c>IReadOnlyList&lt;Guid&gt;</c> is a
+        /// promise of the static type only, and a <c>Guid[]</c> behind it is still writable
+        /// through <c>IList&lt;Guid&gt;</c> by anybody who casts.
+        /// </para>
+        /// </summary>
+        private static IReadOnlyList<Guid> Freeze(IEnumerable<Guid>? values)
+        {
+            if (values == null) return NoTeams;
+
+            var copy = values.ToArray();
+            return copy.Length == 0 ? NoTeams : new ReadOnlyCollection<Guid>(copy);
+        }
+
+        /// <summary>The instant the query is evaluated at, as given by the injected clock.</summary>
+        public DateTime UtcNow { get; private set; }
+
+        /// <summary>
+        /// The caller's offset from UTC, derived from <c>usersettings.timezonebias</c>.
+        /// <see cref="TimeSpan.Zero"/> — the default — means UTC.
+        /// </summary>
+        public TimeSpan UtcOffset { get; private set; }
+
+        /// <summary>
+        /// The raw <c>usersettings.timezonecode</c> value when the record carried one, otherwise
+        /// <c>null</c>.  Kept unmapped on purpose: the code is a Dataverse zone index, and turning
+        /// it into a zone is a table this host has no authoritative copy of.
+        /// </summary>
+        public int? TimeZoneCode { get; private set; }
+
+        /// <summary>The organisation's first day of the week; Monday when unknown.</summary>
+        public DayOfWeek WeekStartDay { get; private set; }
+
+        /// <summary>The calling user, or <c>null</c> when no <c>usersettings</c> record named one.</summary>
+        public Guid? UserId { get; private set; }
+
+        /// <summary>The calling user's business unit, or <c>null</c> when unknown.</summary>
+        public Guid? BusinessUnitId { get; private set; }
+
+        /// <summary>The organisation, or <c>null</c> when no <c>organization</c> record was found.</summary>
+        public Guid? OrganizationId { get; private set; }
+
+        /// <summary>
+        /// The organisation's fiscal year start, as <c>organization.fiscalcalendarstart</c> holds
+        /// it: <b>a date in the caller's local time</b>, kind
+        /// <see cref="DateTimeKind.Unspecified"/>.  1 January of the current year when unknown.
+        /// </summary>
+        public DateTime FiscalCalendarStartLocal { get; private set; }
+
+        /// <summary>The organisation's fiscal period length; monthly when unknown.</summary>
+        public FiscalPeriodType FiscalPeriod { get; private set; }
+
+        /// <summary>
+        /// The caller's interface language as <c>usersettings.uilanguageid</c> states it — an LCID
+        /// such as 1033 or 1040 — or <c>null</c> when no record stated one.
+        ///
+        /// <para>
+        /// Kept raw, for the reason <see cref="TimeZoneCode"/> is: turning an LCID into a culture
+        /// is a table this host has no authoritative copy of, and an operator comparing languages
+        /// compares the numbers Dataverse compares.  <b>It is not <c>localeid</c></b>, which is the
+        /// formatting locale and a different attribute of the same record.
+        /// </para>
+        /// </summary>
+        public int? UserLanguageId { get; private set; }
+
+        /// <summary>
+        /// The teams the caller belongs to, from the <c>teammembership</c> intersect; empty — never
+        /// <c>null</c> — when the caller belongs to none, when no record stated any, or when no
+        /// caller was stated at all.
+        ///
+        /// <para>
+        /// Empty is a documented answer and not a missing one: an operator filtering on the
+        /// caller's teams must return no rows here rather than invent a membership, which is the
+        /// same discipline <see cref="HasMembership"/> states for the caller's identity.
+        /// </para>
+        /// </summary>
+        public IReadOnlyList<Guid> UserTeamIds { get; private set; }
+
+        /// <summary>
+        /// The caller and <b>every user below them</b> in the <c>systemuser</c> hierarchy — the
+        /// population the <c>equaluseroruserhierarchy</c> family answers for; empty — never
+        /// <c>null</c> — when no caller could be established, and the caller alone when they
+        /// manage nobody.
+        ///
+        /// <para>
+        /// <b>Descendants, not ancestors, and not a business unit.</b>  The set runs down the
+        /// manager chain: it is who the caller can see, not who can see the caller.  Reading it as
+        /// the caller's managers, or as the members of their business unit, produces a set of the
+        /// right shape and the wrong people, which no assertion on its cardinality would catch.
+        /// </para>
+        ///
+        /// <para>
+        /// <b>Empty is an answer, and "the caller alone" is a different one.</b>  A flat hierarchy
+        /// leaves exactly one element here; no caller at all leaves none, and an operator filtering
+        /// on this set must then match no rows rather than fall back to matching everything — the
+        /// same discipline <see cref="UserTeamIds"/> and <see cref="HasMembership"/> state.
+        /// </para>
+        /// </summary>
+        public IReadOnlyList<Guid> UserHierarchyIds { get; private set; }
+
+        /// <summary>
+        /// The teams <see cref="UserHierarchyIds"/> — the caller <i>and</i> their descendants —
+        /// belong to, from the <c>teammembership</c> intersect, deduplicated across the whole set;
+        /// empty, never <c>null</c>.
+        ///
+        /// <para>
+        /// <b>It is not a superset of <see cref="UserTeamIds"/> by construction, and must not be
+        /// read as one.</b>  The two are resolved for different populations and only when their own
+        /// requirement was declared: a plan that asked for the hierarchy and not for
+        /// <see cref="Abstractions.OperatorContextRequirement.UserTeams"/> leaves <see cref="UserTeamIds"/>
+        /// empty while this one is populated, which is correct — an unasked-for question has no
+        /// answer — and would look like a contradiction to anyone expecting containment.
+        /// </para>
+        /// </summary>
+        public IReadOnlyList<Guid> UserHierarchyTeamIds { get; private set; }
+
+        /// <summary>
+        /// <see cref="FiscalCalendarStartLocal"/> as the instant it actually is, i.e. that local
+        /// midnight shifted out of the caller's zone; equal to it when the context defaulted to
+        /// UTC.
+        ///
+        /// <para>
+        /// It is derived from <see cref="UtcOffset"/> here rather than carried as a second stored
+        /// field for the same reason <see cref="LocalNow"/> is: two fields holding the same moment
+        /// in two zones can be set inconsistently, and an operator comparing a fiscal boundary
+        /// against <see cref="UtcNow"/> would then be comparing against a boundary nobody resolved.
+        /// The whole point of the flag is that this shift happens — reading
+        /// <c>fiscalcalendarstart</c> as if it were already UTC moves every fiscal year boundary
+        /// by the caller's offset, which is invisible in the middle of a year and wrong on its
+        /// first and last day.
+        /// </para>
+        /// </summary>
+        /// <remarks>
+        /// The shift is clamped and not thrown when it leaves the range, which is the same
+        /// discipline — and the same three lines — as <c>FiscalCalendarModel.ToUtcClamped</c>: an
+        /// anchor at the very start of the range subtracted by a positive offset underflows, and a
+        /// property that reads a resolved value has no business throwing at a caller who only
+        /// asked what the boundary is. The resolver refuses such an anchor at the door, so this is
+        /// the second lock rather than the first; both exist because a context can also be built
+        /// directly, and a scenario builder that leaves the field at <c>default(DateTime)</c> is
+        /// the way that happens by accident.
+        /// </remarks>
+        public DateTime FiscalCalendarStartUtc
+        {
+            get
+            {
+                var local = FiscalCalendarStartLocal;
+
+                if (local == DateTime.MinValue || local == DateTime.MaxValue)
+                    return DateTime.SpecifyKind(local, DateTimeKind.Utc);
+
+                try
+                {
+                    return DateTime.SpecifyKind(local - UtcOffset, DateTimeKind.Utc);
+                }
+                catch (ArgumentOutOfRangeException)
+                {
+                    return DateTime.SpecifyKind(
+                        UtcOffset > TimeSpan.Zero ? DateTime.MinValue : DateTime.MaxValue,
+                        DateTimeKind.Utc);
+                }
+            }
+        }
+
+        /// <summary>
+        /// <c>false</c> when nothing is known about who is asking — the "no membership" default.
+        /// An operator that filters on the caller's ownership must answer "no rows" here rather
+        /// than inventing an identity.
+        /// </summary>
+        public bool HasMembership
+        {
+            get { return UserId.HasValue || BusinessUnitId.HasValue; }
+        }
+
+        /// <summary>
+        /// <see cref="UtcNow"/> shifted into the caller's zone; equal to <see cref="UtcNow"/> when
+        /// the context defaulted to UTC.
+        /// </summary>
+        public DateTime LocalNow
+        {
+            get { return DateTime.SpecifyKind(UtcNow + UtcOffset, DateTimeKind.Unspecified); }
+        }
+
+        /// <summary>
+        /// The context used when nothing was found — or nothing was asked for: UTC, week starting
+        /// Monday, a fiscal year that is the calendar year in monthly periods, no membership.  It
+        /// is a value, not a failure: a missing record leaves the mock host answering queries,
+        /// with a trace line saying what it fell back to.
+        /// </summary>
+        public static MockQueryExecutionContext Defaults(DateTime utcNow)
+        {
+            return new MockQueryExecutionContext(
+                utcNow,
+                DefaultUtcOffset,
+                null,
+                DefaultWeekStartDay,
+                null,
+                null,
+                null);
+        }
+    }
+}

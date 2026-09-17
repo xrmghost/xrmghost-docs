@@ -1,0 +1,534 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using Microsoft.Xrm.Sdk;
+using Microsoft.Xrm.Sdk.Query;
+using XrmGhost.FrameworkHost.QueryEngine.Exceptions;
+using XrmGhost.FrameworkHost.QueryEngine.IR;
+
+namespace XrmGhost.FrameworkHost.QueryEngine.Abstractions
+{
+    /// <summary>
+    /// Evaluates a single <see cref="ConditionNode"/> against an <see cref="Entity"/> instance.
+    /// Each implementation handles a specific condition operator type.
+    /// </summary>
+    public interface IConditionEvaluator
+    {
+        /// <summary>
+        /// Determines whether the given <paramref name="entity"/> satisfies
+        /// the condition described by <paramref name="condition"/>.
+        /// </summary>
+        /// <param name="entity">The entity record to evaluate.</param>
+        /// <param name="condition">The condition node describing operator, attribute, and value.</param>
+        /// <returns><c>true</c> if the entity satisfies the condition; otherwise <c>false</c>.</returns>
+        bool Evaluate(Entity entity, ConditionNode condition);
+    }
+
+    /// <summary>
+    /// What an operator needs to know that the row cannot tell it.
+    ///
+    /// <para>
+    /// Some operators are answerable from the record alone — <c>equal</c>, <c>like</c>,
+    /// <c>greaterthan</c>.  Others are not: "created this week" needs an instant and a first day
+    /// of the week, "owned by me" needs to know who is asking.  Those answers come from the
+    /// execution context, and this enum is how an evaluator says which parts of it to resolve.
+    /// </para>
+    ///
+    /// <para>
+    /// <b>A requirement is not an entitlement.</b>  Nothing here names a tier, a licence or a
+    /// plan, and nothing downstream turns a requirement into a refusal: an operator that needs
+    /// context and finds none is evaluated against documented defaults, not gated.  Keeping the
+    /// two apart is deliberate — the moment "this operator needs the caller's identity" can be
+    /// read as "this operator is Pro", a mock query becomes a paywall.
+    /// </para>
+    /// </summary>
+    [Flags]
+    public enum OperatorContextRequirement
+    {
+        /// <summary>Answerable from the row alone.  This is every v1 scalar operator.</summary>
+        None = 0,
+
+        /// <summary>Needs "now" — and needs every condition of the query to agree on it.</summary>
+        CurrentInstant = 1,
+
+        /// <summary>Needs the caller's time zone, i.e. the <c>usersettings</c> record.</summary>
+        UserTimeZone = 2,
+
+        /// <summary>Needs the organisation's first day of the week, i.e. the <c>organization</c> record.</summary>
+        WeekStart = 4,
+
+        /// <summary>Needs to know who is asking: the caller and the business unit they belong to.</summary>
+        UserMembership = 8,
+
+        /// <summary>
+        /// Needs the organisation's fiscal calendar — where its fiscal year starts and how long a
+        /// fiscal period is — i.e. the <c>organization</c> record, the same one
+        /// <see cref="WeekStart"/> reads.
+        ///
+        /// <para>
+        /// It is a flag of its own rather than a widening of <see cref="WeekStart"/> because the
+        /// two are asked for separately: <c>thisweek</c> wants the first day of the week and
+        /// nothing else, <c>thisfiscalyear</c> wants the fiscal anchor and nothing else, and an
+        /// operator that declared both would make every week query read a fiscal calendar it never
+        /// looks at.  That they land on one record is the resolver's business, and it reads that
+        /// record once for both.
+        /// </para>
+        ///
+        /// <para>
+        /// <b>It carries the caller's offset with it.</b>  <c>organization.fiscalcalendarstart</c>
+        /// is a date in the user's local time, so resolving it without an offset would silently
+        /// read it as UTC; the resolver therefore reads <c>usersettings</c> for this requirement
+        /// too, exactly as it does for <see cref="UserTimeZone"/>.  An operator that needs the
+        /// fiscal calendar does not have to also declare <see cref="UserTimeZone"/> to be answered
+        /// in the right zone.
+        /// </para>
+        /// </summary>
+        FiscalCalendar = 16,
+
+        /// <summary>
+        /// Needs the caller's interface language, i.e. <c>usersettings.uilanguageid</c> — the LCID
+        /// an operator such as <c>eq-userlanguage</c> compares a row against.
+        ///
+        /// <para>
+        /// <b>It is <c>uilanguageid</c> and not <c>localeid</c>.</b>  The two sit side by side on
+        /// the same record and both look like "the user's language": <c>localeid</c> is the
+        /// formatting locale, <c>uilanguageid</c> is the language the interface — and the operator
+        /// — speaks.  Reading the wrong one answers with a plausible number that Dataverse would
+        /// never have matched on, which is why the attribute is named here and not inferred.
+        /// </para>
+        /// </summary>
+        UserLanguage = 32,
+
+        /// <summary>
+        /// Needs the teams the caller belongs to, i.e. the <c>teammembership</c> intersect table,
+        /// read on its two columns <c>systemuserid</c> and <c>teamid</c> and nothing else.
+        ///
+        /// <para>
+        /// It is separate from <see cref="UserMembership"/> because the two are answered from
+        /// different records — the caller and their business unit come from the caller's own row,
+        /// the teams from an intersect that has one row per membership — and an operator that
+        /// wants only "who is asking" must not make every such query enumerate an intersect it
+        /// never reads.
+        /// </para>
+        /// </summary>
+        UserTeams = 64,
+
+        /// <summary>
+        /// Needs the caller's user hierarchy: the calling <c>systemuser</c> and <b>every user
+        /// below them</b>, plus the teams that whole set belongs to.
+        ///
+        /// <para>
+        /// <b>Descendants, never ancestors.</b>  The operators behind it —
+        /// <c>equaluseroruserhierarchy</c> and <c>equaluseroruserhierarchyandteams</c> — answer
+        /// "mine and my reports'", so the traversal runs down the manager chain from the caller.
+        /// Walking it upwards would return the caller's managers, which is a different and
+        /// plausible-looking answer nothing would flag; and the business-unit hierarchy is a
+        /// third thing again, belonging to <see cref="UserMembership"/>'s table and not to this
+        /// one.
+        /// </para>
+        ///
+        /// <para>
+        /// <b>Why 128 and not a widening of <see cref="UserTeams"/>.</b>  64 is already "the teams
+        /// of the caller", and the two are answered for different populations: the hybrid family
+        /// needs the teams of the caller <i>and of every descendant</i>, so folding them together
+        /// would either make <c>equaluserteams</c> enumerate a hierarchy it never reads, or make
+        /// the hierarchy answer with the caller's teams alone.  Both keep working and both answer
+        /// wrongly, which is why they are two bits.
+        /// </para>
+        ///
+        /// <para>
+        /// <b>It carries the identity with it,</b> the way <see cref="FiscalCalendar"/> carries the
+        /// offset: a set of users can only be walked from a user, so when the execution context
+        /// states no caller the resolver reads <c>usersettings</c> to establish who is asking,
+        /// exactly as it already does for <see cref="UserTeams"/>.
+        /// </para>
+        /// </summary>
+        UserHierarchy = 128
+    }
+
+    /// <summary>
+    /// The capability an evaluator declares about itself.  Implement it alongside
+    /// <see cref="IConditionEvaluator"/> when the operator cannot be answered from the row alone;
+    /// an evaluator that does not implement it is taken to require nothing, which is the honest
+    /// default rather than an omission.
+    ///
+    /// <para>
+    /// This is the single declaration of "what does this operator need": the registry reports it
+    /// (<see cref="IConditionEvaluatorRegistry.ContextRequirementsOf"/>) and the executor resolves
+    /// exactly that much context.  A hand-written list of context-hungry operator names kept
+    /// beside the registry would be a second answer to the same question, and the two would drift
+    /// the first time an operator was added — which is precisely the shape ADO-2286 removed from
+    /// the frontends.
+    /// </para>
+    /// </summary>
+    public interface IOperatorCapabilities
+    {
+        /// <summary>The parts of the execution context this evaluator reads.</summary>
+        OperatorContextRequirement ContextRequirements { get; }
+    }
+
+    /// <summary>
+    /// An evaluator that is handed the resolved
+    /// <see cref="Context.MockQueryExecutionContext"/> at evaluation time.
+    ///
+    /// <para>
+    /// It exists so that context reaches an operator as an <i>argument</i>: an evaluator that
+    /// reads <see cref="DateTime.UtcNow"/> or the ambient user for itself cannot be pinned by a
+    /// test, and two conditions of one query would disagree about when "now" was.
+    /// </para>
+    /// </summary>
+    public interface IContextAwareConditionEvaluator : IConditionEvaluator
+    {
+        /// <summary>
+        /// Evaluates <paramref name="condition"/> against <paramref name="entity"/> in
+        /// <paramref name="context"/>.
+        /// </summary>
+        bool Evaluate(Entity entity, ConditionNode condition, Context.MockQueryExecutionContext context);
+    }
+
+    /// <summary>
+    /// An evaluator that is handed a resolved <see cref="Hierarchy.MockHierarchyResult"/> — the
+    /// ancestors and the descendants of the record its condition names — at evaluation time.
+    ///
+    /// <para>
+    /// It is the capability the five structural hierarchy operators declare about themselves, and
+    /// it is what <see cref="Execution.InMemoryExecutor"/> asks: an evaluator that implements it
+    /// needs the traversal, one that does not never causes a record to be walked.  The executor
+    /// therefore keeps no list of "operators that need the hierarchy" — that would be a second
+    /// answer to a question the evaluator already answers, and the two would drift the first time
+    /// a sixth structural operator arrived, in the shape ADO-2286 removed from the frontends.
+    /// </para>
+    ///
+    /// <para>
+    /// <b>Why this is not a member of <see cref="OperatorContextRequirement"/>.</b>  That enum is
+    /// the input of <c>MockQueryExecutionContextResolver.Resolve(requirements, dataSource)</c>,
+    /// which answers for the <i>caller</i> and never sees the conditions of the plan; the
+    /// traversal these operators need is a question about a pivot a condition names, and there is
+    /// one answer per pivot rather than one per query.  A flag there would have to be masked out
+    /// again before the resolver was called, which is the shape of a declaration made in the wrong
+    /// vocabulary.  The two capabilities are disjoint by construction: the structural operators
+    /// declare <see cref="OperatorContextRequirement.None"/> and read no execution context, and
+    /// the two hybrid identity operators declare
+    /// <see cref="OperatorContextRequirement.UserHierarchy"/> and implement
+    /// <see cref="IContextAwareConditionEvaluator"/> instead of this.
+    /// </para>
+    ///
+    /// <para>
+    /// <b>Identifiers in, never the store.</b>  What arrives is
+    /// <see cref="Hierarchy.MockHierarchyResult"/>, which carries GUIDs and names and no
+    /// <see cref="IDataSource"/>: an evaluator that could still reach the records would re-walk
+    /// them per row, and the traversal it re-ran would not be the one whose cycle and depth cap
+    /// were checked before the first row.
+    /// </para>
+    /// </summary>
+    public interface IHierarchyAwareConditionEvaluator : IConditionEvaluator
+    {
+        /// <summary>
+        /// The record the traversal must start from, read off <paramref name="condition"/>.
+        ///
+        /// <para>
+        /// The executor asks rather than reading the condition itself, for the reason
+        /// <see cref="IConditionShapeValidator"/> exists: which of the condition's values is the
+        /// pivot is the operator's own rule, and a copy of it in the executor would be free to
+        /// disagree with the shape the very same evaluator validated at step 0.
+        /// </para>
+        /// </summary>
+        object? HierarchyPivot(ConditionNode condition);
+
+        /// <summary>
+        /// Evaluates <paramref name="condition"/> against <paramref name="entity"/> given the
+        /// <paramref name="hierarchy"/> resolved once for this plan.
+        /// </summary>
+        bool Evaluate(Entity entity, ConditionNode condition, Hierarchy.MockHierarchyResult hierarchy);
+    }
+
+    /// <summary>
+    /// An evaluator that can tell, without seeing a single row, whether a condition is even
+    /// well formed for the operator it names — the right number of values, of the right shape,
+    /// a period count that is a number and is not zero.
+    ///
+    /// <para>
+    /// <b>Why this is not left to evaluation time.</b>  A check that rides on evaluation fails, or
+    /// fails to fail, according to what the store happens to hold: <c>last-x-days</c> with a count
+    /// of zero, or <c>on</c> with an unparsable literal, is never discovered when there is no row
+    /// to look at — an empty store, a store whose every row lacks the attribute, or an <c>or</c>
+    /// filter whose earlier disjunct already answered <c>true</c> all short-circuit past it.  The
+    /// malformed query then comes back as an empty — or worse, a non-empty — result set instead of
+    /// an error, and the caller is told nothing.  <see cref="Execution.InMemoryExecutor"/> asks
+    /// every condition of the plan, in the same walk that refuses unregistered operators, before
+    /// the first row is read: the refusal then depends on the query alone, which is the only thing
+    /// it was ever about.
+    /// </para>
+    ///
+    /// <para>
+    /// As with <see cref="IOperatorCapabilities"/>, this is a capability the operator declares
+    /// about itself rather than an extension of <see cref="IConditionEvaluator"/>, and the executor
+    /// keeps no list of "operators whose values need checking" — that would be a second answer to a
+    /// question the evaluator already answers.  The rule itself stays where it is implemented: this
+    /// interface is the <i>moment</i> the evaluator is asked, not a second copy of the check, which
+    /// would be free to disagree with the one that runs per row.
+    /// </para>
+    /// </summary>
+    public interface IConditionShapeValidator
+    {
+        /// <summary>
+        /// Throws when <paramref name="condition"/> cannot be evaluated by this operator whatever
+        /// the row holds; returns silently otherwise.
+        /// </summary>
+        /// <exception cref="System.InvalidOperationException">
+        /// Thrown for a malformed condition — the shape <c>between</c> and the explicit date
+        /// operators already use for a wrong value count or an unreadable value.
+        /// </exception>
+        void ValidateCondition(ConditionNode condition);
+    }
+
+    /// <summary>
+    /// An evaluator that can tell, once the execution context is resolved but still before any row
+    /// is read, whether a condition is answerable <i>for this organisation</i> — a fiscal period
+    /// number of 5 against a quarterly calendar being the case it exists for.
+    ///
+    /// <para>
+    /// <b>Why it is a second interface and not a widening of the first.</b>
+    /// <see cref="IConditionShapeValidator"/> judges the <see cref="ConditionNode"/> alone, and that
+    /// is what lets <see cref="Execution.InMemoryExecutor"/> ask it at step 0, before it knows
+    /// whether this plan needs a context at all — a query of none-requiring operators must not
+    /// acquire a context lookup just to have its shape checked.  Some refusals, though, are not
+    /// knowable from the condition: how many periods a fiscal year holds is a property of the
+    /// <c>organization</c> record, so the question can only be put after step 0-bis has resolved
+    /// it.  Two moments, two interfaces, one rule each.
+    /// </para>
+    ///
+    /// <para>
+    /// <b>Why it is not left to <see cref="IContextAwareConditionEvaluator.Evaluate"/>.</b>  For
+    /// exactly the reason <see cref="IConditionShapeValidator"/> exists, and the fiscal operators
+    /// are the sharpest instance of it: a refusal raised per row is raised only if a row arrives
+    /// carrying the attribute and no earlier disjunct has already answered.  An empty store, a
+    /// store whose rows all lack the date, or an <c>or</c> filter that short-circuits would each
+    /// answer "in fiscal period 5" on a four-period calendar with an empty result set — a wrong
+    /// query reported as an absence of data, which is the one answer a diagnostic must never give.
+    /// </para>
+    ///
+    /// <para>
+    /// As with the other two capabilities, this interface is the <i>moment</i> the evaluator is
+    /// asked and never a second copy of its rule: an implementation calls the same check its
+    /// evaluation path calls, so the two cannot drift apart into disagreeing.
+    /// </para>
+    /// </summary>
+    public interface IContextualConditionValidator
+    {
+        /// <summary>
+        /// Throws when <paramref name="condition"/> cannot be evaluated by this operator against
+        /// <paramref name="context"/>, whatever the rows hold; returns silently otherwise.
+        /// </summary>
+        /// <exception cref="System.InvalidOperationException">
+        /// Thrown when the condition names something the resolved context does not have — a fiscal
+        /// period beyond the cardinality of the organisation's fiscal calendar.
+        /// </exception>
+        void ValidateCondition(ConditionNode condition, Context.MockQueryExecutionContext context);
+    }
+
+    /// <summary>
+    /// Reads the capability an evaluator declares, for callers holding an
+    /// <see cref="IConditionEvaluator"/> rather than a registry entry.
+    /// </summary>
+    public static class OperatorCapabilities
+    {
+        /// <summary>
+        /// The context <paramref name="evaluator"/> declares it needs, or
+        /// <see cref="OperatorContextRequirement.None"/> when it declares nothing — including for
+        /// a <c>null</c> evaluator, because "no evaluator" needs no context.
+        /// </summary>
+        public static OperatorContextRequirement ContextRequirementsOf(IConditionEvaluator evaluator)
+        {
+            var declared = evaluator as IOperatorCapabilities;
+            return declared == null ? OperatorContextRequirement.None : declared.ContextRequirements;
+        }
+
+        /// <summary>
+        /// Whether <paramref name="evaluator"/> declares it needs a hierarchy traversal — i.e.
+        /// whether it implements <see cref="IHierarchyAwareConditionEvaluator"/> — and <c>false</c>
+        /// for a <c>null</c> evaluator, because "no evaluator" walks nothing.
+        ///
+        /// <para>
+        /// Read from the same place <see cref="ContextRequirementsOf"/> is read, and for the same
+        /// reason: what an operator needs is declared once, by the operator, and every caller asks
+        /// that declaration rather than keeping a roster beside it.
+        /// </para>
+        /// </summary>
+        public static bool RequiresHierarchy(IConditionEvaluator evaluator)
+        {
+            return evaluator is IHierarchyAwareConditionEvaluator;
+        }
+
+        /// <summary>
+        /// Asks <paramref name="evaluator"/> to judge the shape of <paramref name="condition"/>
+        /// before any row is read, and does nothing when it declares no
+        /// <see cref="IConditionShapeValidator"/> — including for a <c>null</c> evaluator,
+        /// because "no evaluator" has nothing to say about a condition.
+        /// </summary>
+        /// <exception cref="System.InvalidOperationException">
+        /// Thrown by the evaluator when the condition is malformed for its operator.
+        /// </exception>
+        public static void ValidateCondition(IConditionEvaluator evaluator, ConditionNode condition)
+        {
+            var validator = evaluator as IConditionShapeValidator;
+            if (validator != null)
+                validator.ValidateCondition(condition);
+        }
+
+        /// <summary>
+        /// Asks <paramref name="evaluator"/> to judge <paramref name="condition"/> against the
+        /// resolved <paramref name="context"/> — still before any row is read — and does nothing
+        /// when it declares no <see cref="IContextualConditionValidator"/>, including for a
+        /// <c>null</c> evaluator.
+        /// </summary>
+        /// <exception cref="System.InvalidOperationException">
+        /// Thrown by the evaluator when the condition names something this organisation's context
+        /// does not have.
+        /// </exception>
+        public static void ValidateCondition(
+            IConditionEvaluator evaluator, ConditionNode condition, Context.MockQueryExecutionContext context)
+        {
+            var validator = evaluator as IContextualConditionValidator;
+            if (validator != null)
+                validator.ValidateCondition(condition, context);
+        }
+    }
+
+    /// <summary>
+    /// Canonical identity of a condition operator: the single spelling every part of the
+    /// QueryEngine uses to name an operator, whatever frontend the query came from.
+    ///
+    /// <para>
+    /// The identity space is <b>exactly</b> the <see cref="ConditionOperator"/> inventory of the
+    /// pinned Dataverse SDK, read by reflection so the two can never drift: the canonical form of
+    /// an operator is its SDK member name lowercased (<c>Equal</c> → <c>equal</c>,
+    /// <c>DoesNotBeginWith</c> → <c>doesnotbeginwith</c>).  Anything outside that inventory is not
+    /// an operator, and is rejected rather than normalised into something that looks like one.
+    /// </para>
+    ///
+    /// <para>
+    /// <b>Identity is not capability.</b>  Answering "which operator is this" is this type's job;
+    /// answering "can we evaluate it" belongs to
+    /// <see cref="IConditionEvaluatorRegistry.IsSupported"/>.  Keeping them apart is what lets both
+    /// frontends reject unregistered operators at one shared point instead of each guessing from a
+    /// hand-written list.
+    /// </para>
+    ///
+    /// <para>
+    /// It lives beside <see cref="IConditionEvaluator"/> because it defines what the "operator an
+    /// evaluator handles" actually is; the perimeter of ADO-2286 authorises no new source file.
+    /// </para>
+    /// </summary>
+    public static class OperatorIdentity
+    {
+        // Normalised spelling → canonical spelling.  Built once from the SDK enum: the canonical
+        // set is whatever the pinned SDK declares, and OperatorContractTests freezes that pin.
+        private static readonly Dictionary<string, string> _canonicalByKey = BuildIndex();
+
+        private static readonly string[] _all = _canonicalByKey.Values.OrderBy(v => v, StringComparer.Ordinal).ToArray();
+
+        /// <summary>
+        /// Every canonical operator identity, i.e. the full <see cref="ConditionOperator"/>
+        /// inventory of the pinned SDK, sorted ordinally.
+        /// </summary>
+        public static IEnumerable<string> All => _all;
+
+        /// <summary>
+        /// Canonical identity of an SDK <see cref="ConditionOperator"/> value.
+        /// </summary>
+        /// <exception cref="NotSupportedQueryOperatorException">
+        /// Thrown when <paramref name="conditionOperator"/> is not a declared member of the pinned
+        /// SDK enum (e.g. an out-of-range value obtained by casting an integer).
+        /// </exception>
+        public static string Of(ConditionOperator conditionOperator)
+        {
+            string name = conditionOperator.ToString();
+
+            if (!_canonicalByKey.TryGetValue(Normalize(name), out var canonical))
+                throw new NotSupportedQueryOperatorException(name);
+
+            return canonical;
+        }
+
+        /// <summary>
+        /// Resolves any accepted spelling of an operator — SDK casing, lowercase, or the
+        /// hyphenated FetchXml form — to its canonical identity.
+        /// </summary>
+        /// <returns><c>false</c> when the name is not an operator of the pinned SDK inventory.</returns>
+        public static bool TryCanonicalize(string operatorName, out string canonical)
+        {
+            if (string.IsNullOrEmpty(operatorName))
+            {
+                canonical = null!;
+                return false;
+            }
+
+            return _canonicalByKey.TryGetValue(Normalize(operatorName), out canonical!);
+        }
+
+        /// <summary>
+        /// Resolves any accepted spelling of an operator to its canonical identity.
+        /// </summary>
+        /// <exception cref="ArgumentNullException">Thrown when <paramref name="operatorName"/> is <c>null</c>.</exception>
+        /// <exception cref="NotSupportedQueryOperatorException">
+        /// Thrown when the name is not an operator of the pinned SDK inventory.
+        /// </exception>
+        public static string Canonicalize(string operatorName)
+        {
+            if (operatorName == null) throw new ArgumentNullException(nameof(operatorName));
+
+            if (!TryCanonicalize(operatorName, out var canonical))
+                throw new NotSupportedQueryOperatorException(operatorName);
+
+            return canonical;
+        }
+
+        /// <summary>
+        /// Returns <c>true</c> when <paramref name="operatorName"/> is already written in canonical
+        /// form — not merely resolvable to one.
+        /// </summary>
+        public static bool IsCanonical(string operatorName)
+        {
+            return TryCanonicalize(operatorName, out var canonical)
+                && string.Equals(operatorName, canonical, StringComparison.Ordinal);
+        }
+
+        /// <summary>
+        /// Lookup key for an operator spelling: lowercased, with the separators that distinguish
+        /// the FetchXml form from the SDK form removed (<c>not-begin-with</c> and
+        /// <c>NotBeginWith</c> both key on <c>notbeginwith</c>).
+        /// </summary>
+        /// <exception cref="ArgumentNullException">Thrown when <paramref name="operatorName"/> is <c>null</c>.</exception>
+        public static string Normalize(string operatorName)
+        {
+            if (operatorName == null) throw new ArgumentNullException(nameof(operatorName));
+
+            var buffer = new StringBuilder(operatorName.Length);
+
+            foreach (char c in operatorName)
+            {
+                if (c == '-' || c == '_' || char.IsWhiteSpace(c))
+                    continue;
+
+                buffer.Append(char.ToLowerInvariant(c));
+            }
+
+            return buffer.ToString();
+        }
+
+        private static Dictionary<string, string> BuildIndex()
+        {
+            var index = new Dictionary<string, string>(StringComparer.Ordinal);
+
+            foreach (string name in Enum.GetNames(typeof(ConditionOperator)))
+            {
+                string canonical = name.ToLowerInvariant();
+                index[Normalize(canonical)] = canonical;
+            }
+
+            return index;
+        }
+    }
+}

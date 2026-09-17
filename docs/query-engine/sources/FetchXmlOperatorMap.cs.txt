@@ -1,0 +1,155 @@
+using System;
+using System.Collections.Generic;
+using XrmGhost.FrameworkHost.QueryEngine.Abstractions;
+
+namespace XrmGhost.FrameworkHost.QueryEngine.Frontends
+{
+    /// <summary>
+    /// Maps a FetchXml condition operator string onto the <see cref="OperatorIdentity"/> used
+    /// everywhere else in the QueryEngine, so a FetchXml query and the equivalent
+    /// <c>QueryExpression</c> name the same operator with the same string.
+    ///
+    /// <para>
+    /// Most FetchXml spellings differ from the SDK member name only by hyphens
+    /// (<c>not-like</c> / <c>NotLike</c>, <c>on-or-before</c> / <c>OnOrBefore</c>), and
+    /// <see cref="OperatorIdentity.Normalize"/> already reconciles those.  The table below carries
+    /// <b>every</b> spelling normalisation cannot reach, and nothing else: the short comparison
+    /// forms (<c>eq</c>, <c>ne</c>, <c>lt</c>, <c>le</c>, <c>gt</c>, <c>ge</c>), the negative forms
+    /// FetchXml words differently from the SDK (<c>not-begin-with</c> / <c>DoesNotBeginWith</c>,
+    /// <c>not-contain</c> / <c>DoesNotContain</c>), the spelled-out week
+    /// (<c>last-seven-days</c> / <c>Last7Days</c>), the <c>eq-</c>/<c>ne-</c> forms of the
+    /// contextual operators (<c>eq-userid</c> / <c>EqualUserId</c>,
+    /// <c>eq-useroruserhierarchyandteams</c> / <c>EqualUserOrUserHierarchyAndTeams</c>) and the
+    /// hierarchy forms that name equality first (<c>eq-or-under</c> / <c>UnderOrEqual</c>).
+    /// <c>OperatorContractTests</c> walks the whole FetchXml spelling table against the SDK
+    /// inventory, so an operator whose spelling this table fails to reach is a failing test rather
+    /// than a query refused for the wrong reason.
+    /// </para>
+    ///
+    /// <para>
+    /// <b>Resolving is not supporting.</b> This type answers "which operator is this"; whether the
+    /// engine can evaluate it is <see cref="IConditionEvaluatorRegistry.IsSupported"/>'s answer,
+    /// and <see cref="IsSupported(string, IConditionEvaluatorRegistry)"/> forwards to it rather
+    /// than asserting support from the presence of a mapping.  A key with no registered evaluator
+    /// — the fiscal-calendar operators, the contextual ones, the hierarchy ones — resolves to its
+    /// identity and is then rejected by the shared decision, never silently
+    /// accepted.  The converse holds too: <c>between</c> and <c>contain-values</c> gained
+    /// evaluators in ADO-2290, and the date operators in ADO-2291, without this table changing by
+    /// a line, because support was never this type's answer to give.
+    /// </para>
+    /// </summary>
+    public static class FetchXmlOperatorMap
+    {
+        // -----------------------------------------------------------------------
+        // FetchXml-only spellings (normalised key → canonical identity)
+        // -----------------------------------------------------------------------
+
+        private static readonly Dictionary<string, string> _aliases =
+            new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                // Short comparison forms
+                { "eq",               "equal" },
+                { "ne",               "notequal" },
+                { "neq",              "notequal" },   // legacy alias
+                { "lt",               "lessthan" },
+                { "le",               "lessequal" },
+                { "gt",               "greaterthan" },
+                { "ge",               "greaterequal" },
+
+                // Negative forms FetchXml words differently from the SDK member name.  The
+                // separator-written SDK spellings — "does-not-begin-with", "contain-values",
+                // "not-between", and every date keyword from "not-on" to "next-year" — need no
+                // entry here: OperatorIdentity.Normalize already reaches them, which is why
+                // ADO-2290 registered seven operators and ADO-2291 sixteen more without touching
+                // this table.
+                { "notbeginwith",     "doesnotbeginwith" },      // not-begin-with
+                { "notendwith",       "doesnotendwith" },        // not-end-with
+                { "notcontain",       "doesnotcontain" },        // not-contain
+                { "notcontainvalues", "doesnotcontainvalues" },  // not-contain-values
+
+                // The week FetchXml spells out and the SDK writes as a digit
+                { "lastsevendays",    "last7days" },             // last-seven-days
+                { "nextsevendays",    "next7days" },             // next-seven-days
+
+                // Contextual operators: FetchXml abbreviates "Equal"/"NotEqual" to eq-/ne-
+                { "equserid",                       "equaluserid" },                       // eq-userid
+                { "neuserid",                       "notequaluserid" },                    // ne-userid
+                { "eqbusinessid",                   "equalbusinessid" },                   // eq-businessid
+                { "nebusinessid",                   "notequalbusinessid" },                // ne-businessid
+                { "equserlanguage",                 "equaluserlanguage" },                 // eq-userlanguage
+                { "equserteams",                    "equaluserteams" },                    // eq-userteams
+                { "equseroruserteams",              "equaluseroruserteams" },              // eq-useroruserteams
+                { "equseroruserhierarchy",          "equaluseroruserhierarchy" },          // eq-useroruserhierarchy
+                { "equseroruserhierarchyandteams",  "equaluseroruserhierarchyandteams" },  // eq-useroruserhierarchyandteams
+
+                // Hierarchy operators: FetchXml names equality first, the SDK last
+                { "eqorunder",        "underorequal" },          // eq-or-under
+                { "eqorabove",        "aboveorequal" },          // eq-or-above
+            };
+
+        // -----------------------------------------------------------------------
+        // Public API
+        // -----------------------------------------------------------------------
+
+        /// <summary>
+        /// Resolves a FetchXml operator string to its canonical operator identity.
+        /// </summary>
+        /// <param name="fetchXmlOperator">
+        /// The raw <c>operator</c> attribute value from a FetchXml <c>&lt;condition&gt;</c> element.
+        /// </param>
+        /// <returns>The canonical operator identity.</returns>
+        /// <exception cref="ArgumentNullException">
+        /// Thrown when <paramref name="fetchXmlOperator"/> is <c>null</c>.
+        /// </exception>
+        /// <exception cref="Exceptions.NotSupportedQueryOperatorException">
+        /// Thrown when <paramref name="fetchXmlOperator"/> names no operator of the pinned SDK
+        /// inventory.
+        /// </exception>
+        public static string Resolve(string fetchXmlOperator)
+        {
+            if (fetchXmlOperator == null) throw new ArgumentNullException(nameof(fetchXmlOperator));
+
+            if (!TryResolve(fetchXmlOperator, out var canonical))
+                throw new Exceptions.NotSupportedQueryOperatorException(fetchXmlOperator);
+
+            return canonical;
+        }
+
+        /// <summary>
+        /// Resolves a FetchXml operator string to its canonical operator identity.
+        /// </summary>
+        /// <returns>
+        /// <c>false</c> when the string names no operator of the pinned SDK inventory.
+        /// </returns>
+        /// <exception cref="ArgumentNullException">
+        /// Thrown when <paramref name="fetchXmlOperator"/> is <c>null</c>.
+        /// </exception>
+        public static bool TryResolve(string fetchXmlOperator, out string canonical)
+        {
+            if (fetchXmlOperator == null) throw new ArgumentNullException(nameof(fetchXmlOperator));
+
+            string key = OperatorIdentity.Normalize(fetchXmlOperator);
+
+            // The alias target is canonicalised too, so a typo in the table above cannot invent an
+            // identity that no SDK operator carries.
+            string candidate = _aliases.TryGetValue(key, out var aliased) ? aliased : key;
+
+            return OperatorIdentity.TryCanonicalize(candidate, out canonical);
+        }
+
+        /// <summary>
+        /// Returns <c>true</c> when the FetchXml operator both resolves to a canonical identity and
+        /// has an evaluator registered in <paramref name="registry"/>.
+        /// </summary>
+        /// <exception cref="ArgumentNullException">
+        /// Thrown when either argument is <c>null</c>.
+        /// </exception>
+        public static bool IsSupported(string fetchXmlOperator, IConditionEvaluatorRegistry registry)
+        {
+            if (fetchXmlOperator == null) throw new ArgumentNullException(nameof(fetchXmlOperator));
+            if (registry == null) throw new ArgumentNullException(nameof(registry));
+
+            return TryResolve(fetchXmlOperator, out var canonical) && registry.IsSupported(canonical);
+        }
+    }
+}

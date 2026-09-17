@@ -1,0 +1,95 @@
+namespace XrmGhost.FrameworkHost.QueryEngine.Abstractions
+{
+    /// <summary>
+    /// What the engine has decided about one condition operator.
+    ///
+    /// <para>
+    /// The point of the type is the distance between its two negative members.  Before it, an
+    /// operator the engine refused was refused for one of two reasons nobody could tell apart from
+    /// the outside: either somebody looked at it and decided it must not be answered, or nobody had
+    /// got to it yet.  The first is a decision with a cause behind it; the second is a gap.  A
+    /// single <c>false</c> published both as the same sentence, in the matrix and in the exception
+    /// alike, and a reader had no way to know which one they were looking at.
+    /// </para>
+    /// </summary>
+    public enum OperatorSupportStatus
+    {
+        /// <summary>
+        /// Nothing has been declared for this operator: no evaluator is registered and no refusal
+        /// has been recorded.  A gap, not a decision — the operator is simply not covered yet.
+        /// </summary>
+        NotCovered = 0,
+
+        /// <summary>An evaluator is registered for this operator and the engine can answer it.</summary>
+        Supported = 1,
+
+        /// <summary>
+        /// The engine refuses this operator on purpose, and
+        /// <see cref="OperatorSupport.Reason"/> says why.  A registration of this kind is a
+        /// standing statement that no evaluator is wanted here, so it carries the cause with it:
+        /// a refusal whose reason lives in a comment is indistinguishable from a gap by the time
+        /// it reaches a caller.
+        /// </summary>
+        DeliberatelyRejected = 2,
+    }
+
+    /// <summary>
+    /// The registry's whole answer about one operator: its
+    /// <see cref="OperatorSupportStatus"/> and, when the refusal is deliberate, the reason behind
+    /// it.
+    ///
+    /// <para>
+    /// Status and reason travel together because they are one declaration.  Two lookups —
+    /// "is it rejected" and "why" — would be two chances for a caller to render half the answer,
+    /// which is what the matrix and the exception message did for as long as the answer was a
+    /// <c>bool</c>.
+    /// </para>
+    /// </summary>
+    public sealed class OperatorSupport
+    {
+        /// <summary>The answer for an operator nothing has been declared about.</summary>
+        public static readonly OperatorSupport NotCovered =
+            new OperatorSupport(OperatorSupportStatus.NotCovered, null);
+
+        /// <summary>The answer for an operator an evaluator is registered for.</summary>
+        public static readonly OperatorSupport Supported =
+            new OperatorSupport(OperatorSupportStatus.Supported, null);
+
+        private OperatorSupport(OperatorSupportStatus status, string? reason)
+        {
+            Status = status;
+            Reason = reason;
+        }
+
+        /// <summary>What the engine has decided about the operator.</summary>
+        public OperatorSupportStatus Status { get; private set; }
+
+        /// <summary>
+        /// Why the operator is refused, when <see cref="Status"/> is
+        /// <see cref="OperatorSupportStatus.DeliberatelyRejected"/>; <c>null</c> otherwise.
+        /// </summary>
+        public string? Reason { get; private set; }
+
+        /// <summary>
+        /// The answer for an operator the engine refuses on purpose, carrying the cause.
+        /// </summary>
+        /// <param name="reason">Why the operator is refused. Never <c>null</c> or blank.</param>
+        /// <exception cref="System.ArgumentException">
+        /// Thrown when <paramref name="reason"/> is null, empty or whitespace — a deliberate
+        /// refusal without a stated cause reads exactly like the gap this type exists to
+        /// distinguish it from.
+        /// </exception>
+        public static OperatorSupport Rejected(string reason)
+        {
+            if (string.IsNullOrWhiteSpace(reason))
+            {
+                throw new System.ArgumentException(
+                    "a deliberate refusal must state its cause; without one it is indistinguishable " +
+                    "from an operator nobody has got to yet.",
+                    nameof(reason));
+            }
+
+            return new OperatorSupport(OperatorSupportStatus.DeliberatelyRejected, reason);
+        }
+    }
+}
