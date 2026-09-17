@@ -139,7 +139,8 @@ written — do not restate it elsewhere.
 ### Which snapshot answers which question
 
 - **FetchXML spellings and the SDK pin come from `OperatorContractTests.cs.txt`** (field
-  `FetchXmlSpellings`), which carries the spelling of all 89 operators.
+  `FetchXmlSpellings`), which carries a spelling for every one of the 89 SDK condition operators — 92
+  entries in total, because `Equal` and `NotEqual` each accept more than one FetchXML spelling.
 - **`FetchXmlOperatorMap.cs.txt` is not enough.** It holds only the 24 spellings that
   `OperatorIdentity.Normalize` cannot reach on its own; every spelling that differs from the SDK member
   name by separators alone is absent by design. Deriving the full list from it loses most of it.
@@ -184,8 +185,8 @@ reconnaissance, ADO-2349.
 1. Branch off `dev` using the naming convention `docs/<short-description>` (or the swarm branch convention if operating in a swarm run).
 2. Add only the files you own or have been given permission to touch.
 3. Request a review from at least one person on the owning team. If the owning team is unclear, ask the Documentation team to route the review.
-4. Pass the CI check that actually exists: `npm run build` (`astro build`), which the deploy workflow runs on every push to `dev`. There is no separate frontmatter linter in this repo — a missing `title` or `description` fails the build itself.
-5. Merge to `dev` after approval.
+4. Run `npm run build` (`astro build`) locally and make sure it passes. **No workflow runs on a pull request in this repository:** `.github/workflows/deploy.yml` is the only workflow and it triggers on pushes to `dev`, so the one automated check — `npm run build` — runs *after* your merge, not before it. There is no separate frontmatter linter either: a missing `title` or `description` fails the build itself.
+5. Merge to `dev` after approval. If the build then fails on `dev`, nothing is published until it is fixed (see [7. Publishing](#7-publishing)).
 
 ## 7. Publishing
 

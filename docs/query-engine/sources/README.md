@@ -49,10 +49,16 @@ visibile solo in `OperatorContractTests.cs.txt`. Citare `9.0.0.0` come pin rende
 riferimento pubblico non riproducibile: due inventari diversi si presenterebbero con lo stesso
 numero.
 
+L'equivoco ha una porta d'ingresso precisa, e va conosciuta: l'intestazione di
+`../operator-support-matrix.generated.md` scrive `SDK Microsoft.Xrm.Sdk 9.0.0.0` e rimanda a
+`OperatorContractTests.cs` per il pin. Chi prende il numero da lì prende l'`AssemblyVersion`
+credendo di prendere il pin: il pin è `9.0.2.45`, e la matrice non lo porta.
+
 ## Dove si leggono le grafie FetchXML
 
 **La fonte è `OperatorContractTests.cs.txt`**, campo `FetchXmlSpellings`: è lì che stanno le grafie
-di tutti e 89 gli operatori dell'inventario SDK, una per operatore, insieme al pin di pacchetto.
+di tutti e 89 gli operatori dell'inventario SDK — 92 voci, perché `Equal` e `NotEqual` accettano più
+di una grafia (`eq`/`equal`, `ne`/`neq`/`notequal`) — insieme al pin di pacchetto.
 
 `FetchXmlOperatorMap.cs.txt` **non basta**, ed è l'errore facile da fare: quella tabella porta 24
 voci, cioè le sole grafie che `OperatorIdentity.Normalize` non raggiunge da sé (le forme brevi
@@ -73,13 +79,13 @@ come prova del supporto darebbe per coperti operatori che l'engine rifiuta di pr
 
 | file | risponde a |
 |---|---|
-| `FetchXmlOperatorMap.cs.txt` | le sole grafie FetchXML che `OperatorIdentity.Normalize` non raggiunge da sé — 24 voci. **Non è l'elenco completo**: quello è `OperatorContractTests.cs.txt` (campo `FetchXmlSpellings`), con le grafie di tutti e 89 gli operatori. E risolvere una grafia non è supportare un operatore: il supporto lo dichiara `IConditionEvaluatorRegistry.IsSupported` |
+| `FetchXmlOperatorMap.cs.txt` | le sole grafie FetchXML che `OperatorIdentity.Normalize` non raggiunge da sé — 24 voci nel dizionario `_aliases`. **Non è l'elenco completo**: quello è `OperatorContractTests.cs.txt` (campo `FetchXmlSpellings`), con le grafie di tutti e 89 gli operatori. E risolvere una grafia non è supportare un operatore: il supporto lo dichiara `IConditionEvaluatorRegistry.IsSupported` |
 | `OperatorSupportStatus.cs.txt` | le tre disposizioni: supportato, rifiutato di proposito col motivo, non coperto |
 | `IConditionEvaluator.cs.txt` | il contratto di un evaluator e i requisiti di contesto che dichiara |
 | `NotSupportedQueryOperatorException.cs.txt` | che cosa legge chi incontra un rifiuto |
 | `MockQueryExecutionContext.cs.txt` | cosa contiene il contesto di esecuzione |
 | `MockQueryExecutionContextResolver.cs.txt` | come il contesto si risolve, e i default quando i record non ci sono |
-| `OperatorContractTests.cs.txt` | l'inventario congelato: le grafie FetchXML di tutti gli 89 operatori (`FetchXmlSpellings`) e il pin di pacchetto `Microsoft.CrmSdk.CoreAssemblies` 9.0.2.45 |
+| `OperatorContractTests.cs.txt` | l'inventario congelato: le grafie FetchXML di tutti gli 89 operatori (`FetchXmlSpellings`, 92 voci) e il pin di pacchetto `Microsoft.CrmSdk.CoreAssemblies` 9.0.2.45 — l'unico posto dove il pin è scritto |
 
 ## Se un giorno l'engine cambia
 
