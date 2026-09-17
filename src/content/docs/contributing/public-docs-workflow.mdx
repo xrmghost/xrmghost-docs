@@ -5,7 +5,7 @@ description: Step-by-step workflow for adding a new page to the XrmGhost public 
 
 # How to Add a New Docs Page
 
-This guide covers everything you need to add a new `.mdx` page to `xrmghost-docs` and have it appear in the user portal.
+This guide covers everything you need to add a new `.mdx` page to `xrmghost-docs` and have it appear on the published documentation site.
 
 ## 1. Find the Right Product Owner
 
@@ -56,7 +56,7 @@ description: A one-sentence summary of what this page covers.
 |---|---|---|
 | `title` | **Yes** | Shown in navigation and browser tab. Keep it short (≤ 60 chars). |
 | `description` | **Yes** | One sentence. Used in SEO meta tags and link previews. |
-| Additional fields | No | Only add fields that the portal's MDX pipeline explicitly supports. Do not invent fields. |
+| Additional fields | No | Only add fields that Starlight's content schema explicitly supports. Do not invent fields. |
 
 The build will reject any `.mdx` file that is missing `title` or `description`.
 
@@ -114,22 +114,90 @@ You need to update both the CLI source/generator in `xrmghost-cli` **and** narra
 
 > For the current public rules, use this guide together with [Source of Truth](/architecture/source-of-truth/). If the CLI ownership split or generation contract is unclear, stop and confirm it with the Documentation and CLI teams instead of guessing.
 
+## 5.3 QueryEngine Operator Reference Maintenance
+
+The QueryEngine operator-support reference (`src/content/docs/query-engine/operator-support.mdx`) is
+**transcribed by hand** from frozen snapshots of `xrmghost-framework-host`. It is the one content
+path in this repository with no generator behind it, and this section is the only place that rule is
+written — do not restate it elsewhere.
+
+### What the snapshots are
+
+- The snapshots live under `docs/query-engine/` — the generated matrix
+  `docs/query-engine/operator-support-matrix.generated.md` and seven `.cs.txt` source copies under
+  `docs/query-engine/sources/`.
+- They sit **outside `src/content/`**, so they are never published. The `.txt` extension is there so
+  nobody tries to compile them.
+- They are **read-only copies**. Never hand-edit a snapshot, not even to fix a typo or to make a line
+  agree with the published page: an edit here would make the engine say something the engine does not
+  say, and the whole point of keeping the copies next to the page is that the derivation can be
+  checked by diffing two files that sit side by side.
+- Current provenance: **`xrmghost-framework-host@67e9d3e`** (branch `dev`), taken on **17 September
+  2026**. Coverage is closed at 87 of the SDK's 89 condition operators and continuous evolution is not
+  expected, which is why a dated, signed copy was chosen over permanent cross-repo infrastructure.
+
+### Which snapshot answers which question
+
+- **FetchXML spellings and the SDK pin come from `OperatorContractTests.cs.txt`** (field
+  `FetchXmlSpellings`), which carries the spelling of all 89 operators.
+- **`FetchXmlOperatorMap.cs.txt` is not enough.** It holds only the 24 spellings that
+  `OperatorIdentity.Normalize` cannot reach on its own; every spelling that differs from the SDK member
+  name by separators alone is absent by design. Deriving the full list from it loses most of it.
+- **Resolving a spelling is not supporting an operator.** A spelling resolves to an operator identity;
+  whether the engine can evaluate it is `IConditionEvaluatorRegistry.IsSupported`'s answer. Never use
+  the presence of a spelling as evidence of support.
+- **The SDK pin is `Microsoft.CrmSdk.CoreAssemblies` 9.0.2.45.** `AssemblyVersion 9.0.0.0` is *not* the
+  pin: that package ships an assembly whose `AssemblyVersion` is `9.0.0.0` and whose `FileVersion` is
+  `9.2.47.9489`, and `9.0.0.0` stays `9.0.0.0` whichever package version delivered it. Citing it as the
+  pin would make the public reference non-reproducible.
+
+### When the engine changes
+
+Nothing notices automatically, and nothing should. **For this flow only** there is no CI comparison
+between the two repositories, no generator, no verification tool and no automatic cross-repo link —
+unlike the CLI reference in [Path B](#path-b--generator-or-source-driven-change-starts-in-xrmghost-cli)
+above, which *is* populated by a real cross-repo generator from `xrmghost-cli`. Pick a commit of
+`xrmghost-framework-host` and replace things by hand, **in this order**:
+
+1. **`docs/query-engine/operator-support-matrix.generated.md`**, regenerated from the new
+   `xrmghost-framework-host` commit. It is the inventory the page transcribes dispositions, required
+   context and refusal reasons from, so it comes first.
+2. **The seven `.cs.txt` copies** under `docs/query-engine/sources/`, replaced whole from the same
+   commit.
+3. **The provenance line** — commit and date — in `docs/query-engine/sources/README.md`, in the header
+   of the generated matrix, and in the provenance block of the published page.
+4. **Re-transcribe and re-review `src/content/docs/query-engine/operator-support.mdx`** against the
+   matrix and the seven copies. That comparison against the sources **is** the review; no tool performs
+   it, and it is a one-off per engine change, not a standing job.
+
+Replacing only the `.cs.txt` copies while leaving the old matrix published is the failure to avoid:
+dispositions and required context come from the matrix, not from the contract copies, so the page would
+describe an engine that no longer exists while its provenance claims it is current. Nothing catches
+that — **for this flow the only automated gate is `npm run build`**, which proves the site compiles,
+not that it tells the truth.
+
+Periodic surveillance of new SDK operators **does not belong to this flow**; it is a dedicated
+reconnaissance, ADO-2349.
+
 ## 6. Open a Pull Request
 
 1. Branch off `dev` using the naming convention `docs/<short-description>` (or the swarm branch convention if operating in a swarm run).
 2. Add only the files you own or have been given permission to touch.
 3. Request a review from at least one person on the owning team. If the owning team is unclear, ask the Documentation team to route the review.
-4. Pass CI checks (frontmatter lint, MDX parse).
+4. Pass the CI check that actually exists: `npm run build` (`astro build`), which the deploy workflow runs on every push to `dev`. There is no separate frontmatter linter in this repo — a missing `title` or `description` fails the build itself.
 5. Merge to `dev` after approval.
 
-## 7. Publishing to the Portal
+## 7. Publishing
 
-Publishing is controlled by the `xrmghost-user-portal` team. After your PR merges to `dev`:
+`xrmghost-docs` is a **standalone site**. It is built with Astro/Starlight and published to GitHub
+Pages by `.github/workflows/deploy.yml`, which runs `npm ci` and `npm run build` and deploys the
+result on **every push to `dev`**.
 
-- The portal team advances the submodule pointer (or runs the sync script) to pick up your changes.
-- You do not need to take action in the portal repository unless you are also the portal maintainer.
-
-For details on how the portal consumes this repo, see [Source of Truth](/architecture/source-of-truth/).
+- Once your PR merges to `dev`, publication is automatic. There is no submodule pointer to advance and
+  no sync script to run.
+- **You do not need to take any action in `xrmghost-user-portal`.**
+- If the build fails, the deploy does not happen: the merged change is live only once
+  `npm run build` succeeds in the workflow.
 
 ## Summary Checklist
 
@@ -139,3 +207,5 @@ For details on how the portal consumes this repo, see [Source of Truth](/archite
 - [ ] Frontmatter includes `title` and `description`
 - [ ] No fake content — used `> **TODO**:` markers where content is missing
 - [ ] PR targets `dev`, reviewer from owning team assigned
+- [ ] `npm run build` passes locally
+- [ ] If the change touches the QueryEngine operator reference, followed [5.3](#53-queryengine-operator-reference-maintenance) — snapshots replaced whole, provenance updated, page re-transcribed and reviewed by hand
