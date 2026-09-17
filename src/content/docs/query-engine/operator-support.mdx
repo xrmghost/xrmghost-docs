@@ -23,9 +23,14 @@ difference between the two negative ones is the point:
 | `no (deliberate)` | The engine refuses the operator **on purpose**, and the **Reason** says why — a decision with a cause behind it. |
 | `no` | No evaluator is registered and nothing has been decided: a gap, not a judgement. |
 
-Both frontends ask the same registry, so an operator that is not `yes` is refused identically
-whether the query arrived as a `QueryExpression` or as FetchXML, and the reason travels with the
-refusal into the `NotSupportedQueryOperatorException` message.
+Both frontends resolve a condition to the same canonical key and consult the same registry, and the
+reason behind a refusal travels with it into the `NotSupportedQueryOperatorException` message.
+
+That is a statement about **how this engine dispatches**, and not about what the Dataverse platform
+accepts on either path. This page does not turn it into one for `masksselect`, whose exclusion rests
+on a measurement taken through the FetchXML frontend alone: **no claim is made here about
+`MasksSelect` on the `QueryExpression` path** — see
+[Why masksselect is refused](#why-masksselect-is-refused).
 
 **Nothing on this page is in the third disposition.** Every operator is either answered or refused
 with a stated reason:
@@ -473,6 +478,9 @@ replaced whole from a new commit and this page is re-transcribed and re-reviewed
 comparison against the sources **is** the review, and no tool performs it. The only automated gate
 on this flow is `npm run build`, which proves the site compiles — not that the page tells the truth.
 
-The procedure, the order the snapshots must be replaced in, and the failure mode to avoid are
-written in one place only: the contributor guide,
-[How to Add a New Docs Page](/contributing/public-docs-workflow/).
+The authoritative procedure — the order the snapshots must be replaced in, and the failure mode to
+avoid — is the contributor guide,
+[How to Add a New Docs Page](/contributing/public-docs-workflow/): that is the published one to
+follow. The snapshots themselves are documented next to them, in
+`docs/query-engine/sources/README.md`, which records what each copy answers for and the provenance
+it was taken at.

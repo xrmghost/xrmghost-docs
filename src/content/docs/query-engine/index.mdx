@@ -1,41 +1,88 @@
 ---
 title: Query Engine
-description: How the XrmGhost mock QueryEngine answers Dataverse queries locally, which condition operators it covers, and where the two it refuses are documented.
+description: How the XrmGhost mock QueryEngine answers Dataverse queries locally, which condition operators it covers, the records it resolves execution context from, and where the two it refuses are documented.
 ---
 
 # Query Engine
 
 The XrmGhost framework host answers Dataverse queries **locally**, against the records a scenario
 registers, with no organisation on the other end. A query arrives either as a `QueryExpression` or
-as FetchXML, both frontends translate it into the same plan, and one condition evaluator registry
-answers — or refuses — every condition in it.
+as FetchXML; both frontends resolve each condition to the same canonical key and consult the same
+condition evaluator registry, which answers — or refuses — every condition in the plan.
 
-Two consequences are worth knowing before you write a query against the mock:
+That is a statement about **how this engine dispatches**, and not about what the Dataverse platform
+accepts on either path. Where the reason behind a refusal was measured through one frontend only,
+this section says so and stops there: for `masksselect` it makes **no claim** about the
+`QueryExpression` path.
 
-- **Both doors give the same answer.** A `QueryExpression` and the FetchXML that means the same
-  thing resolve to the same operator identity and reach the same registry, so an operator the engine
-  refuses is refused identically whichever way the query arrived, and the refusal carries the same
-  reason with it.
-- **Coverage is a closed, stated number, not a promise.** Of the 89 condition operators the pinned
-  Dataverse SDK declares, this engine answers **87**. The remaining two are refused **on purpose**,
-  each for a measured reason, and there is no operator left that is merely uncovered.
+## Coverage, in three dispositions
 
-## Pages in This Section
+"Supported" is not a yes/no here. The registry declares one of three dispositions per operator, and
+the difference between the two negative ones is the point:
 
-| Page | Description |
-|---|---|
-| [Operator Support](/query-engine/operator-support/) | Every one of the 89 SDK condition operators, its FetchXML spelling, its disposition, the execution context it needs, and the reason behind each of the two refusals. |
+| Disposition | Meaning | Operators |
+|---|---|---:|
+| `yes` | An evaluator is registered and the engine answers the operator. | **87** |
+| `no (deliberate)` | The engine refuses **on purpose**, and a measured reason says why. | **2** |
+| `no` | No evaluator is registered and nothing has been decided: a gap, not a judgement. | **0** |
 
-## What the engine needs beyond the row
+Of the 89 condition operators the pinned Dataverse SDK declares, **87 are answered and none is
+merely uncovered**. The two refusals each rest on a fact somebody measured: the SDK reference marks
+`ChildOf` **"for internal use only"** and the platform refused it on every attribute tried, while
+the Dataverse server answered **HTTP 400 `Unknown Condition Operator`** to every spelling of
+`MasksSelect` tried through FetchXML. A FetchXML spelling is not support — both refused operators
+*have* one.
+
+## Execution context: four records, defaulted and traced
 
 Most operators are answerable from the record alone — `equal`, `like`, `greaterthan`. Some are not:
 "created this week" needs an instant and a first day of the week, "owned by me" needs to know who is
-asking. Those answers come from an **execution context**, which the host resolves from the same
-Dataverse records a real organisation would read: `usersettings`, `systemuser`, `teammembership` and
-`organization`.
+asking. Those answers come from an **execution context**, which the host resolves from the same four
+Dataverse records a real organisation would read:
 
-A context requirement is a **resolution requirement and never an entitlement**. Nothing in it names
-a tier, a licence or a plan: an operator that needs context and finds none is evaluated against
-documented defaults — each one traced, naming the record that was missing — not refused and not
-gated. The full list of requirements, records, defaults and traces is on
-[Operator Support](/query-engine/operator-support/).
+| Record | What it answers | The documented default when it is missing |
+|---|---|---|
+| `usersettings` | The caller's time zone, business unit and language — read from `uilanguageid`, never from the neighbouring `localeid` | The query runs as UTC, with no membership and no user language |
+| `systemuser` | The caller's business unit when the execution context did not state one, and the hierarchy below them via the self-referential lookup Dataverse calls `parentsystemuserid` | The business unit is read from `usersettings` instead; with no self-referential lookup present, the hierarchy degrades to the caller alone |
+| `teammembership` | The teams of the caller and of that hierarchy, one row per (user, team) pair | The caller belongs to no team |
+| `organization` | The organisation's first day of the week and its fiscal calendar | The week starts on **Monday**; the fiscal year starts **1 January** and the period is **monthly** |
+
+Two properties of that table carry the design:
+
+- **Nothing refuses a query for lack of context.** A missing record produces a documented default,
+  and every fallback **names which record was missing** — "some context was defaulted" is not a
+  fact anybody can act on. Each line is traced through `IEnhancedTracingService` under
+  `TraceSource.OperationTracker`, so it reaches you as a `TraceEntry` of the execution response.
+  The single exception is an **unanswerable user hierarchy** — ambiguous, looping, or deeper than
+  the configured cap — which refuses with `MockHierarchyResolutionException` before the first row
+  of the query is read.
+- **A context requirement is a resolution requirement and never an entitlement.** Nothing in the
+  requirements, the records or the resolver consults a tier, a licence flag or a plan.
+
+## Pages in this section
+
+| Page | Description |
+|---|---|
+| [Operator Support](/query-engine/operator-support/) | All 89 SDK condition operators row by row — canonical key, SDK member and value, FetchXML spelling, disposition, context required and the reason behind each refusal — plus the eight context requirements and the complete table of defaults. |
+
+## Provenance
+
+This section is **transcribed by hand** from frozen snapshots of `xrmghost-framework-host` that live
+in this repository; there is no generator behind it.
+
+| | |
+|---|---|
+| Repo | `xrmghost-framework-host` |
+| Branch | `dev` |
+| Commit | **`67e9d3e`** |
+| Snapshot taken | **17 September 2026** |
+| SDK pin | **`Microsoft.CrmSdk.CoreAssemblies` 9.0.2.45** |
+| `AssemblyVersion` of that assembly | `9.0.0.0` — **not the pin** |
+| Inventory transcribed from | `docs/query-engine/operator-support-matrix.generated.md` |
+
+`AssemblyVersion 9.0.0.0` is what **every** 9.x package ships, so it does not identify the operator
+inventory this engine is written against; the **package** pin does. That pin is also why the count
+is 89: the SDK inventory grew to **90** members from **9.0.2.49** (May 2023, which added
+`EqualRoleBusinessId`), and this engine stays pinned to 9.0.2.45. The per-row detail of all 89
+operators, and why two version numbers appear at all, are on
+[Operator Support](/query-engine/operator-support/#provenance).
