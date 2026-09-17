@@ -28,8 +28,9 @@ Copiare i contratti qui è la scelta opposta a costruire un collegamento automat
 rigenerazione fra i due repo: la copertura è chiusa a 87 operatori su 89 e non è prevista
 evoluzione continua, quindi una copia datata e firmata costa meno di un'infrastruttura permanente.
 Il prezzo di quella scelta è dichiarato: **la manutenzione è manuale**, e sta scritta qui e nella
-guida contributor (`../../../src/content/docs/contributing/public-docs-workflow.mdx`), che è
-l'unico posto pubblico in cui la regola è scritta.
+guida contributor (`../../../src/content/docs/contributing/public-docs-workflow.mdx`), che è la
+procedura contributor autorevole — l'unica pubblicata — mentre questo README documenta gli snapshot
+e la loro provenienza.
 
 ## La provenienza corrente
 
