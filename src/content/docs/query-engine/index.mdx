@@ -1,6 +1,6 @@
 ---
 title: Query Engine
-description: How the XrmGhost mock QueryEngine answers Dataverse queries locally, which condition operators it covers, the records it resolves execution context from, and where the two it refuses are documented.
+description: How the XrmGhost mock QueryEngine answers Dataverse queries locally, which 88 of the SDK's 89 condition operators it covers, the records it resolves execution context from, and where the single operator it refuses is documented.
 ---
 
 # Query Engine
@@ -11,9 +11,9 @@ as FetchXML; both frontends resolve each condition to the same canonical key and
 condition evaluator registry, which answers — or refuses — every condition in the plan.
 
 That is a statement about **how this engine dispatches**, and not about what the Dataverse platform
-accepts on either path. Where the reason behind a refusal was measured through one frontend only,
-this section says so and stops there: for `masksselect` it makes **no claim** about the
-`QueryExpression` path.
+accepts on either path — and it is a different question again from whether a FetchXML query can
+*name* an operator. The two come apart: `masksselect` is fully supported and has **no FetchXML
+spelling at all**, while `childof` has one and is refused anyway.
 
 ## Coverage, in three dispositions
 
@@ -22,16 +22,24 @@ the difference between the two negative ones is the point:
 
 | Disposition | Meaning | Operators |
 |---|---|---:|
-| `yes` | An evaluator is registered and the engine answers the operator. | **87** |
-| `no (deliberate)` | The engine refuses **on purpose**, and a measured reason says why. | **2** |
+| `yes` | An evaluator is registered and the engine answers the operator. | **88** |
+| `no (deliberate)` | The engine refuses **on purpose**, and a measured reason says why. | **1** |
 | `no` | No evaluator is registered and nothing has been decided: a gap, not a judgement. | **0** |
 
-Of the 89 condition operators the pinned Dataverse SDK declares, **87 are answered and none is
-merely uncovered**. The two refusals each rest on a fact somebody measured: the SDK reference marks
-`ChildOf` **"for internal use only"** and the platform refused it on every attribute tried, while
-the Dataverse server answered **HTTP 400 `Unknown Condition Operator`** to every spelling of
-`MasksSelect` tried through FetchXML. A FetchXML spelling is not support — both refused operators
-*have* one.
+Of the 89 condition operators the pinned Dataverse SDK declares, **88 are answered and none is
+merely uncovered**. The single refusal is `childof`, and it rests on a fact somebody measured: the
+SDK reference marks `ChildOf` **"for internal use only"**, and the platform enforces that as a
+refusal of *use* rather than of the name — FetchXML parses `child-of` and then rejects the
+attribute, and a `QueryExpression` at the operator's own arity answers that the operator "is not
+valid for standard queries". So `childof` keeps its FetchXML spelling and is refused anyway: **a
+FetchXML spelling is not support**.
+
+**And the absence of a spelling is not a gap.** `masksselect` is **supported**: the Dataverse server
+answers `ConditionOperator.MasksSelect` on the `QueryExpression` path, as the bitwise predicate
+`(value & operand) != 0`. What it has no FetchXML grammar for is the *spelling* — every FetchXML
+spelling tried is answered **HTTP 400 `Unknown Condition Operator`** — so the operator is reachable
+from a `QueryExpression` and unwritable in FetchXML. That is a fact about a frontend, and it is why
+`masksselect` counts as covered rather than refused.
 
 ## Execution context: four records, defaulted and traced
 
@@ -63,7 +71,7 @@ Two properties of that table carry the design:
 
 | Page | Description |
 |---|---|
-| [Operator Support](/query-engine/operator-support/) | All 89 SDK condition operators row by row — canonical key, SDK member and value, FetchXML spelling, disposition, context required and the reason behind each refusal — plus the eight context requirements and the complete table of defaults. |
+| [Operator Support](/query-engine/operator-support/) | All 89 SDK condition operators row by row — canonical key, SDK member and value, FetchXML spelling where one exists, whether a FetchXML query can reach the operator, disposition, context required and the measured reason behind the single refusal — plus the three bitwise predicates and the bounds of the measurement behind them, the eight context requirements and the complete table of defaults. |
 
 ## Provenance
 
@@ -74,8 +82,8 @@ in this repository; there is no generator behind it.
 |---|---|
 | Repo | `xrmghost-framework-host` |
 | Branch | `dev` |
-| Commit | **`67e9d3e`** |
-| Snapshot taken | **17 September 2026** |
+| Commit | **`ff32df7`** |
+| Snapshot taken | **18 September 2026** |
 | SDK pin | **`Microsoft.CrmSdk.CoreAssemblies` 9.0.2.45** |
 | `AssemblyVersion` of that assembly | `9.0.0.0` — **not the pin** |
 | Inventory transcribed from | `docs/query-engine/operator-support-matrix.generated.md` |

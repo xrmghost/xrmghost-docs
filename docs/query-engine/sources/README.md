@@ -58,8 +58,10 @@ credendo di prendere il pin: il pin è `9.0.2.45`, e la matrice non lo porta.
 ## Dove si leggono le grafie FetchXML
 
 **La fonte è `OperatorContractTests.cs.txt`**, campo `FetchXmlSpellings`: è lì che stanno le grafie
-di tutti e 89 gli operatori dell'inventario SDK — 92 voci, perché `Equal` e `NotEqual` accettano più
-di una grafia (`eq`/`equal`, `ne`/`neq`/`notequal`) — insieme al pin di pacchetto.
+di 88 degli 89 operatori dell'inventario SDK — 91 grafie, perché `Equal` e `NotEqual` accettano più
+di una grafia (`eq`/`equal`, `ne`/`neq`/`notequal`) — insieme al pin di pacchetto. L'ottantanovesimo
+è `MasksSelect`, che di grafia FetchXML non ne ha nessuna: è l'unica voce di
+`OperatorsWithoutAFetchXmlSpelling`.
 
 `FetchXmlOperatorMap.cs.txt` **non basta**, ed è l'errore facile da fare: quella tabella porta 24
 voci, cioè le sole grafie che `OperatorIdentity.Normalize` non raggiunge da sé (le forme brevi
@@ -80,14 +82,14 @@ come prova del supporto darebbe per coperti operatori che l'engine rifiuta di pr
 
 | file | risponde a |
 |---|---|
-| `FetchXmlOperatorMap.cs.txt` | le sole grafie FetchXML che `OperatorIdentity.Normalize` non raggiunge da sé — 24 voci nel dizionario `_aliases`. **Non è l'elenco completo**: quello è `OperatorContractTests.cs.txt` (campo `FetchXmlSpellings`), con le grafie di tutti e 89 gli operatori. E risolvere una grafia non è supportare un operatore: il supporto lo dichiara `IConditionEvaluatorRegistry.IsSupported` |
+| `FetchXmlOperatorMap.cs.txt` | le sole grafie FetchXML che `OperatorIdentity.Normalize` non raggiunge da sé — 24 voci nel dizionario `_aliases`. **Non è l'elenco completo**: quello è `OperatorContractTests.cs.txt` (campo `FetchXmlSpellings`), con le 91 grafie di 88 degli 89 operatori. E risolvere una grafia non è supportare un operatore: il supporto lo dichiara `IConditionEvaluatorRegistry.IsSupported` |
 | `OperatorSupportStatus.cs.txt` | le tre disposizioni: supportato, rifiutato di proposito col motivo, non coperto |
 | `IConditionEvaluator.cs.txt` | il contratto di un evaluator e i requisiti di contesto che dichiara |
 | `NotSupportedQueryOperatorException.cs.txt` | che cosa legge chi incontra un rifiuto |
 | `MockQueryExecutionContext.cs.txt` | cosa contiene il contesto di esecuzione |
 | `MockQueryExecutionContextResolver.cs.txt` | come il contesto si risolve, e i default quando i record non ci sono |
 | `2026-09-17-misura-queryexpression.md` | il verbale della misura sul percorso `QueryExpression`: da qui vengono i numeri che la pagina pubblica cita e che l'engine non dichiara — il rifiuto nominato di `childof`, il limite residuo della misura, gli insiemi di esempio dei tre predicati bitwise. Viene da `loom`, non da `xrmghost-framework-host`, e segue le stesse regole degli altri snapshot |
-| `OperatorContractTests.cs.txt` | l'inventario congelato: le grafie FetchXML di tutti gli 89 operatori (`FetchXmlSpellings`, 92 voci) e il pin di pacchetto `Microsoft.CrmSdk.CoreAssemblies` 9.0.2.45 — l'unico posto dove il pin è scritto |
+| `OperatorContractTests.cs.txt` | l'inventario congelato: le grafie FetchXML di 88 degli 89 operatori (`FetchXmlSpellings`, 91 grafie; l'89° è `MasksSelect`, che non ne ha e sta in `OperatorsWithoutAFetchXmlSpelling`) e il pin di pacchetto `Microsoft.CrmSdk.CoreAssemblies` 9.0.2.45 — l'unico posto dove il pin è scritto |
 
 ## Se un giorno l'engine cambia
 
