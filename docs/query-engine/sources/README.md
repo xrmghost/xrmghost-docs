@@ -86,6 +86,7 @@ come prova del supporto darebbe per coperti operatori che l'engine rifiuta di pr
 | `NotSupportedQueryOperatorException.cs.txt` | che cosa legge chi incontra un rifiuto |
 | `MockQueryExecutionContext.cs.txt` | cosa contiene il contesto di esecuzione |
 | `MockQueryExecutionContextResolver.cs.txt` | come il contesto si risolve, e i default quando i record non ci sono |
+| `2026-09-17-misura-queryexpression.md` | il verbale della misura sul percorso `QueryExpression`: da qui vengono i numeri che la pagina pubblica cita e che l'engine non dichiara — il rifiuto nominato di `childof`, il limite residuo della misura, gli insiemi di esempio dei tre predicati bitwise. Viene da `loom`, non da `xrmghost-framework-host`, e segue le stesse regole degli altri snapshot |
 | `OperatorContractTests.cs.txt` | l'inventario congelato: le grafie FetchXML di tutti gli 89 operatori (`FetchXmlSpellings`, 92 voci) e il pin di pacchetto `Microsoft.CrmSdk.CoreAssemblies` 9.0.2.45 — l'unico posto dove il pin è scritto |
 
 ## Se un giorno l'engine cambia
