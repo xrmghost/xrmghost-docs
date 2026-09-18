@@ -1,7 +1,7 @@
 # Contratti sorgente — snapshot di sola lettura
 
-Questi file **non sono codice di questo repo**: sono copie, prese il 17 settembre 2026, di sorgenti
-di `xrmghost-framework-host` al commit `67e9d3e` (branch `dev`). Hanno l'estensione `.txt` proprio
+Questi file **non sono codice di questo repo**: sono copie, prese il 18 settembre 2026, di sorgenti
+di `xrmghost-framework-host` al commit `ff32df7` (branch `dev`). Hanno l'estensione `.txt` proprio
 perché nessuno provi a compilarli, e stanno fuori da `src/content/`, quindi non vengono pubblicati.
 
 Sono **copie di sola lettura**. Non si modificano a mano — né per correggere un refuso, né per
@@ -25,7 +25,7 @@ con quale contesto richiesto», ma **non** contiene due cose che la pagina deve 
   che sta nel risolutore del contesto di esecuzione.
 
 Copiare i contratti qui è la scelta opposta a costruire un collegamento automatico di
-rigenerazione fra i due repo: la copertura è chiusa a 87 operatori su 89 e non è prevista
+rigenerazione fra i due repo: la copertura è chiusa a 88 operatori su 89 e non è prevista
 evoluzione continua, quindi una copia datata e firmata costa meno di un'infrastruttura permanente.
 Il prezzo di quella scelta è dichiarato: **la manutenzione è manuale**, e sta scritta qui e nella
 guida contributor (`../../../src/content/docs/contributing/public-docs-workflow.mdx`), che è la
@@ -38,8 +38,8 @@ e la loro provenienza.
 |---|---|
 | repo | `xrmghost-framework-host` |
 | branch | `dev` |
-| commit | `67e9d3e` |
-| preso il | 17 settembre 2026 |
+| commit | `ff32df7` |
+| preso il | 18 settembre 2026 |
 | pin SDK | `Microsoft.CrmSdk.CoreAssemblies` **9.0.2.45** |
 
 **`AssemblyVersion 9.0.0.0` non è il pin.** Il pacchetto 9.0.2.45 spedisce un assembly la cui

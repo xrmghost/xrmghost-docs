@@ -133,7 +133,7 @@ namespace XrmGhost.FrameworkHost.Tests.QueryEngine
         // -----------------------------------------------------------------------
 
         /// <summary>
-        /// How many of the SDK's 89 condition operators this engine can evaluate, as of ADO-2346.
+        /// How many of the SDK's 89 condition operators this engine can evaluate, as of ADO-2500.
         ///
         /// <para>
         /// <b>This number is the contract.</b>  It is checked by walking
@@ -144,7 +144,7 @@ namespace XrmGhost.FrameworkHost.Tests.QueryEngine
         /// trusting a list of names written by hand.
         /// </para>
         /// </summary>
-        private const int ExpectedCoveredOperatorCount = 87;
+        private const int ExpectedCoveredOperatorCount = 88;
 
         /// <summary>The SDK inventory this engine is written against: 89 members, values 0-88.</summary>
         private const int SdkOperatorCount = 89;
@@ -154,33 +154,45 @@ namespace XrmGhost.FrameworkHost.Tests.QueryEngine
         ///
         /// <para>
         /// <b>This list is a diagnostic, not the measurement.</b>  Nothing derives coverage from
-        /// it: <see cref="RegisterAll_CoversExactlyEightySevenOfTheSdksEightyNineOperators"/>
+        /// it: <see cref="RegisterAll_CoversExactlyEightyEightOfTheSdksEightyNineOperators"/>
         /// asserts the count produced by reflection, and reads this list only to say <i>which</i>
         /// members are missing or unexpected when that count is wrong.  A failure that printed
-        /// nothing but "expected 87, got 86" would leave the reader to find the one by hand.
+        /// nothing but "expected 88, got 87" would leave the reader to find the one by hand.
         /// </para>
         ///
         /// <para>
-        /// The 2 it omits are <c>childof</c> and <c>masksselect</c>, and they are omitted for two
-        /// different measured reasons rather than as a family — see the paragraph below.  The
+        /// The 1 it omits is <c>childof</c> — see the paragraph below.  The
         /// fifteen fiscal-calendar operators left that list in ADO-2316, the
         /// seven contextual identity ones — the two user-id, the two business-id,
         /// <c>equaluserlanguage</c> and the two team ones — in ADO-2326, in ADO-2337 the five
         /// structural hierarchy ones (<c>above</c>, <c>aboveorequal</c>, <c>under</c>,
-        /// <c>underorequal</c>, <c>notunder</c>) together with the two hybrid identity ones, and in
-        /// ADO-2346 the two bitwise ones.
+        /// <c>underorequal</c>, <c>notunder</c>) together with the two hybrid identity ones, in
+        /// ADO-2346 two of the three bitwise ones, and in ADO-2500 the third.
         /// </para>
         ///
         /// <para>
-        /// <b>Why <c>mask</c> and <c>notmask</c> are here now.</b>  They stood out of this list on
+        /// <b>Why the three bitwise operators are here now.</b>  They stood out of this list on
         /// the belief that answering them would mean modelling Dataverse's access masks, and that
-        /// belief named the wrong thing.  <c>mask</c> is the bitwise predicate
-        /// <c>(value &amp; operand) != 0</c> over the integer value a row holds for <i>any</i>
-        /// integer attribute of <i>any</i> table, and <c>notmask</c> is
-        /// <c>(value &amp; operand) == 0</c> over the same pair; the privilege mask is the most
-        /// famous use of that predicate, not its semantics.  The counterproof is
-        /// <c>systemuser.accessmode</c>: <c>mask 1</c> matches 1, 3 and 5, because each has bit 0
-        /// set, and nothing in answering it reads a privilege, a role or an entitlement.
+        /// belief named the wrong thing.  Each is one bitwise clause over the integer value a row
+        /// holds for <i>any</i> integer attribute of <i>any</i> table — <c>mask</c> is
+        /// <c>(value &amp; operand) == operand</c>, <c>masksselect</c> is
+        /// <c>(value &amp; operand) != 0</c>, <c>notmask</c> is <c>(value &amp; operand) == 0</c> —
+        /// and the privilege mask is the most famous use of those predicates, not their semantics.
+        /// The counterproof is <c>systemuser.accessmode</c>: <c>masksselect 1</c> matches 1, 3 and
+        /// 5, because each has bit 0 set, and nothing in answering it reads a privilege, a role or
+        /// an entitlement.
+        /// </para>
+        ///
+        /// <para>
+        /// <b>And why <c>masksselect</c> joined them in ADO-2500 rather than in ADO-2346.</b>  It
+        /// was listed as a deliberate refusal on a FetchXML measurement — HTTP 400 <c>Unknown
+        /// Condition Operator</c> on every spelling — and that measurement was true and did not
+        /// support the conclusion drawn from it: the QueryExpression probe of 17 September 2026
+        /// found the server <b>accepts</b> <c>ConditionOperator.MasksSelect</c> and answers it as
+        /// <c>(value &amp; operand) != 0</c>.  The two measurements agree; what they say together is
+        /// that the operator exists server-side and has no FetchXML grammar, which is a fact about a
+        /// frontend and not a gap in coverage.  <c>FetchXmlOperatorMap</c> carries it, and this
+        /// roster counts the operator as covered because <c>QueryExpression</c> reaches it.
         /// </para>
         ///
         /// <para>
@@ -195,15 +207,17 @@ namespace XrmGhost.FrameworkHost.Tests.QueryEngine
         /// </para>
         ///
         /// <para>
-        /// <b>And why the two that are left are not here.</b>  Neither is unfinished, and they are
-        /// not one family: each is out for a fact somebody measured.  The SDK reference marks
-        /// <c>ChildOf</c> "for internal use only" and the platform refuses it on every attribute it
-        /// has been tried on (ADO-2307: eight rejections out of eight).  <c>MasksSelect</c> is
-        /// answered with HTTP 400 <c>Unknown Condition Operator</c> on every spelling tried —
-        /// <c>masks-select</c>, <c>masksselect</c>, <c>maskselect</c>, <c>masks_select</c> —
-        /// measured through the FetchXML frontend.  In both cases there is no observed behaviour
-        /// for an evaluator to mirror, and one written anyway would answer a query Dataverse itself
-        /// declines.  They are deliberate non-operators, not unfinished ones.
+        /// <b>And why the one that is left is not here.</b>  <c>ChildOf</c> is not unfinished: it
+        /// is out for a mechanism somebody measured, and the mechanism is a refusal of USE rather
+        /// than of the name.  FetchXML parses the spelling and the platform then rejects the
+        /// attribute ("The parentbusinessunitid attribute is not a valid attribute for the child-of
+        /// operator", ADO-2307: eight rejections out of eight); <c>QueryExpression</c>, at the
+        /// operator's own arity of zero values, answers "The child-of operator is not valid for
+        /// standard queries. It is for internal crm infrastructure use only via OutlookSync
+        /// queries." on six targets across three hierarchies (ADO-2498).  So it is a <i>reserved</i>
+        /// operator, not an unknown one — and there is still no observed behaviour for an evaluator
+        /// to mirror, since the platform declines every ordinary query naming it.  It is a
+        /// deliberate non-operator, not an unfinished one.
         /// </para>
         /// </summary>
         private static readonly string[] ExpectedCoverageRoster =
@@ -252,6 +266,7 @@ namespace XrmGhost.FrameworkHost.Tests.QueryEngine
             "lessthan",
             "like",
             "mask",                  // ADO-2346
+            "masksselect",           // ADO-2500
             "next7days",             // ADO-2292
             "nextfiscalperiod",      // ADO-2316
             "nextfiscalyear",        // ADO-2316
@@ -346,17 +361,17 @@ namespace XrmGhost.FrameworkHost.Tests.QueryEngine
         // -----------------------------------------------------------------------
 
         /// <summary>
-        /// The coverage claim of ADO-2346, measured the only way that cannot drift: enumerate
+        /// The coverage claim of ADO-2500, measured the only way that cannot drift: enumerate
         /// <see cref="ConditionOperator"/> by reflection off the pinned SDK assembly, turn each
         /// member into its canonical identity with the <b>production frontend's own rule</b>, and
         /// ask a registry built by <see cref="OperatorEvaluatorBootstrapper.RegisterAll"/> whether
-        /// it answers.  87 of the 89 must.
+        /// it answers.  88 of the 89 must.
         ///
         /// <para>
         /// Three ways of getting the same number are deliberately not used here.  Counting the
         /// registry's keys would count anything registered under a spelling no SDK member carries
-        /// — the exact defect ADO-2286 removed — and would still report 78 the day an alias crept
-        /// back in.  Counting distinct evaluator classes would undercount: one
+        /// — the exact defect ADO-2286 removed — and would still report the right total the day an
+        /// alias crept back in.  Counting distinct evaluator classes would undercount: one
         /// <c>CalendarPeriodEvaluator</c> serves nine operators.  And asserting a hand-written list
         /// of names would freeze the list rather than the engine: the list would be edited to match
         /// whatever the bootstrapper happened to do, which is how a freeze stops freezing.
@@ -364,12 +379,12 @@ namespace XrmGhost.FrameworkHost.Tests.QueryEngine
         ///
         /// <para>
         /// The inventory guards come first on purpose.  If the pin moved and the enum grew a 90th
-        /// member, "87 are covered" would still be true and would still mean something different,
+        /// member, "88 are covered" would still be true and would still mean something different,
         /// so the test refuses to interpret the count until it has confirmed the denominator.
         /// </para>
         /// </summary>
         [Fact]
-        public void RegisterAll_CoversExactlyEightySevenOfTheSdksEightyNineOperators()
+        public void RegisterAll_CoversExactlyEightyEightOfTheSdksEightyNineOperators()
         {
             var members = Enum.GetValues(typeof(ConditionOperator)).Cast<ConditionOperator>().ToArray();
 
@@ -399,60 +414,159 @@ namespace XrmGhost.FrameworkHost.Tests.QueryEngine
 
             Assert.True(covered.Length == ExpectedCoveredOperatorCount, diagnosis);
 
-            // Same claim, said by name: 87 of a different 87 would pass the count alone.
+            // Same claim, said by name: 88 of a different 88 would pass the count alone.
             Assert.True(!expected.Except(covered).Any() && !covered.Except(expected).Any(), diagnosis);
         }
 
         /// <summary>
-        /// The registration claim of ADO-2346, said on its own so a regression names the operator
-        /// rather than only moving the count: the bitwise pair resolves under the canonical
-        /// identities <c>mask</c> and <c>notmask</c> and under <b>nothing else</b>, to the two
-        /// evaluators written for it and not to a borrowed one.
+        /// The registration claim of ADO-2346 and ADO-2500, said on its own so a regression names
+        /// the operator rather than only moving the count: the three bitwise operators resolve under
+        /// the canonical identities <c>mask</c>, <c>masksselect</c> and <c>notmask</c> and under
+        /// <b>nothing else</b>, each to the evaluator written for it and not to a borrowed one.
         ///
         /// <para>
-        /// The "nothing else" half is the point the count cannot make.  A registry entry under a
-        /// FetchXml spelling would be a second place coverage is declared — the defect ADO-2286
-        /// removed — and it is unnecessary here: <c>not-mask</c> reaches <c>notmask</c> through
-        /// <see cref="OperatorIdentity.Normalize"/>, which strips the separator, so no alias entry
-        /// in <c>FetchXmlOperatorMap</c> was added or needed.
+        /// The "nothing else" half is the point the count cannot make, and it is the half ADO-2500
+        /// put weight on.  A registry entry under a FetchXml spelling would be a second place
+        /// coverage is declared — the defect ADO-2286 removed — and it is unnecessary for
+        /// <c>not-mask</c>, which reaches <c>notmask</c> through
+        /// <see cref="OperatorIdentity.Normalize"/>; for <c>masksselect</c> it would be worse than
+        /// unnecessary, because FetchXML has no spelling for that operator at all, so a key here
+        /// would claim a door the server does not open.  The last block asserts that no spelling of
+        /// it resolves.
+        /// </para>
+        ///
+        /// <para>
+        /// <b>Each evaluator is asserted by TYPE and not only by presence.</b>  <c>mask</c> and
+        /// <c>masksselect</c> differ by one clause and share a base class, so a registration that
+        /// bound <c>mask</c> to <see cref="MasksSelectEvaluator"/> would answer every single-bit
+        /// query correctly — which is the shape of the defect ADO-2500 repaired, and the reason this
+        /// test names the types.
         /// </para>
         /// </summary>
         [Fact]
-        public void RegisterAll_RegistersTheBitwisePairUnderItsCanonicalIdentitiesAndNothingElse()
+        public void RegisterAll_RegistersTheBitwiseTrioUnderItsCanonicalIdentitiesAndNothingElse()
         {
             var registry = BootstrappedRegistry();
 
             Assert.IsType<MaskEvaluator>(registry.Resolve("mask"));
+            Assert.IsType<MasksSelectEvaluator>(registry.Resolve("masksselect"));
             Assert.IsType<NotMaskEvaluator>(registry.Resolve("notmask"));
 
-            Assert.Equal(OperatorSupportStatus.Supported, registry.SupportOf("mask").Status);
-            Assert.Equal(OperatorSupportStatus.Supported, registry.SupportOf("notmask").Status);
-            Assert.Null(registry.SupportOf("mask").Reason);
-            Assert.Null(registry.SupportOf("notmask").Reason);
+            foreach (string canonical in new[] { "mask", "masksselect", "notmask" })
+            {
+                Assert.Equal(OperatorSupportStatus.Supported, registry.SupportOf(canonical).Status);
+                Assert.Null(registry.SupportOf(canonical).Reason);
+
+                // Neither of the three asks for anything the row cannot supply.
+                Assert.Equal(OperatorContextRequirement.None, registry.ContextRequirementsOf(canonical));
+            }
 
             // The identities are the ones production derives, and they are the SDK member names
             // lowercased — not a spelling invented for the registry.
             Assert.Equal("mask", CanonicalIdentityAsProductionDerivesIt(ConditionOperator.Mask));
+            Assert.Equal("masksselect", CanonicalIdentityAsProductionDerivesIt(ConditionOperator.MasksSelect));
             Assert.Equal("notmask", CanonicalIdentityAsProductionDerivesIt(ConditionOperator.NotMask));
 
-            // The FetchXml spelling arrives at the same entry without an alias entry existing.
+            // The FetchXml spelling of notmask arrives at the same entry without an alias existing.
             Assert.Equal("notmask", FetchXmlOperatorMap.Resolve("not-mask"));
             Assert.Same(registry.Resolve("notmask"), registry.Resolve(FetchXmlOperatorMap.Resolve("not-mask")));
 
-            // Neither asks for anything the row cannot supply.
-            Assert.Equal(OperatorContextRequirement.None, registry.ContextRequirementsOf("mask"));
-            Assert.Equal(OperatorContextRequirement.None, registry.ContextRequirementsOf("notmask"));
+            // ...and masksselect arrives from nowhere on that side: no spelling of it resolves, so
+            // there is no FetchXml key for the registry to have been given.
+            foreach (string spelling in MasksSelectSpellings)
+                Assert.False(FetchXmlOperatorMap.TryResolve(spelling, out _), spelling);
         }
 
         /// <summary>
-        /// The other half of the same claim: after ADO-2346 the operators the engine does not
-        /// answer are exactly <c>childof</c> and <c>masksselect</c>, both of them
-        /// <see cref="OperatorSupportStatus.DeliberatelyRejected"/> with the reason the registry
-        /// declares — so there is no operator left that is merely not covered, and a third one
-        /// appearing in either disposition turns this red.
+        /// Every spelling of <c>MasksSelect</c> a FetchXml caller might write, including the two
+        /// this engine's own normalisation would otherwise reach (<c>MasksSelect</c> as the SDK
+        /// spells it, and the hyphenated title case): all of them collapse to the canonical
+        /// <c>masksselect</c> under <see cref="OperatorIdentity.Normalize"/>, and all of them must
+        /// be refused by the FetchXml frontend.
+        /// </summary>
+        public static readonly string[] MasksSelectSpellings =
+        {
+            "masks-select", "masksselect", "masks_select", "MasksSelect", "Masks-Select",
+        };
+
+        /// <summary>
+        /// The separation ADO-2500 established, in one place: <c>masksselect</c> is
+        /// <b>supported</b> — the registry answers it, and a <c>QueryExpression</c> reaches it —
+        /// and it is <b>unreachable from FetchXml</b>, in every spelling that normalises to it.
+        ///
+        /// <para>
+        /// The two halves have to be asserted together, because each alone reads as the old state:
+        /// "supported" alone would be satisfied by an engine that also translated
+        /// <c>masks-select</c> into a plan Dataverse would refuse, and "refused by FetchXml" alone
+        /// was true before this node and meant the opposite thing.
+        /// </para>
         /// </summary>
         [Fact]
-        public void RegisterAll_LeavesChildOfAndMasksSelectAsTheOnlyTwoOperatorsItDoesNotAnswer()
+        public void MasksSelect_IsSupportedByQueryExpressionAndRefusedByEverySpellingOfFetchXml()
+        {
+            var registry = BootstrappedRegistry();
+
+            Assert.True(registry.IsSupported("masksselect"));
+            Assert.Equal(OperatorSupportStatus.Supported, registry.SupportOf("masksselect").Status);
+
+            // Through the real chain, on the QueryExpression side: accepted, no refusal at all.
+            Assert.Null(RefusalFrom(QueryExpressionPlan(ConditionOperator.MasksSelect, new[] { "6" })));
+
+            foreach (string spelling in MasksSelectSpellings)
+            {
+                Assert.Equal("masksselect", OperatorIdentity.Normalize(spelling));
+
+                Assert.False(FetchXmlOperatorMap.TryResolve(spelling, out _), spelling);
+                Assert.False(FetchXmlOperatorMap.IsSupported(spelling, registry), spelling);
+
+                // Resolve keeps throwing, and keeps the RAW spelling the caller wrote: a refusal
+                // that renamed the operator would send the reader looking for a keyword they never
+                // typed.
+                var fromResolve = Assert.Throws<NotSupportedQueryOperatorException>(
+                    () => FetchXmlOperatorMap.Resolve(spelling));
+                Assert.Equal(spelling, fromResolve.OperatorName);
+
+                // ...and the refusal a FetchXml CALLER meets is raised at the boundary, carrying
+                // the declaration rather than a bare "not supported".
+                var atTheBoundary = Assert.Throws<NotSupportedQueryOperatorException>(
+                    () => FetchXmlPlan(spelling, new[] { "6" }));
+
+                Assert.Equal(spelling, atTheBoundary.OperatorName);
+                Assert.Equal("statuscode", atTheBoundary.AttributeName);
+                Assert.Equal(OperatorSupportStatus.DeliberatelyRejected, atTheBoundary.Status);
+                Assert.False(string.IsNullOrWhiteSpace(atTheBoundary.Reason), spelling);
+            }
+
+            // The declaration is queryable on the canonical key, and it answers the other way for
+            // childof — which HAS a FetchXml spelling and is refused for a different reason.
+            Assert.True(FetchXmlOperatorMap.TryGetMissingFetchXmlGrammarReason("masksselect", out string? declared));
+            Assert.False(string.IsNullOrWhiteSpace(declared));
+            Assert.False(FetchXmlOperatorMap.TryGetMissingFetchXmlGrammarReason("childof", out string? none));
+            Assert.Null(none);
+
+            // The reason the caller gets is the declaration itself, not a sentence composed at the
+            // throw site: one source, so a log line and the published matrix cannot disagree.
+            var refusal = Assert.Throws<NotSupportedQueryOperatorException>(
+                () => FetchXmlPlan("masks-select", new[] { "6" }));
+            Assert.Equal(declared, refusal.Reason);
+        }
+
+        /// <summary>
+        /// The other half of the same claim: after ADO-2500 the <b>only</b> operator the engine
+        /// does not answer is <c>childof</c>, and it is
+        /// <see cref="OperatorSupportStatus.DeliberatelyRejected"/> with the reason the registry
+        /// declares — so there is no operator left that is merely not covered, and a second one
+        /// appearing in either disposition turns this red.
+        ///
+        /// <para>
+        /// <c>masksselect</c> was the other row until ADO-2500 and left the list by being
+        /// <i>answered</i>, not reclassified: the FetchXML measurement it was refused on was real
+        /// and said something narrower than it was read as saying — no FetchXML grammar, not no
+        /// operator.
+        /// </para>
+        /// </summary>
+        [Fact]
+        public void RegisterAll_LeavesChildOfAsTheOnlyOperatorItDoesNotAnswer()
         {
             var registry = BootstrappedRegistry();
 
@@ -461,7 +575,7 @@ namespace XrmGhost.FrameworkHost.Tests.QueryEngine
                 .OrderBy(key => key, StringComparer.Ordinal)
                 .ToArray();
 
-            Assert.Equal(new[] { "childof", "masksselect" }, unsupported);
+            Assert.Equal(new[] { "childof" }, unsupported);
 
             Assert.All(unsupported, key =>
             {
@@ -809,10 +923,10 @@ namespace XrmGhost.FrameworkHost.Tests.QueryEngine
         // -----------------------------------------------------------------------
 
         /// <summary>
-        /// The FetchXml spelling of every operator of the pinned inventory — the complete table a
-        /// FetchXml query can draw from, not a sample.  Several operators have more than one
-        /// accepted spelling (<c>eq</c> and <c>equal</c>, <c>ne</c>, <c>neq</c> and
-        /// <c>notequal</c>); every one of the 89 SDK members appears at least once, and
+        /// The FetchXml spelling of every operator of the pinned inventory <b>that has one</b> —
+        /// the complete table a FetchXml query can draw from, not a sample.  Several operators have
+        /// more than one accepted spelling (<c>eq</c> and <c>equal</c>, <c>ne</c>, <c>neq</c> and
+        /// <c>notequal</c>); 88 of the 89 SDK members appear at least once, and
         /// <see cref="FetchXmlSpellingTable_CoversEverySdkOperator"/> is what keeps that true.
         ///
         /// <para>
@@ -820,6 +934,17 @@ namespace XrmGhost.FrameworkHost.Tests.QueryEngine
         /// (<c>on-or-before</c>, <c>in-or-after-fiscal-period-and-year</c>) are listed alongside
         /// the ones that need an alias, because the point of the table is that the frontend
         /// answers identically for all of them — not that the map happens to carry a row.
+        /// </para>
+        ///
+        /// <para>
+        /// <b>The 89th is not here, and its absence is the claim (ADO-2500).</b>
+        /// <c>MasksSelect</c> has no FetchXml spelling: the server answers every one tried with
+        /// HTTP 400, so there is no keyword for this table to carry, and a row inviting one would
+        /// assert a parity the platform does not offer.  It is listed instead in
+        /// <see cref="OperatorsWithoutAFetchXmlSpelling"/>, which
+        /// <see cref="FetchXmlSpellingTable_CoversEverySdkOperator"/> unions with this table so that
+        /// the "every operator is checked" property survives the split — an operator absent from
+        /// BOTH lists is still a failing test.
         /// </para>
         /// </summary>
         private static readonly (ConditionOperator Operator, string FetchXml)[] FetchXmlSpellings =
@@ -881,7 +1006,6 @@ namespace XrmGhost.FrameworkHost.Tests.QueryEngine
             (ConditionOperator.ChildOf,                           "child-of"),
             (ConditionOperator.Mask,                              "mask"),
             (ConditionOperator.NotMask,                           "not-mask"),
-            (ConditionOperator.MasksSelect,                       "masks-select"),
             (ConditionOperator.Contains,                          "contains"),
             (ConditionOperator.DoesNotContain,                    "not-contain"),
             (ConditionOperator.BeginsWith,                        "begins-with"),
@@ -916,6 +1040,16 @@ namespace XrmGhost.FrameworkHost.Tests.QueryEngine
             (ConditionOperator.OlderThanXYears,                   "olderthan-x-years"),
             (ConditionOperator.ContainValues,                     "contain-values"),
             (ConditionOperator.DoesNotContainValues,              "not-contain-values"),
+        };
+
+        /// <summary>
+        /// The operators of the pinned inventory FetchXml cannot name at all.  One entry, and the
+        /// table exists rather than the entry being implicit: "no spelling" and "a spelling nobody
+        /// listed" read identically in a table of spellings, and only one of the two is a decision.
+        /// </summary>
+        private static readonly ConditionOperator[] OperatorsWithoutAFetchXmlSpelling =
+        {
+            ConditionOperator.MasksSelect,
         };
 
         public static IEnumerable<object[]> FetchXmlSpellingTable() =>
@@ -991,15 +1125,24 @@ namespace XrmGhost.FrameworkHost.Tests.QueryEngine
         }
 
         /// <summary>
-        /// An operator of the inventory with no FetchXml spelling in the table above is an
-        /// operator nobody checked the frontends agree on.
+        /// An operator of the inventory that appears in neither table — no FetchXml spelling
+        /// listed, and not declared as having none — is an operator nobody checked the frontends
+        /// agree on.
+        ///
+        /// <para>
+        /// The union is asserted, and then the two halves are asserted disjoint: an operator that
+        /// crept into both would be claimed to have a spelling and declared to have none, which is
+        /// the one way this split could hide what it was made to show.
+        /// </para>
         /// </summary>
         [Fact]
         public void FetchXmlSpellingTable_CoversEverySdkOperator()
         {
-            var covered = FetchXmlSpellings
-                .Select(s => s.Operator.ToString())
-                .Distinct()
+            var spelled = FetchXmlSpellings.Select(s => s.Operator.ToString()).Distinct().ToArray();
+            var unspellable = OperatorsWithoutAFetchXmlSpelling.Select(op => op.ToString()).ToArray();
+
+            var covered = spelled
+                .Concat(unspellable)
                 .OrderBy(n => n, StringComparer.Ordinal)
                 .ToArray();
 
@@ -1009,6 +1152,15 @@ namespace XrmGhost.FrameworkHost.Tests.QueryEngine
                 .ToArray();
 
             Assert.Equal(expected, covered);
+            Assert.Empty(spelled.Intersect(unspellable));
+
+            // And the declaration behind the second list is the production one, not a copy: every
+            // operator in it must be one FetchXmlOperatorMap itself says has no grammar.
+            Assert.All(
+                OperatorsWithoutAFetchXmlSpelling,
+                op => Assert.True(
+                    FetchXmlOperatorMap.TryGetMissingFetchXmlGrammarReason(OperatorIdentity.Of(op), out _),
+                    op.ToString()));
         }
 
         [Theory]
@@ -1056,31 +1208,36 @@ namespace XrmGhost.FrameworkHost.Tests.QueryEngine
         /// refusing anything.
         /// </summary>
         [Theory]
-        // The rows are the two operators nothing is coming for, which is what makes them last.
+        // The row is the one operator nothing is coming for, which is what makes it last.
         // Above and Under stood on the first and last rows until ADO-2337 registered the five
         // structural hierarchy operators — and ThisFiscalYear and LastXFiscalPeriods stood on two
         // more until ADO-2316 registered the fiscal family: rows lost in two nodes, each chosen
         // because some brief had put its family outside its perimeter, which is a fact about a plan
         // and not about the operator.  Mask and NotMask were the same kind of bet and went the same
         // way in ADO-2346: they were kept here on the belief that answering them needed Dataverse's
-        // access-mask model, and they need nothing of the sort — `mask` is
-        // `(value & operand) != 0` over the integer value a row holds for any integer attribute of
-        // any table, and the privilege mask is that predicate's most famous use, not its meaning.
+        // access-mask model, and they need nothing of the sort — each is one bitwise clause over the
+        // integer value a row holds for any integer attribute of any table (`mask` is
+        // `(value & operand) == operand`, as ADO-2500 measured), and the privilege mask is those
+        // predicates' most famous use, not their meaning.
         //
-        // What is left does not depend on anyone's perimeter, and it is two separate measurements
-        // rather than a family.  ChildOf is marked "for internal use only" by the SDK reference and
-        // the platform refuses it on every attribute it has been tried on (ADO-2307), so there is
-        // no observed behaviour an evaluator could mirror — it is a deliberate non-operator and not
-        // an unfinished one, and that is why it did NOT come along with the hierarchy family it
-        // used to be listed beside.  MasksSelect is answered with HTTP 400 'Unknown Condition
-        // Operator' on every spelling tried, measured through the FetchXML frontend, so there is no
-        // behaviour to mirror there either — and that is a different fact from ChildOf's, not
-        // another member of one uncovered family.
+        // ONE ROW IS LEFT, and it does not depend on anyone's perimeter.  ChildOf is marked "for
+        // internal use only" by the SDK reference and the platform refuses every ordinary query
+        // naming it — through FetchXML as an attribute error and through QueryExpression, at the
+        // operator's own arity of zero values, by naming the reservation outright (ADO-2307,
+        // ADO-2498) — so there is no observed behaviour an evaluator could mirror.  It is a
+        // deliberate non-operator and not an unfinished one, and that is why it did NOT come along
+        // with the hierarchy family it used to be listed beside.
+        //
+        // MasksSelect stood on the other row until ADO-2500, and it was the third bet of this kind
+        // in this comment: it was listed here on the FetchXML measurement alone, and the
+        // QueryExpression probe found the server ACCEPTS it.  Both frontends no longer agree about
+        // it and must not — the operator is supported and has no FetchXML grammar — so its claim
+        // moved to MasksSelect_IsSupportedByQueryExpressionAndRefusedByEverySpellingOfFetchXml,
+        // which asserts the divergence instead of the parity.
         //
         // LastXDays stood here before all of them and was the wrong kind of choice — unregistered
         // on the ADO-2291 branch, but registered by ADO-2292 on its own, so the freeze went red
         // only once the two were integrated, and neither branch could see it alone.
-        [InlineData(ConditionOperator.MasksSelect, "masks-select", "masksselect")]
         [InlineData(ConditionOperator.ChildOf, "child-of", "childof")]
         public void ProductionChain_RefusesAnUnregisteredOperatorIdenticallyOnBothFrontends(
             ConditionOperator op, string fetchXmlOperator, string canonical)
