@@ -27,6 +27,19 @@ namespace XrmGhost.FrameworkHost.QueryEngine.Frontends
     /// </para>
     ///
     /// <para>
+    /// <b>And it carries what FetchXML cannot spell at all (ADO-2500).</b>  One operator of the
+    /// pinned inventory has no FetchXML grammar: <c>MasksSelect</c> is accepted by the server
+    /// through <c>QueryExpression</c>, with a bitwise semantics this engine implements, and refused
+    /// under every FetchXML spelling — which makes it the first operator the two frontends
+    /// legitimately disagree about, and the disagreement is the SERVER's rather than this engine's.
+    /// <see cref="TryGetMissingFetchXmlGrammarReason"/> is that declaration, queryable on the
+    /// canonical key and carrying the measurement behind it.  It is public because it is a
+    /// <i>derived fact</i> that consumers outside this namespace need — the published support
+    /// matrix among them — and the alternative is each of them keeping a roster of its own, which
+    /// is the second-place-coverage-is-declared defect ADO-2286 removed from the registry.
+    /// </para>
+    ///
+    /// <para>
     /// <b>Resolving is not supporting.</b> This type answers "which operator is this"; whether the
     /// engine can evaluate it is <see cref="IConditionEvaluatorRegistry.IsSupported"/>'s answer,
     /// and <see cref="IsSupported(string, IConditionEvaluatorRegistry)"/> forwards to it rather
@@ -88,6 +101,43 @@ namespace XrmGhost.FrameworkHost.QueryEngine.Frontends
             };
 
         // -----------------------------------------------------------------------
+        // Operators with NO FetchXml grammar (canonical identity → measured reason)
+        // -----------------------------------------------------------------------
+
+        // The table above says which operator a FetchXml keyword names.  This one says which
+        // operators FetchXml cannot name AT ALL, and it is a different claim: an entry here is not
+        // a missing translation this engine could supply, it is a spelling the SERVER has no
+        // grammar for, so translating it would build a plan Dataverse would never have accepted.
+        //
+        // Keyed on the CANONICAL identity and not on a spelling, which is the whole point: the
+        // refusal below is decided after OperatorIdentity.Normalize has collapsed the separators
+        // and the casing, so 'masks-select', 'masksselect', 'masks_select', 'MasksSelect' and
+        // 'Masks-Select' are all refused by one entry — where a list of raw spellings would refuse
+        // the ones somebody thought of and quietly translate the rest.
+        //
+        // The reason travels with the entry for the same reason OperatorSupport.Rejected demands
+        // one: a refusal whose cause lives in a comment is, to the caller who reads a log,
+        // indistinguishable from an operator nobody has got to yet.
+        private static readonly Dictionary<string, string> _withoutFetchXmlGrammar =
+            new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                {
+                    "masksselect",
+                    "MasksSelect has no FetchXML grammar: the Dataverse server answers every spelling " +
+                    "tried — 'masks-select', 'masksselect', 'maskselect' and 'masks_select' — with HTTP " +
+                    "400 'Unknown Condition Operator', measured through the FetchXML frontend " +
+                    "(calibration/2026-09-17-mask-operators). The operator itself is NOT unsupported: " +
+                    "the same server accepts ConditionOperator.MasksSelect through QueryExpression and " +
+                    "answers it as '(value & operand) != 0' — four tables, and the semantics confirmed " +
+                    "on three columns with zero counterexamples (ADO-2498, frozen in " +
+                    "docs/query-engine/sources/2026-09-17-queryexpression-operatori-esito.md) — and this " +
+                    "engine evaluates it on that path. What is missing is the FetchXML spelling, so a " +
+                    "FetchXML query naming it is refused here rather than translated into a plan " +
+                    "Dataverse would never have accepted."
+                },
+            };
+
+        // -----------------------------------------------------------------------
         // Public API
         // -----------------------------------------------------------------------
 
@@ -134,7 +184,54 @@ namespace XrmGhost.FrameworkHost.QueryEngine.Frontends
             // identity that no SDK operator carries.
             string candidate = _aliases.TryGetValue(key, out var aliased) ? aliased : key;
 
-            return OperatorIdentity.TryCanonicalize(candidate, out canonical);
+            if (!OperatorIdentity.TryCanonicalize(candidate, out canonical))
+                return false;
+
+            // An operator with no FetchXML grammar does not resolve FROM FETCHXML, whatever
+            // spelling it was written in.  The test is made on the canonical identity the
+            // normalised key resolves to — not on the raw string the caller wrote — so every
+            // spelling OperatorIdentity.Normalize collapses onto 'masksselect' is refused by the
+            // one entry, and a spelling nobody anticipated cannot slip past it.
+            if (_withoutFetchXmlGrammar.ContainsKey(canonical))
+            {
+                canonical = null!;
+                return false;
+            }
+
+            return true;
+        }
+
+        /// <summary>
+        /// Whether <paramref name="canonicalKey"/> names an operator FetchXML has <b>no grammar
+        /// for</b>, and if so why — the measurement behind the refusal, not a sentence composed at
+        /// the call site.
+        ///
+        /// <para>
+        /// This is the declaration <see cref="TryResolve"/> itself consults, exposed rather than
+        /// duplicated: the caller that renders the refusal (<c>FetchXmlFrontend</c>) and the caller
+        /// that publishes it read the same entry, so a query's refusal and the document describing
+        /// it cannot disagree.  It is a <b>narrower</b> question than
+        /// <see cref="IConditionEvaluatorRegistry.SupportOf"/>: an operator can be fully supported
+        /// by this engine and still have no FetchXML spelling, which is exactly
+        /// <c>masksselect</c>'s case, so a caller must not read a <c>true</c> here as "unsupported".
+        /// </para>
+        /// </summary>
+        /// <param name="canonicalKey">
+        /// The operator's canonical identity — what <see cref="OperatorIdentity.Of"/> returns.  A
+        /// non-canonical spelling simply does not match: this is a lookup on the identity, and the
+        /// spellings are <see cref="TryResolve"/>'s business.
+        /// </param>
+        /// <param name="reason">
+        /// Why FetchXML cannot name the operator, or <c>null</c> when it can.
+        /// </param>
+        /// <exception cref="ArgumentNullException">
+        /// Thrown when <paramref name="canonicalKey"/> is <c>null</c>.
+        /// </exception>
+        public static bool TryGetMissingFetchXmlGrammarReason(string canonicalKey, out string? reason)
+        {
+            if (canonicalKey == null) throw new ArgumentNullException(nameof(canonicalKey));
+
+            return _withoutFetchXmlGrammar.TryGetValue(canonicalKey, out reason);
         }
 
         /// <summary>
