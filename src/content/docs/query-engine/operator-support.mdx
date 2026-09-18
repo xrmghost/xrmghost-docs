@@ -1,6 +1,6 @@
 ---
 title: Operator Support
-description: Every condition operator the pinned Dataverse SDK declares, with its FetchXML spelling, the answer the XrmGhost QueryEngine gives for it, the execution context it needs, and the reason behind each deliberate refusal.
+description: All 89 condition operators the pinned Dataverse SDK declares — 88 of them answered by the XrmGhost QueryEngine — with the FetchXML spelling where one exists, whether a FetchXML query can reach the operator at all, the execution context it needs, and the measured reason behind the single deliberate refusal.
 ---
 
 # Operator Support
@@ -27,10 +27,11 @@ Both frontends resolve a condition to the same canonical key and consult the sam
 reason behind a refusal travels with it into the `NotSupportedQueryOperatorException` message.
 
 That is a statement about **how this engine dispatches**, and not about what the Dataverse platform
-accepts on either path. This page does not turn it into one for `masksselect`, whose exclusion rests
-on a measurement taken through the FetchXML frontend alone: **no claim is made here about
-`MasksSelect` on the `QueryExpression` path** — see
-[Why masksselect is refused](#why-masksselect-is-refused).
+accepts on either path. It is also a different question from whether a FetchXML query can *name* the
+operator: that one is asked of `FetchXmlOperatorMap` and answered in its own column, **Reachable
+from FetchXML**. The two are independent in both directions, and this page carries a case of each —
+`childof` has a FetchXML spelling and is refused, `masksselect` is fully supported and has no
+FetchXML spelling at all.
 
 **Nothing on this page is in the third disposition.** Every operator is either answered or refused
 with a stated reason:
@@ -38,10 +39,11 @@ with a stated reason:
 | | |
 | --- | --- |
 | Operators in the SDK inventory | **89** |
-| Supported | **87** |
-| Not supported | **2** |
-| — of those, deliberately rejected with a reason | **2** |
+| Supported | **88** |
+| Not supported | **1** |
+| — of those, deliberately rejected with a reason | **1** |
 | — of those, not covered and not classified | **0** |
+| Supported but not reachable from FetchXML | **1** |
 
 ## How to Read a Row
 
@@ -52,7 +54,13 @@ with a stated reason:
 - **FetchXML spelling** is what you write in a `<condition operator="...">`. It is **not** a
   separate operator: spellings such as `not-begin-with` or `last-seven-days` are translated to the
   canonical key before anything is looked up. `Equal` and `NotEqual` each accept more than one
-  spelling, which is why the 89 operators carry **92** spellings between them.
+  spelling, which is why **91** spellings cover **88** of the 89 operators. The 89th is
+  `masksselect`, which has **no** FetchXML spelling — the cell is `—` because there is nothing to
+  write, not because nobody wrote it down.
+- **Reachable from FetchXML** is the separate question of whether a FetchXML query can name the
+  operator at all. `yes` means the frontend resolves some spelling onto the canonical key;
+  `no (no FetchXml grammar)` means it resolves none. It is a statement about the dialect and never
+  about coverage.
 - **Context required** is what the evaluator declares it needs beyond the record itself. See
   [Execution Context](#execution-context).
 - **Reason** is filled in only for a deliberate refusal.
@@ -61,204 +69,291 @@ with a stated reason:
 
 Resolving a spelling and supporting an operator are two different questions with two different
 answers. The spelling table answers "which operator is this"; whether the engine can evaluate it is
-`IConditionEvaluatorRegistry.IsSupported`'s answer. **Both of the refused operators have a FetchXML
-spelling** — `child-of` and `masks-select` — and both are refused: the spelling resolves to the
-canonical identity and the identity is then declined. Never read the presence of a spelling as
-evidence of support.
+`IConditionEvaluatorRegistry.IsSupported`'s answer — and the two come apart in **both** directions,
+which is why **Supported** and **Reachable from FetchXML** are separate columns:
+
+- **A spelling without support.** `child-of` is parsed by the FetchXML frontend and the identity is
+  then declined: the operator is `no (deliberate)` under **Supported** and `yes` here. Never read
+  the presence of a spelling as evidence of support.
+- **Support without a spelling.** `masksselect` is answered by the registry and reachable from a
+  `QueryExpression`, and no FetchXML spelling resolves onto it. It is `yes` under **Supported** and
+  `no (no FetchXml grammar)` here. Never read the absence of a spelling as a gap in coverage.
 
 ## The Operators
 
 #### Scalar comparison — 12 operators
 
-| Canonical key | SDK member | SDK value | FetchXML spelling | Supported | Context required | Reason |
-| --- | --- | ---: | --- | --- | --- | --- |
-| `equal` | `Equal` | 0 | `eq`, `equal` | yes | none | — |
-| `notequal` | `NotEqual` | 1 | `ne`, `neq`, `notequal` | yes | none | — |
-| `greaterthan` | `GreaterThan` | 2 | `gt` | yes | none | — |
-| `greaterequal` | `GreaterEqual` | 4 | `ge` | yes | none | — |
-| `lessthan` | `LessThan` | 3 | `lt` | yes | none | — |
-| `lessequal` | `LessEqual` | 5 | `le` | yes | none | — |
-| `in` | `In` | 8 | `in` | yes | none | — |
-| `notin` | `NotIn` | 9 | `not-in` | yes | none | — |
-| `between` | `Between` | 10 | `between` | yes | none | — |
-| `notbetween` | `NotBetween` | 11 | `not-between` | yes | none | — |
-| `null` | `Null` | 12 | `null` | yes | none | — |
-| `notnull` | `NotNull` | 13 | `not-null` | yes | none | — |
+| Canonical key | SDK member | SDK value | FetchXML spelling | Supported | Reachable from FetchXML | Context required | Reason |
+| --- | --- | ---: | --- | --- | --- | --- | --- |
+| `equal` | `Equal` | 0 | `eq`, `equal` | yes | yes | none | — |
+| `notequal` | `NotEqual` | 1 | `ne`, `neq`, `notequal` | yes | yes | none | — |
+| `greaterthan` | `GreaterThan` | 2 | `gt` | yes | yes | none | — |
+| `greaterequal` | `GreaterEqual` | 4 | `ge` | yes | yes | none | — |
+| `lessthan` | `LessThan` | 3 | `lt` | yes | yes | none | — |
+| `lessequal` | `LessEqual` | 5 | `le` | yes | yes | none | — |
+| `in` | `In` | 8 | `in` | yes | yes | none | — |
+| `notin` | `NotIn` | 9 | `not-in` | yes | yes | none | — |
+| `between` | `Between` | 10 | `between` | yes | yes | none | — |
+| `notbetween` | `NotBetween` | 11 | `not-between` | yes | yes | none | — |
+| `null` | `Null` | 12 | `null` | yes | yes | none | — |
+| `notnull` | `NotNull` | 13 | `not-null` | yes | yes | none | — |
 
 #### String matching — 8 operators
 
-| Canonical key | SDK member | SDK value | FetchXML spelling | Supported | Context required | Reason |
-| --- | --- | ---: | --- | --- | --- | --- |
-| `like` | `Like` | 6 | `like` | yes | none | — |
-| `notlike` | `NotLike` | 7 | `not-like` | yes | none | — |
-| `beginswith` | `BeginsWith` | 54 | `begins-with` | yes | none | — |
-| `doesnotbeginwith` | `DoesNotBeginWith` | 55 | `not-begin-with` | yes | none | — |
-| `endswith` | `EndsWith` | 56 | `ends-with` | yes | none | — |
-| `doesnotendwith` | `DoesNotEndWith` | 57 | `not-end-with` | yes | none | — |
-| `contains` | `Contains` | 49 | `contains` | yes | none | — |
-| `doesnotcontain` | `DoesNotContain` | 50 | `not-contain` | yes | none | — |
+| Canonical key | SDK member | SDK value | FetchXML spelling | Supported | Reachable from FetchXML | Context required | Reason |
+| --- | --- | ---: | --- | --- | --- | --- | --- |
+| `like` | `Like` | 6 | `like` | yes | yes | none | — |
+| `notlike` | `NotLike` | 7 | `not-like` | yes | yes | none | — |
+| `beginswith` | `BeginsWith` | 54 | `begins-with` | yes | yes | none | — |
+| `doesnotbeginwith` | `DoesNotBeginWith` | 55 | `not-begin-with` | yes | yes | none | — |
+| `endswith` | `EndsWith` | 56 | `ends-with` | yes | yes | none | — |
+| `doesnotendwith` | `DoesNotEndWith` | 57 | `not-end-with` | yes | yes | none | — |
+| `contains` | `Contains` | 49 | `contains` | yes | yes | none | — |
+| `doesnotcontain` | `DoesNotContain` | 50 | `not-contain` | yes | yes | none | — |
 
 #### Multi-select choice membership — 2 operators
 
-| Canonical key | SDK member | SDK value | FetchXML spelling | Supported | Context required | Reason |
-| --- | --- | ---: | --- | --- | --- | --- |
-| `containvalues` | `ContainValues` | 87 | `contain-values` | yes | none | — |
-| `doesnotcontainvalues` | `DoesNotContainValues` | 88 | `not-contain-values` | yes | none | — |
+| Canonical key | SDK member | SDK value | FetchXML spelling | Supported | Reachable from FetchXML | Context required | Reason |
+| --- | --- | ---: | --- | --- | --- | --- | --- |
+| `containvalues` | `ContainValues` | 87 | `contain-values` | yes | yes | none | — |
+| `doesnotcontainvalues` | `DoesNotContainValues` | 88 | `not-contain-values` | yes | yes | none | — |
 
-#### Bitwise — 2 operators
+#### Bitwise — 3 operators
 
-| Canonical key | SDK member | SDK value | FetchXML spelling | Supported | Context required | Reason |
-| --- | --- | ---: | --- | --- | --- | --- |
-| `mask` | `Mask` | 46 | `mask` | yes | none | — |
-| `notmask` | `NotMask` | 47 | `not-mask` | yes | none | — |
+| Canonical key | SDK member | SDK value | FetchXML spelling | Supported | Reachable from FetchXML | Context required | Reason |
+| --- | --- | ---: | --- | --- | --- | --- | --- |
+| `mask` | `Mask` | 46 | `mask` | yes | yes | none | — |
+| `masksselect` | `MasksSelect` | 48 | — | yes | no (no FetchXml grammar) | none | — |
+| `notmask` | `NotMask` | 47 | `not-mask` | yes | yes | none | — |
+
+`masksselect` is answered by the registry and reached by a `QueryExpression`; the dash under
+**FetchXML spelling** is the absence of a keyword and not a missing transcription. See
+[The Three Bitwise Operators Are Not Privilege Masks](#the-three-bitwise-operators-are-not-privilege-masks)
+for the predicate, and [Why masksselect has no FetchXML spelling](#why-masksselect-has-no-fetchxml-spelling)
+for the measurement behind the dash.
 
 #### Explicit date — 4 operators
 
-| Canonical key | SDK member | SDK value | FetchXML spelling | Supported | Context required | Reason |
-| --- | --- | ---: | --- | --- | --- | --- |
-| `on` | `On` | 25 | `on` | yes | `UserTimeZone` | — |
-| `noton` | `NotOn` | 52 | `not-on` | yes | `UserTimeZone` | — |
-| `onorbefore` | `OnOrBefore` | 26 | `on-or-before` | yes | `UserTimeZone` | — |
-| `onorafter` | `OnOrAfter` | 27 | `on-or-after` | yes | `UserTimeZone` | — |
+| Canonical key | SDK member | SDK value | FetchXML spelling | Supported | Reachable from FetchXML | Context required | Reason |
+| --- | --- | ---: | --- | --- | --- | --- | --- |
+| `on` | `On` | 25 | `on` | yes | yes | `UserTimeZone` | — |
+| `noton` | `NotOn` | 52 | `not-on` | yes | yes | `UserTimeZone` | — |
+| `onorbefore` | `OnOrBefore` | 26 | `on-or-before` | yes | yes | `UserTimeZone` | — |
+| `onorafter` | `OnOrAfter` | 27 | `on-or-after` | yes | yes | `UserTimeZone` | — |
 
 #### Named calendar period — 14 operators
 
-| Canonical key | SDK member | SDK value | FetchXML spelling | Supported | Context required | Reason |
-| --- | --- | ---: | --- | --- | --- | --- |
-| `yesterday` | `Yesterday` | 14 | `yesterday` | yes | `CurrentInstant`, `UserTimeZone` | — |
-| `today` | `Today` | 15 | `today` | yes | `CurrentInstant`, `UserTimeZone` | — |
-| `tomorrow` | `Tomorrow` | 16 | `tomorrow` | yes | `CurrentInstant`, `UserTimeZone` | — |
-| `last7days` | `Last7Days` | 17 | `last-seven-days` | yes | `CurrentInstant`, `UserTimeZone` | — |
-| `next7days` | `Next7Days` | 18 | `next-seven-days` | yes | `CurrentInstant`, `UserTimeZone` | — |
-| `lastweek` | `LastWeek` | 19 | `last-week` | yes | `CurrentInstant`, `UserTimeZone`, `WeekStart` | — |
-| `thisweek` | `ThisWeek` | 20 | `this-week` | yes | `CurrentInstant`, `UserTimeZone`, `WeekStart` | — |
-| `nextweek` | `NextWeek` | 21 | `next-week` | yes | `CurrentInstant`, `UserTimeZone`, `WeekStart` | — |
-| `lastmonth` | `LastMonth` | 22 | `last-month` | yes | `CurrentInstant`, `UserTimeZone` | — |
-| `thismonth` | `ThisMonth` | 23 | `this-month` | yes | `CurrentInstant`, `UserTimeZone` | — |
-| `nextmonth` | `NextMonth` | 24 | `next-month` | yes | `CurrentInstant`, `UserTimeZone` | — |
-| `lastyear` | `LastYear` | 28 | `last-year` | yes | `CurrentInstant`, `UserTimeZone` | — |
-| `thisyear` | `ThisYear` | 29 | `this-year` | yes | `CurrentInstant`, `UserTimeZone` | — |
-| `nextyear` | `NextYear` | 30 | `next-year` | yes | `CurrentInstant`, `UserTimeZone` | — |
+| Canonical key | SDK member | SDK value | FetchXML spelling | Supported | Reachable from FetchXML | Context required | Reason |
+| --- | --- | ---: | --- | --- | --- | --- | --- |
+| `yesterday` | `Yesterday` | 14 | `yesterday` | yes | yes | `CurrentInstant`, `UserTimeZone` | — |
+| `today` | `Today` | 15 | `today` | yes | yes | `CurrentInstant`, `UserTimeZone` | — |
+| `tomorrow` | `Tomorrow` | 16 | `tomorrow` | yes | yes | `CurrentInstant`, `UserTimeZone` | — |
+| `last7days` | `Last7Days` | 17 | `last-seven-days` | yes | yes | `CurrentInstant`, `UserTimeZone` | — |
+| `next7days` | `Next7Days` | 18 | `next-seven-days` | yes | yes | `CurrentInstant`, `UserTimeZone` | — |
+| `lastweek` | `LastWeek` | 19 | `last-week` | yes | yes | `CurrentInstant`, `UserTimeZone`, `WeekStart` | — |
+| `thisweek` | `ThisWeek` | 20 | `this-week` | yes | yes | `CurrentInstant`, `UserTimeZone`, `WeekStart` | — |
+| `nextweek` | `NextWeek` | 21 | `next-week` | yes | yes | `CurrentInstant`, `UserTimeZone`, `WeekStart` | — |
+| `lastmonth` | `LastMonth` | 22 | `last-month` | yes | yes | `CurrentInstant`, `UserTimeZone` | — |
+| `thismonth` | `ThisMonth` | 23 | `this-month` | yes | yes | `CurrentInstant`, `UserTimeZone` | — |
+| `nextmonth` | `NextMonth` | 24 | `next-month` | yes | yes | `CurrentInstant`, `UserTimeZone` | — |
+| `lastyear` | `LastYear` | 28 | `last-year` | yes | yes | `CurrentInstant`, `UserTimeZone` | — |
+| `thisyear` | `ThisYear` | 29 | `this-year` | yes | yes | `CurrentInstant`, `UserTimeZone` | — |
+| `nextyear` | `NextYear` | 30 | `next-year` | yes | yes | `CurrentInstant`, `UserTimeZone` | — |
 
 #### Rolling count of units — 10 operators
 
-| Canonical key | SDK member | SDK value | FetchXML spelling | Supported | Context required | Reason |
-| --- | --- | ---: | --- | --- | --- | --- |
-| `lastxhours` | `LastXHours` | 31 | `last-x-hours` | yes | `CurrentInstant`, `UserTimeZone` | — |
-| `nextxhours` | `NextXHours` | 32 | `next-x-hours` | yes | `CurrentInstant`, `UserTimeZone` | — |
-| `lastxdays` | `LastXDays` | 33 | `last-x-days` | yes | `CurrentInstant`, `UserTimeZone` | — |
-| `nextxdays` | `NextXDays` | 34 | `next-x-days` | yes | `CurrentInstant`, `UserTimeZone` | — |
-| `lastxweeks` | `LastXWeeks` | 35 | `last-x-weeks` | yes | `CurrentInstant`, `UserTimeZone` | — |
-| `nextxweeks` | `NextXWeeks` | 36 | `next-x-weeks` | yes | `CurrentInstant`, `UserTimeZone` | — |
-| `lastxmonths` | `LastXMonths` | 37 | `last-x-months` | yes | `CurrentInstant`, `UserTimeZone` | — |
-| `nextxmonths` | `NextXMonths` | 38 | `next-x-months` | yes | `CurrentInstant`, `UserTimeZone` | — |
-| `lastxyears` | `LastXYears` | 39 | `last-x-years` | yes | `CurrentInstant`, `UserTimeZone` | — |
-| `nextxyears` | `NextXYears` | 40 | `next-x-years` | yes | `CurrentInstant`, `UserTimeZone` | — |
+| Canonical key | SDK member | SDK value | FetchXML spelling | Supported | Reachable from FetchXML | Context required | Reason |
+| --- | --- | ---: | --- | --- | --- | --- | --- |
+| `lastxhours` | `LastXHours` | 31 | `last-x-hours` | yes | yes | `CurrentInstant`, `UserTimeZone` | — |
+| `nextxhours` | `NextXHours` | 32 | `next-x-hours` | yes | yes | `CurrentInstant`, `UserTimeZone` | — |
+| `lastxdays` | `LastXDays` | 33 | `last-x-days` | yes | yes | `CurrentInstant`, `UserTimeZone` | — |
+| `nextxdays` | `NextXDays` | 34 | `next-x-days` | yes | yes | `CurrentInstant`, `UserTimeZone` | — |
+| `lastxweeks` | `LastXWeeks` | 35 | `last-x-weeks` | yes | yes | `CurrentInstant`, `UserTimeZone` | — |
+| `nextxweeks` | `NextXWeeks` | 36 | `next-x-weeks` | yes | yes | `CurrentInstant`, `UserTimeZone` | — |
+| `lastxmonths` | `LastXMonths` | 37 | `last-x-months` | yes | yes | `CurrentInstant`, `UserTimeZone` | — |
+| `nextxmonths` | `NextXMonths` | 38 | `next-x-months` | yes | yes | `CurrentInstant`, `UserTimeZone` | — |
+| `lastxyears` | `LastXYears` | 39 | `last-x-years` | yes | yes | `CurrentInstant`, `UserTimeZone` | — |
+| `nextxyears` | `NextXYears` | 40 | `next-x-years` | yes | yes | `CurrentInstant`, `UserTimeZone` | — |
 
 #### Older than — 6 operators
 
-| Canonical key | SDK member | SDK value | FetchXML spelling | Supported | Context required | Reason |
-| --- | --- | ---: | --- | --- | --- | --- |
-| `olderthanxminutes` | `OlderThanXMinutes` | 86 | `olderthan-x-minutes` | yes | `CurrentInstant`, `UserTimeZone` | — |
-| `olderthanxhours` | `OlderThanXHours` | 85 | `olderthan-x-hours` | yes | `CurrentInstant`, `UserTimeZone` | — |
-| `olderthanxdays` | `OlderThanXDays` | 84 | `olderthan-x-days` | yes | `CurrentInstant`, `UserTimeZone` | — |
-| `olderthanxweeks` | `OlderThanXWeeks` | 83 | `olderthan-x-weeks` | yes | `CurrentInstant`, `UserTimeZone` | — |
-| `olderthanxmonths` | `OlderThanXMonths` | 53 | `olderthan-x-months` | yes | `CurrentInstant`, `UserTimeZone` | — |
-| `olderthanxyears` | `OlderThanXYears` | 82 | `olderthan-x-years` | yes | `CurrentInstant`, `UserTimeZone` | — |
+| Canonical key | SDK member | SDK value | FetchXML spelling | Supported | Reachable from FetchXML | Context required | Reason |
+| --- | --- | ---: | --- | --- | --- | --- | --- |
+| `olderthanxminutes` | `OlderThanXMinutes` | 86 | `olderthan-x-minutes` | yes | yes | `CurrentInstant`, `UserTimeZone` | — |
+| `olderthanxhours` | `OlderThanXHours` | 85 | `olderthan-x-hours` | yes | yes | `CurrentInstant`, `UserTimeZone` | — |
+| `olderthanxdays` | `OlderThanXDays` | 84 | `olderthan-x-days` | yes | yes | `CurrentInstant`, `UserTimeZone` | — |
+| `olderthanxweeks` | `OlderThanXWeeks` | 83 | `olderthan-x-weeks` | yes | yes | `CurrentInstant`, `UserTimeZone` | — |
+| `olderthanxmonths` | `OlderThanXMonths` | 53 | `olderthan-x-months` | yes | yes | `CurrentInstant`, `UserTimeZone` | — |
+| `olderthanxyears` | `OlderThanXYears` | 82 | `olderthan-x-years` | yes | yes | `CurrentInstant`, `UserTimeZone` | — |
 
 #### Fiscal calendar — 15 operators
 
-| Canonical key | SDK member | SDK value | FetchXML spelling | Supported | Context required | Reason |
-| --- | --- | ---: | --- | --- | --- | --- |
-| `thisfiscalyear` | `ThisFiscalYear` | 58 | `this-fiscal-year` | yes | `CurrentInstant`, `UserTimeZone`, `FiscalCalendar` | — |
-| `thisfiscalperiod` | `ThisFiscalPeriod` | 59 | `this-fiscal-period` | yes | `CurrentInstant`, `UserTimeZone`, `FiscalCalendar` | — |
-| `nextfiscalyear` | `NextFiscalYear` | 60 | `next-fiscal-year` | yes | `CurrentInstant`, `UserTimeZone`, `FiscalCalendar` | — |
-| `nextfiscalperiod` | `NextFiscalPeriod` | 61 | `next-fiscal-period` | yes | `CurrentInstant`, `UserTimeZone`, `FiscalCalendar` | — |
-| `lastfiscalyear` | `LastFiscalYear` | 62 | `last-fiscal-year` | yes | `CurrentInstant`, `UserTimeZone`, `FiscalCalendar` | — |
-| `lastfiscalperiod` | `LastFiscalPeriod` | 63 | `last-fiscal-period` | yes | `CurrentInstant`, `UserTimeZone`, `FiscalCalendar` | — |
-| `lastxfiscalyears` | `LastXFiscalYears` | 64 | `last-x-fiscal-years` | yes | `CurrentInstant`, `UserTimeZone`, `FiscalCalendar` | — |
-| `lastxfiscalperiods` | `LastXFiscalPeriods` | 65 | `last-x-fiscal-periods` | yes | `CurrentInstant`, `UserTimeZone`, `FiscalCalendar` | — |
-| `nextxfiscalyears` | `NextXFiscalYears` | 66 | `next-x-fiscal-years` | yes | `CurrentInstant`, `UserTimeZone`, `FiscalCalendar` | — |
-| `nextxfiscalperiods` | `NextXFiscalPeriods` | 67 | `next-x-fiscal-periods` | yes | `CurrentInstant`, `UserTimeZone`, `FiscalCalendar` | — |
-| `infiscalyear` | `InFiscalYear` | 68 | `in-fiscal-year` | yes | `CurrentInstant`, `UserTimeZone`, `FiscalCalendar` | — |
-| `infiscalperiod` | `InFiscalPeriod` | 69 | `in-fiscal-period` | yes | `CurrentInstant`, `UserTimeZone`, `FiscalCalendar` | — |
-| `infiscalperiodandyear` | `InFiscalPeriodAndYear` | 70 | `in-fiscal-period-and-year` | yes | `CurrentInstant`, `UserTimeZone`, `FiscalCalendar` | — |
-| `inorbeforefiscalperiodandyear` | `InOrBeforeFiscalPeriodAndYear` | 71 | `in-or-before-fiscal-period-and-year` | yes | `CurrentInstant`, `UserTimeZone`, `FiscalCalendar` | — |
-| `inorafterfiscalperiodandyear` | `InOrAfterFiscalPeriodAndYear` | 72 | `in-or-after-fiscal-period-and-year` | yes | `CurrentInstant`, `UserTimeZone`, `FiscalCalendar` | — |
+| Canonical key | SDK member | SDK value | FetchXML spelling | Supported | Reachable from FetchXML | Context required | Reason |
+| --- | --- | ---: | --- | --- | --- | --- | --- |
+| `thisfiscalyear` | `ThisFiscalYear` | 58 | `this-fiscal-year` | yes | yes | `CurrentInstant`, `UserTimeZone`, `FiscalCalendar` | — |
+| `thisfiscalperiod` | `ThisFiscalPeriod` | 59 | `this-fiscal-period` | yes | yes | `CurrentInstant`, `UserTimeZone`, `FiscalCalendar` | — |
+| `nextfiscalyear` | `NextFiscalYear` | 60 | `next-fiscal-year` | yes | yes | `CurrentInstant`, `UserTimeZone`, `FiscalCalendar` | — |
+| `nextfiscalperiod` | `NextFiscalPeriod` | 61 | `next-fiscal-period` | yes | yes | `CurrentInstant`, `UserTimeZone`, `FiscalCalendar` | — |
+| `lastfiscalyear` | `LastFiscalYear` | 62 | `last-fiscal-year` | yes | yes | `CurrentInstant`, `UserTimeZone`, `FiscalCalendar` | — |
+| `lastfiscalperiod` | `LastFiscalPeriod` | 63 | `last-fiscal-period` | yes | yes | `CurrentInstant`, `UserTimeZone`, `FiscalCalendar` | — |
+| `lastxfiscalyears` | `LastXFiscalYears` | 64 | `last-x-fiscal-years` | yes | yes | `CurrentInstant`, `UserTimeZone`, `FiscalCalendar` | — |
+| `lastxfiscalperiods` | `LastXFiscalPeriods` | 65 | `last-x-fiscal-periods` | yes | yes | `CurrentInstant`, `UserTimeZone`, `FiscalCalendar` | — |
+| `nextxfiscalyears` | `NextXFiscalYears` | 66 | `next-x-fiscal-years` | yes | yes | `CurrentInstant`, `UserTimeZone`, `FiscalCalendar` | — |
+| `nextxfiscalperiods` | `NextXFiscalPeriods` | 67 | `next-x-fiscal-periods` | yes | yes | `CurrentInstant`, `UserTimeZone`, `FiscalCalendar` | — |
+| `infiscalyear` | `InFiscalYear` | 68 | `in-fiscal-year` | yes | yes | `CurrentInstant`, `UserTimeZone`, `FiscalCalendar` | — |
+| `infiscalperiod` | `InFiscalPeriod` | 69 | `in-fiscal-period` | yes | yes | `CurrentInstant`, `UserTimeZone`, `FiscalCalendar` | — |
+| `infiscalperiodandyear` | `InFiscalPeriodAndYear` | 70 | `in-fiscal-period-and-year` | yes | yes | `CurrentInstant`, `UserTimeZone`, `FiscalCalendar` | — |
+| `inorbeforefiscalperiodandyear` | `InOrBeforeFiscalPeriodAndYear` | 71 | `in-or-before-fiscal-period-and-year` | yes | yes | `CurrentInstant`, `UserTimeZone`, `FiscalCalendar` | — |
+| `inorafterfiscalperiodandyear` | `InOrAfterFiscalPeriodAndYear` | 72 | `in-or-after-fiscal-period-and-year` | yes | yes | `CurrentInstant`, `UserTimeZone`, `FiscalCalendar` | — |
 
 #### Contextual identity — 9 operators
 
-| Canonical key | SDK member | SDK value | FetchXML spelling | Supported | Context required | Reason |
-| --- | --- | ---: | --- | --- | --- | --- |
-| `equaluserid` | `EqualUserId` | 41 | `eq-userid` | yes | `UserMembership` | — |
-| `notequaluserid` | `NotEqualUserId` | 42 | `ne-userid` | yes | `UserMembership` | — |
-| `equalbusinessid` | `EqualBusinessId` | 43 | `eq-businessid` | yes | `UserMembership` | — |
-| `notequalbusinessid` | `NotEqualBusinessId` | 44 | `ne-businessid` | yes | `UserMembership` | — |
-| `equaluserlanguage` | `EqualUserLanguage` | 51 | `eq-userlanguage` | yes | `UserLanguage` | — |
-| `equaluserteams` | `EqualUserTeams` | 73 | `eq-userteams` | yes | `UserTeams` | — |
-| `equaluseroruserteams` | `EqualUserOrUserTeams` | 74 | `eq-useroruserteams` | yes | `UserMembership`, `UserTeams` | — |
-| `equaluseroruserhierarchy` | `EqualUserOrUserHierarchy` | 80 | `eq-useroruserhierarchy` | yes | `UserHierarchy` | — |
-| `equaluseroruserhierarchyandteams` | `EqualUserOrUserHierarchyAndTeams` | 81 | `eq-useroruserhierarchyandteams` | yes | `UserHierarchy` | — |
+| Canonical key | SDK member | SDK value | FetchXML spelling | Supported | Reachable from FetchXML | Context required | Reason |
+| --- | --- | ---: | --- | --- | --- | --- | --- |
+| `equaluserid` | `EqualUserId` | 41 | `eq-userid` | yes | yes | `UserMembership` | — |
+| `notequaluserid` | `NotEqualUserId` | 42 | `ne-userid` | yes | yes | `UserMembership` | — |
+| `equalbusinessid` | `EqualBusinessId` | 43 | `eq-businessid` | yes | yes | `UserMembership` | — |
+| `notequalbusinessid` | `NotEqualBusinessId` | 44 | `ne-businessid` | yes | yes | `UserMembership` | — |
+| `equaluserlanguage` | `EqualUserLanguage` | 51 | `eq-userlanguage` | yes | yes | `UserLanguage` | — |
+| `equaluserteams` | `EqualUserTeams` | 73 | `eq-userteams` | yes | yes | `UserTeams` | — |
+| `equaluseroruserteams` | `EqualUserOrUserTeams` | 74 | `eq-useroruserteams` | yes | yes | `UserMembership`, `UserTeams` | — |
+| `equaluseroruserhierarchy` | `EqualUserOrUserHierarchy` | 80 | `eq-useroruserhierarchy` | yes | yes | `UserHierarchy` | — |
+| `equaluseroruserhierarchyandteams` | `EqualUserOrUserHierarchyAndTeams` | 81 | `eq-useroruserhierarchyandteams` | yes | yes | `UserHierarchy` | — |
 
 #### Structural hierarchy — 5 operators
 
-| Canonical key | SDK member | SDK value | FetchXML spelling | Supported | Context required | Reason |
-| --- | --- | ---: | --- | --- | --- | --- |
-| `above` | `Above` | 78 | `above` | yes | none | — |
-| `aboveorequal` | `AboveOrEqual` | 79 | `eq-or-above` | yes | none | — |
-| `under` | `Under` | 75 | `under` | yes | none | — |
-| `underorequal` | `UnderOrEqual` | 77 | `eq-or-under` | yes | none | — |
-| `notunder` | `NotUnder` | 76 | `not-under` | yes | none | — |
+| Canonical key | SDK member | SDK value | FetchXML spelling | Supported | Reachable from FetchXML | Context required | Reason |
+| --- | --- | ---: | --- | --- | --- | --- | --- |
+| `above` | `Above` | 78 | `above` | yes | yes | none | — |
+| `aboveorequal` | `AboveOrEqual` | 79 | `eq-or-above` | yes | yes | none | — |
+| `under` | `Under` | 75 | `under` | yes | yes | none | — |
+| `underorequal` | `UnderOrEqual` | 77 | `eq-or-under` | yes | yes | none | — |
+| `notunder` | `NotUnder` | 76 | `not-under` | yes | yes | none | — |
 
-#### Deliberately rejected — 2 operators
+#### Deliberately rejected — 1 operator
 
-| Canonical key | SDK member | SDK value | FetchXML spelling | Supported | Context required | Reason |
-| --- | --- | ---: | --- | --- | --- | --- |
-| `childof` | `ChildOf` | 45 | `child-of` | no (deliberate) | — | [see note](#why-childof-is-refused) |
-| `masksselect` | `MasksSelect` | 48 | `masks-select` | no (deliberate) | — | [see note](#why-masksselect-is-refused) |
+| Canonical key | SDK member | SDK value | FetchXML spelling | Supported | Reachable from FetchXML | Context required | Reason |
+| --- | --- | ---: | --- | --- | --- | --- | --- |
+| `childof` | `ChildOf` | 45 | `child-of` | no (deliberate) | yes | — | [see note](#why-childof-is-refused) |
 
-## The Two Deliberate Refusals
+## The One Deliberate Refusal
 
-Neither of these two is unfinished, and they are **not one family**: each is out for a fact somebody
-measured, and the two facts are different. An evaluator written anyway would answer a query
-Dataverse itself declines.
+`childof` is the only operator this engine refuses, and it is not unfinished: it is out for a fact
+somebody measured. An evaluator written anyway would answer a query Dataverse itself declines.
 
 ### Why childof is refused
 
-The SDK reference marks `ChildOf` **"for internal use only"**, and the platform refuses it on every
-attribute it has been tried on — ADO-2307 recorded **eight rejections out of eight**. So there is
-no observed behaviour an evaluator could mirror.
+The SDK reference marks `ChildOf` **"for internal use only"**, and the platform enforces that as a
+refusal of **use** rather than of the name — which is why the operator keeps its FetchXML spelling
+and is still `no (deliberate)`:
 
-### Why masksselect is refused
+- **Through FetchXML**, the frontend parses `child-of` and the platform then rejects the attribute:
+  *"The parentbusinessunitid attribute is not a valid attribute for the child-of operator"* —
+  ADO-2307 recorded **eight rejections out of eight**.
+- **Through `QueryExpression`**, at the operator's own arity of **zero values**, the platform answers
+  *"The child-of operator is not valid for standard queries. It is for internal crm infrastructure
+  use only via OutlookSync queries."* — ADO-2498, **six targets across three hierarchies**
+  (`businessunit.parentbusinessunitid`, `businessunit.businessunitid`, `systemuser.businessunitid`,
+  `systemuser.parentsystemuserid`, `role.parentrootroleid`, `team.businessunitid`).
 
-The Dataverse server rejects **every spelling tried** — `masks-select`, `masksselect`,
-`maskselect` and `masks_select` — with **HTTP 400 `Unknown Condition Operator`**. There is
-therefore no observed behaviour an evaluator could mirror.
+So `childof` is a **reserved** operator and not an unknown one, and there is no observed behaviour an
+evaluator could mirror. What that measurement did **not** establish is what `ChildOf` does inside
+OutlookSync, which is a path `RetrieveMultiple` does not reach.
 
-**The bound of that measurement, stated:** it was taken through the **FetchXML frontend alone**. If
-`MasksSelect` were accepted on the `QueryExpression` path of the SDK, this probe would not have seen
-it. This page makes **no claim** about the `QueryExpression` path for this operator — it says only
-that nobody looked there. The bound is not itself the reason for the exclusion; the four HTTP 400
-responses are.
+## Why masksselect Has No FetchXML Spelling
 
-## mask and notmask Are Not Privilege Masks
+`masksselect` is **supported** and it is **unreachable from FetchXML**, and the two halves have to be
+read together because either alone reads as the opposite state.
 
-`mask` and `notmask` are **generic bitwise AND predicates over any integer attribute**, and they are
-worth stating on their own because the obvious reading of the name is the wrong one:
+- **Every FetchXML spelling tried** — `masks-select`, `masksselect`, `maskselect` and `masks_select` —
+  is answered by the Dataverse server with **HTTP 400 `Unknown Condition Operator`**. That
+  measurement was true, and this engine's FetchXML frontend mirrors it: none of the spellings that
+  normalise onto the canonical key (`masks-select`, `masksselect`, `masks_select`, `MasksSelect`,
+  `Masks-Select`) resolves, so a FetchXML query cannot name the operator under any of them.
+- **A `QueryExpression` reaches it.** The `QueryExpression` probe of ADO-2500, run on **18 September
+  2026**, sent `ConditionOperator.MasksSelect` through `RetrieveMultiple` on four tables
+  (`webresource.webresourcetype`, `roleprivileges.privilegedepthmask`,
+  `principalobjectaccess.accessrightsmask`, `systemuser.accessmode`) and the server answered **200
+  with rows** on all four, as `(value & operand) != 0`.
 
-| Operator | Predicate |
+The two measurements do not contradict each other. Together they say the operator **exists
+server-side and has no FetchXML grammar**, which is a fact about a frontend and not a gap in
+coverage — so `masksselect` counts as covered, and its refusal on the FetchXML path is a refusal of
+the *spelling*, not of the operator.
+
+That the server knows the operator rather than ignoring it is visible in its own error messages,
+which talk about the **operand** and never about the operator: the wrong number of values answers
+*"The ConditonOperator.MasksSelect requires 1 value/s, not 2"* — and *"not 0"* for none — with
+Microsoft's typo included, and a string column answers `Sql Number: 402`, SQL Server's operand type
+clash, raised by a bitwise AND that reached the SQL generator. An operand of `0` is accepted and
+matches nothing, which is what `(value & 0) != 0` says.
+
+## The Three Bitwise Operators Are Not Privilege Masks
+
+`mask`, `masksselect` and `notmask` are **generic bitwise AND predicates over any integer
+attribute**, and they are worth stating on their own because the obvious reading of the name is the
+wrong one:
+
+| Operator | Predicate | In words |
+|---|---|---|
+| `mask` | `(value & operand) == operand` | **every** bit of the operand is set |
+| `masksselect` | `(value & operand) != 0` | **at least one** bit of the operand is set |
+| `notmask` | `(value & operand) == 0` | **no** bit of the operand is set |
+
+**They are three different predicates, and a single-bit operand hides it.** At operand `1` the
+readings `== operand`, `!= 0` and `== bit 0` all coincide, so a counterexample built on a one-bit
+operand stays true under any of the three and proves nothing about which one the platform
+implements. The discriminating operand is a **multi-bit** one.
+
+The measured counterexample, on `webresource.webresourcetype` over the domain
+`1, 2, 3, 4, 5, 6, 7, 11, 12` at operand **`3` (`0011`)**:
+
+| Operator | Values the platform matches at operand `3` |
 |---|---|
-| `mask` | `(value & operand) != 0` |
-| `notmask` | `(value & operand) == 0` |
+| `mask` | `3, 7, 11` — the only values with **both** bit 0 and bit 1 set |
+| `masksselect` | `1, 2, 3, 5, 6, 7, 11` — every value with **either** bit set |
+| `notmask` | `4, 12` — the values with **neither** bit set |
 
-`mask` is the bitwise predicate `(value & operand) != 0` over the integer value a row holds for
-**any** integer attribute of **any** table, and `notmask` is `(value & operand) == 0` over the same
-pair; **the privilege mask is the most famous use of that predicate, not its semantics.** The
-counterproof is `systemuser.accessmode`: `mask 1` matches 1, 3 and 5, because each has bit 0 set,
-and nothing in answering it reads a privilege, a role or an entitlement.
+Two things follow from that one row, and both correct a reading that a single-bit probe had made
+plausible:
 
-Accordingly, both declare **no** execution-context requirement: neither asks for anything the row
-cannot supply.
+- **`mask` is not `!= 0`.** `1`, `2`, `5` and `6` each share a bit with `3` and are matched by
+  `masksselect`, and none of them is matched by `mask`. `(value & operand) != 0` is `masksselect`'s
+  predicate, never `mask`'s.
+- **`mask` and `notmask` are not complements.** `1, 2, 5, 6` are in neither. The complement of
+  `notmask` is **`masksselect`**: `masksselect` is "at least one bit", `notmask` is "no bit", and
+  together they exhaust the domain.
+
+**And the privilege mask is the most famous use of these predicates, not their semantics.** The
+counterproof is `systemuser.accessmode`, which is not a privilege column: `masksselect 1` returns
+**two rows**, with `accessmode` values **`3`** and **`5`** — each has bit 0 set — and nothing in
+answering it reads a privilege, a role or an entitlement. Note that this example is at operand `1`,
+so it says what the operator does **not** read; it does not discriminate between the three
+predicates, and the operand-`3` table above is what does.
+
+All three declare **no** execution-context requirement: none asks for anything the row cannot
+supply.
+
+### What the bitwise measurement covers, and what it does not
+
+The three predicates were confirmed on **three columns** (`webresource.webresourcetype`,
+`principalobjectaccess.accessrightsmask`, `savedquery.querytype`) across ten column/operand
+combinations — **thirty comparisons between the observed value set and the set the formula predicts,
+with zero discrepancies**. The bound of that confirmation is stated rather than left to be assumed:
+
+- **Types.** Only `Integer` and `Picklist` columns were queried. `BigInt`, `Decimal` and `Money` were
+  not. A string column answers `Sql Number: 402`, which says there is no implicit conversion but not
+  where the boundary between numeric types lies.
+- **System tables only.** No custom attribute was queried, so a SQL generator that treated one
+  differently would not have been seen.
+- **Range and sign.** Every value in every domain fits in a **positive `Int32`**, and the largest
+  operand queried is `852023` — **bit 19**. A negative operand, one beyond `2^31`, and the difference
+  between a 32-bit and a 64-bit AND are all outside what was observed.
+- **One organisation, one instant.** The probe ran against a single Dataverse organisation on
+  **18 September 2026**, and the server's own version was not recorded. If the platform changed this
+  behaviour, this measurement would not predict it.
+
+What is outside those bounds is **not observed**, and this page makes no claim about it either way.
 
 ## Execution Context
 
@@ -443,8 +538,8 @@ Pro", a mock query becomes a paywall.
 |---|---|
 | Repo | `xrmghost-framework-host` |
 | Branch | `dev` |
-| Commit | **`67e9d3e`** |
-| Snapshot taken | **17 September 2026** |
+| Commit | **`ff32df7`** |
+| Snapshot taken | **18 September 2026** |
 | SDK pin | **`Microsoft.CrmSdk.CoreAssemblies` 9.0.2.45** |
 | `AssemblyVersion` of that assembly | `9.0.0.0` — **not the pin** |
 | `FileVersion` of that assembly | `9.2.47.9489` |
@@ -458,15 +553,16 @@ the operator inventory** this engine is written against. Citing it as the pin wo
 reference non-reproducible, because two different inventories would present themselves under the
 same number. The number that does identify the inventory is the **package** pin,
 `Microsoft.CrmSdk.CoreAssemblies` **9.0.2.45** — and the only place it is visible is
-`docs/query-engine/sources/OperatorContractTests.cs.txt`. The generated matrix does not carry it:
-its header writes `SDK Microsoft.Xrm.Sdk 9.0.0.0` and refers to that test for the pin, so taking the
-number from the matrix header gets you the `AssemblyVersion` in the belief that it is the pin.
+`docs/query-engine/sources/OperatorContractTests.cs.txt`. The generated matrix does not carry it and
+says so: its header states that the shipped assembly carries version `9.0.0.0` whatever package
+version brought it in, and refers to that test for the pin. So the pin cannot be taken from the
+matrix, and a reader who takes a version number from there is reading the `AssemblyVersion`.
 
 ### Why the count is 89
 
 89 is the size of the condition-operator inventory of the **pinned** package. The SDK's inventory
 grew to **90** members from **9.0.2.49** (May 2023), which added `EqualRoleBusinessId`. This engine
-stays pinned to **9.0.2.45**, so **89 is the right number for this page** — and 87 of 89 is the
+stays pinned to **9.0.2.45**, so **89 is the right number for this page** — and 88 of 89 is the
 right coverage claim. A page that quoted 90 would be describing an SDK this engine is not written
 against.
 
