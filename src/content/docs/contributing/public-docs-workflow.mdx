@@ -133,15 +133,19 @@ their provenance. Keep the two in agreement instead of restating the procedure a
   agree with the published page: an edit here would make the engine say something the engine does not
   say, and the whole point of keeping the copies next to the page is that the derivation can be
   checked by diffing two files that sit side by side.
-- Current provenance: **`xrmghost-framework-host@67e9d3e`** (branch `dev`), taken on **17 September
-  2026**. Coverage is closed at 87 of the SDK's 89 condition operators and continuous evolution is not
-  expected, which is why a dated, signed copy was chosen over permanent cross-repo infrastructure.
+- Current provenance: **`xrmghost-framework-host@ff32df7`** (branch `dev`), taken on **18 September
+  2026**. Coverage is closed at 88 of the SDK's 89 condition operators — `childof` is the only
+  deliberate refusal, and `masksselect` is supported without having a FetchXML spelling — and
+  continuous evolution is not expected, which is why a dated, signed copy was chosen over permanent
+  cross-repo infrastructure.
 
 ### Which snapshot answers which question
 
 - **FetchXML spellings and the SDK pin come from `OperatorContractTests.cs.txt`** (field
-  `FetchXmlSpellings`), which carries a spelling for every one of the 89 SDK condition operators — 92
-  entries in total, because `Equal` and `NotEqual` each accept more than one FetchXML spelling.
+  `FetchXmlSpellings`), which carries **91 spellings covering 88 of the 89** SDK condition operators —
+  more spellings than operators because `Equal` and `NotEqual` each accept more than one FetchXML
+  spelling, and one operator fewer than the inventory because `MasksSelect` has **no** FetchXML
+  spelling at all. It is the single entry of `OperatorsWithoutAFetchXmlSpelling` in the same file.
 - **`FetchXmlOperatorMap.cs.txt` is not enough.** It holds only the 24 spellings that
   `OperatorIdentity.Normalize` cannot reach on its own; every spelling that differs from the SDK member
   name by separators alone is absent by design. Deriving the full list from it loses most of it.
