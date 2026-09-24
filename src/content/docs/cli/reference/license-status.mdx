@@ -20,19 +20,19 @@ xg license status [OPTIONS]
 When a license is found the command prints:
 
 - **Status** — `License Active` (green) or `No Active License Found` (red).
-- **Tier** — the highest active subscription tier: `Trial`, `Standard`, `Premium`, `Pro`, or `Enterprise`.
+- **Tier** — the highest active subscription tier: `Standard` or `Pro`.
 - **Expires** — the UTC expiration timestamp of the license (`yyyy-MM-dd HH:mm:ss K` format).
 - **Expiration warning** — an amber warning if the license expires within 30 days; a red warning if it expires within 7 days.
-- **Subscription claims** — one entry per active subscription parsed from the JWT entitlement token (program name, tier, expiry). Shown in verbose mode only (see `--verbose`).
+- **Subscription claims** — one entry per subscription parsed from the JWT entitlement token (program name, tier, status, expiry). The `Subscription Claims` block is always printed; `--verbose` adds `Program ID:` to each claim and shows expired subscriptions when active subscriptions also exist.
 
-When no valid license is found the command prints the `Unlicensed` / `Trial` tier state and shows the activation hint.
+When no valid license is found the command prints `Status: Unlicensed` with the `Standard Unlicensed` tier and shows the activation hint.
 
 ### License states
 
 | State | Condition | Tier shown |
 |---|---|---|
-| **Active** | API key present, AKMS validation succeeds, expiration date in the future | Resolved from subscription claims (`Standard`, `Premium`, `Pro`, `Enterprise`) |
-| **Unlicensed** | No API key stored, or AKMS validation fails | `Trial` |
+| **Active** | API key present, AKMS validation succeeds, expiration date in the future | Resolved from subscription claims (`Standard`, `Pro`) |
+| **Unlicensed** | No API key stored, or AKMS validation fails | `Standard Unlicensed` |
 | **Expiring soon** | Active license expires within 30 days | Same as Active, with amber warning |
 | **Expiring critically** | Active license expires within 7 days | Same as Active, with red warning |
 
@@ -42,7 +42,7 @@ When no valid license is found the command prints the `Unlicensed` / `Trial` tie
 
 | Option | Short | Type | Default | Description |
 |---|---|---|---|---|
-| `--verbose` | `-v` | flag | `false` | Print extended output including subscription claim details (program name, tier, expiry) parsed from the JWT entitlement token. |
+| `--verbose` | `-v` | flag | `false` | Print extended subscription claim details. The `Subscription Claims` block is always printed; `--verbose` adds `Program ID:` to each claim and shows expired subscriptions when active subscriptions also exist. |
 
 ## Exit codes
 
@@ -64,6 +64,13 @@ Retrieving license information...
 License Active
   Tier: Pro
   Expires: 2027-01-15 00:00:00 +00:00
+
+Subscription Claims
+Active Subscriptions (1)
+  ✓ XrmGhost Pro
+    Tier: Pro
+    Status: Active
+    Expires: 2027-01-15 00:00:00 +00:00
 ```
 
 ### Check license status with verbose subscription claims
@@ -78,8 +85,13 @@ License Active
   Tier: Pro
   Expires: 2027-01-15 00:00:00 +00:00
 
-Subscription Claims:
-  XrmGhost Pro (Active) - Expires: 2027-01-15
+Subscription Claims
+Active Subscriptions (1)
+  ✓ XrmGhost Pro
+    Tier: Pro
+    Status: Active
+    Expires: 2027-01-15 00:00:00 +00:00
+    Program ID: 4f2b9c1e-8d3a-4f57-9b0c-2a6e5d71c843
 ```
 
 ### Unlicensed machine
@@ -92,10 +104,13 @@ XrmGhost License Status
 Retrieving license information...
 No Active License Found
   Status: Unlicensed
-  Tier: Trial
+  Tier: Standard Unlicensed
   Description: No active license was found on this machine.
 
 To activate a license, use: xg license activate <bootstrap-key>
+
+Subscription Claims
+  No subscription claims found
 ```
 
 ### License expiring within 30 days
@@ -107,11 +122,19 @@ XrmGhost License Status
 
 Retrieving license information...
 License Active
-  Tier: Enterprise
+  Tier: Pro
   Expires: 2026-05-25 00:00:00 +00:00
 
 ⚠️  License expires in 18 days
 Consider renewing your license before it expires.
+
+Subscription Claims
+Active Subscriptions (1)
+  ✓ XrmGhost Pro
+    Tier: Pro
+    Status: Active
+    Expires: 2026-05-25 00:00:00 +00:00
+    ⚠️  Expires in 18 days
 ```
 
 ## See Also
