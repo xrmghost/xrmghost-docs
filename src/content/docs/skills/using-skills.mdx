@@ -1,6 +1,6 @@
 ---
 title: Using the Skills
-description: How the XrmGhost skills work day to day — authoring scenario files, running and debugging plugins and Custom APIs locally with xg, the post-run protocol, auto mode, and choosing a data source.
+description: How the XrmGhost skills work day to day — the four-stage local loop, running and debugging plugins and Custom APIs with xg, the post-run protocol, auto mode, and choosing a data source.
 sidebar:
   order: 2
 ---
@@ -24,66 +24,17 @@ A well-behaved agent surfaces local execution as the obvious next step at two na
 
 ## Authoring scenarios
 
-A scenario is a JSON document describing one operation. The authoring skill knows the shape and, more importantly, the typing rules that are the most common source of errors.
+A scenario is a JSON document describing one operation. The authoring skill knows its shape and,
+more importantly, the typing rules that are the most common source of errors: how an OptionSet and
+an `EntityReference` must be written, which of `organizationServiceMock.retrieveResponses` and the
+root-level `entities` key a given message reads, how a pre-image is supplied, what a Custom API
+scenario does differently, and how `expectedException` turns a rejection into a passing run.
 
-### Minimum shape
+The complete anatomy of the document — with examples — lives in **[Scenario Files](/cli/scenarios/)**,
+which is the canonical reference for it. Read it when you want to write or review a scenario
+yourself; the skill applies the same rules on your behalf when an agent is doing the writing.
 
-```json
-{
-  "scenarioName": "Short description of the operation",
-  "pluginAssemblyName": "MyCompany.Plugins.dll",
-  "pluginTypeName": "MyCompany.Plugins.Namespace.PluginClass",
-  "executionContext": {
-    "messageName": "Create",
-    "primaryEntityName": "account",
-    "primaryEntityId": "00000000-0000-0000-0000-000000000001",
-    "stage": 20,
-    "mode": 0,
-    "inputParameters": {
-      "Target": {
-        "logicalName": "account",
-        "id": "00000000-0000-0000-0000-000000000001",
-        "attributes": { }
-      }
-    }
-  }
-}
-```
-
-### Attribute value typing
-
-Inside any `attributes` object, value typing must be explicit or the framework misreads it:
-
-- **Plain values** (string, number, bool): written directly — `"name": "Contoso Ltd"`, `"revenue": 1000000`.
-- **OptionSet / Picklist**: `{ "value": X }` — never the bare number.
-- **EntityReference / lookup**: `{ "logicalName": "...", "id": "...", "name": "..." }` (`name` optional).
-- **GUIDs must be valid hex.** IDs with non-hex characters fail to parse inside EntityReference objects.
-
-### Describing the expected outcome
-
-- **Expect success**: omit `expectedException`. A run that does not throw is the success.
-- **Expect rejection**: declare `expectedException` with a `typeName` and a `messageContains` substring. The run matches only if that exception is thrown.
-
-### Supplying data the code reads
-
-When the code reads other records while it runs, that data is described — and there are two distinct mechanisms. Using the wrong one is the second most common mistake:
-
-- **`Retrieve` (single record)** → `organizationServiceMock.retrieveResponses`, where attributes are **nested** under an `attributes` object.
-- **`RetrieveMultiple` (query)** → a **root-level** `entities` key (a sibling of `executionContext`), grouped by logical name, where attributes sit **directly on the entity object** — the opposite of `retrieveResponses`. Include every field the query's filter references, or the record gets filtered out. The CLI applies the QueryExpression itself and returns only matches.
-
-A pre-image is provided via a root-level `preEntityImages` key whose name matches the image registered on the step (read in code via `Context.PreEntityImages["PreImage"]`).
-
-### Custom API scenarios
-
-A Custom API scenario differs from an entity plugin in its input parameters:
-
-- **Message name**: `custom_<publisherprefix>_<ApiName>` — both the `custom_` segment and the publisher prefix are required.
-- **No `Target`**: each declared request parameter is a direct key under `inputParameters`.
-- **Primary entity**: empty string `""` or omitted — Custom APIs are global, not bound to a record.
-
-Backing data (`retrieveResponses`, `entities`) works exactly as for a plugin.
-
-> The full authoring reference — every format, every edge case — lives in the [`authoring-dataverse-plugin-scenarios`](https://github.com/xrmghost/xrmghost-skills/blob/main/skills/authoring-dataverse-plugin-scenarios/SKILL.md) skill.
+> The skill's own source — the instructions the agent loads — is the [`authoring-dataverse-plugin-scenarios`](https://github.com/xrmghost/xrmghost-skills/blob/main/skills/authoring-dataverse-plugin-scenarios/SKILL.md) skill file.
 
 ## Running and debugging
 

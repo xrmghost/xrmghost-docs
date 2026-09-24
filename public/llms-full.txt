@@ -472,6 +472,357 @@ Until that reference lands, `xg <command> --help` is the definitive source.
 
 ---
 
+# Source: https://docs.xrmghost.tech/cli/scenarios/
+
+> The canonical reference for XrmGhost scenario JSON — the minimum shape, attribute value typing, mocking Retrieve and RetrieveMultiple, pre-images, Custom API scenarios, and expecting an exception with expectedException.
+
+
+# Scenario Files
+
+A **scenario** is a JSON document that describes one operation: which plugin runs, the execution
+context it runs in, the data it is allowed to read, and — optionally — the exception it is expected
+to throw. You hand it to [`xg run`](/cli/reference/run/) with `--scenario`, and the FrameworkHost
+builds the whole `IPluginExecutionContext` from it.
+
+This page is the canonical reference for that document. A starting template for a real assembly can
+be produced with [`xg generate-scenario`](/cli/reference/generate-scenario/); everything below is
+what you edit afterwards.
+
+## Minimum shape
+
+Four keys are enough to run a plugin:
+
+```json
+{
+  "scenarioName": "Short description of the operation",
+  "pluginAssemblyName": "MyCompany.Plugins.dll",
+  "pluginTypeName": "MyCompany.Plugins.Account.ValidateAccount",
+  "executionContext": {
+    "messageName": "Create",
+    "primaryEntityName": "account",
+    "primaryEntityId": "00000000-0000-0000-0000-000000000001",
+    "stage": 20,
+    "mode": 0,
+    "inputParameters": {
+      "Target": {
+        "logicalName": "account",
+        "id": "00000000-0000-0000-0000-000000000001",
+        "attributes": { }
+      }
+    }
+  }
+}
+```
+
+| Key | What it is |
+|---|---|
+| `scenarioName` | A human label. It appears in the run output and is never interpreted. |
+| `pluginAssemblyName` | The assembly the scenario was written against — documentation for the reader; the assembly actually loaded is the one `xg run -a` points at. |
+| `pluginTypeName` | The fully-qualified plugin type the scenario was written against; the type actually executed is the one `xg run -t` names. |
+| `executionContext` | Everything the plugin sees through `IPluginExecutionContext`. |
+
+Inside `executionContext`, three fields carry most of the meaning:
+
+- **`messageName`** — the Dataverse message: `Create`, `Update`, `Delete`, `Retrieve`,
+  `RetrieveMultiple`, or a Custom API message (see [Custom API scenarios](#custom-api-scenarios)).
+  It is the name your plugin reads to decide whether it should act at all.
+- **`stage`** — the pipeline stage: `10` PreValidation, `20` PreOperation, `40` PostOperation. The
+  main operation of a Custom API is stage `30`.
+- **`inputParameters.Target`** — the record the message carries. For `Create` and `Update` it is the
+  entity being written, and its `attributes` object is what your plugin reads. For `Delete` it is
+  normally an `EntityReference` instead.
+
+`mode` is `0` for synchronous and `1` for asynchronous. `depth`, `userId`, `initiatingUserId`,
+`organizationId`, `businessUnitId`, `correlationId`, `sharedVariables` and `outputParameters` are
+accepted too, and default to sensible values when omitted.
+
+## Attribute value typing
+
+Inside any `attributes` object, value typing must be explicit or the framework misreads it. This is
+the single most common source of scenario errors:
+
+- **Plain values** (string, number, bool) are written directly — `"name": "Contoso Ltd"`,
+  `"revenue": 1000000`, `"creditonhold": false`.
+- **OptionSet / Picklist** is `{ "value": X }` — never the bare number.
+- **EntityReference / lookup** is `{ "logicalName": "...", "id": "...", "name": "..." }`, where
+  `name` is optional.
+- **GUIDs must be valid hexadecimal.** An id containing a non-hex character — an `x`, a `g`, a typo
+  — fails to parse inside an `EntityReference` and takes the whole scenario down with it.
+
+```json
+"attributes": {
+  "name": "Contoso Ltd",
+  "revenue": 1000000,
+  "statuscode": { "value": 2 },
+  "primarycontactid": {
+    "logicalName": "contact",
+    "id": "00000000-0000-0000-0000-0000000000c1",
+    "name": "Alex Taylor"
+  }
+}
+```
+
+## Supplying the data the code reads
+
+When the plugin reads other records while it runs, those records are described in the scenario — and
+there are **two distinct mechanisms**, one per message. Using the wrong one is the second most
+common mistake, because both "work" in the sense that the JSON parses and neither returns what you
+expected.
+
+| The plugin calls | You describe it in | Where the attributes go |
+|---|---|---|
+| `Retrieve` (one record, by id) | `organizationServiceMock.retrieveResponses` | **Nested** under an `attributes` object |
+| `RetrieveMultiple` (a query) | a **root-level** `entities` key, sibling of `executionContext` | **Directly on the entity object** |
+
+### `Retrieve` — `organizationServiceMock.retrieveResponses`
+
+Each entry pairs the call to match (`request`) with the record to hand back (`response`):
+
+```json
+"organizationServiceMock": {
+  "retrieveResponses": [
+    {
+      "request": {
+        "entityName": "contact",
+        "id": "00000000-0000-0000-0000-0000000000c1",
+        "columnSet": ["fullname", "emailaddress1"]
+      },
+      "response": {
+        "logicalName": "contact",
+        "id": "00000000-0000-0000-0000-0000000000c1",
+        "attributes": {
+          "fullname": "Alex Taylor",
+          "emailaddress1": "alex.taylor@example.com"
+        }
+      }
+    }
+  ]
+}
+```
+
+### `RetrieveMultiple` — the root-level `entities` key
+
+`entities` is **not** inside `organizationServiceMock`: it sits at the root of the document, next to
+`executionContext`. It is grouped by logical name, and each record carries its attributes **directly
+on the object** — the opposite of `retrieveResponses`:
+
+```json
+"entities": {
+  "contact": [
+    {
+      "id": "00000000-0000-0000-0000-0000000000c1",
+      "fullname": "Alex Taylor",
+      "emailaddress1": "alex.taylor@example.com",
+      "statuscode": { "value": 1 },
+      "parentcustomerid": {
+        "logicalName": "account",
+        "id": "00000000-0000-0000-0000-000000000001"
+      }
+    }
+  ]
+}
+```
+
+The CLI does not hand this list back verbatim: the host **applies the query itself** and returns
+only the records that match. So **every field the query's filter or order references must be present
+on the record**, or it is filtered out and your plugin sees an empty result it will not explain to
+you.
+
+## Pre-images
+
+A pre-image is supplied through a root-level `preEntityImages` key, whose name must match the image
+registered on the step — the same name the code reads:
+
+```json
+"preEntityImages": {
+  "PreImage": {
+    "logicalName": "account",
+    "id": "00000000-0000-0000-0000-000000000001",
+    "attributes": {
+      "name": "Contoso Ltd",
+      "revenue": 900000
+    }
+  }
+}
+```
+
+```csharp
+var preImage = (Entity)context.PreEntityImages["PreImage"];
+```
+
+`postEntityImages` works identically. Both keys are also accepted under `executionContext`; when the
+same key appears in both places the **root-level one wins** and the CLI prints a warning saying so,
+so pick one and keep it there.
+
+## Custom API scenarios
+
+A Custom API runs through the same pipeline, but its scenario differs from an entity plugin's in
+three ways:
+
+- **Message name**: `custom_<publisherprefix>_<ApiName>` — both the `custom_` segment and the
+  publisher prefix are required, because the message name *is* the API's unique name.
+- **No `Target`**: each declared request parameter is a direct key under `inputParameters`.
+- **Primary entity**: `primaryEntityName` is the empty string `""` or omitted — a Custom API is
+  global, not bound to a record. Do not substitute a placeholder such as `"none"`.
+
+```json
+{
+  "scenarioName": "Custom API - validate an invitation code",
+  "pluginAssemblyName": "MyCompany.Plugins.dll",
+  "pluginTypeName": "MyCompany.Plugins.Api.ValidateInvitation",
+  "executionContext": {
+    "messageName": "custom_mycompany_ValidateInvitation",
+    "primaryEntityName": "",
+    "stage": 30,
+    "mode": 0,
+    "inputParameters": {
+      "InvitationCode": "ABC-123",
+      "RequestedBy": "alex.taylor@example.com"
+    }
+  }
+}
+```
+
+Backing data works exactly as it does for a plugin: `retrieveResponses` and `entities` are read the
+same way.
+
+## Expecting the outcome
+
+### Happy path
+
+A scenario with no `expectedException` expects the plugin **not to throw**. Putting the pieces above
+together:
+
+```json
+{
+  "scenarioName": "Account create — the credit limit is applied",
+  "pluginAssemblyName": "MyCompany.Plugins.dll",
+  "pluginTypeName": "MyCompany.Plugins.Account.ApplyCreditLimit",
+  "executionContext": {
+    "messageName": "Create",
+    "primaryEntityName": "account",
+    "primaryEntityId": "00000000-0000-0000-0000-000000000001",
+    "stage": 20,
+    "mode": 0,
+    "inputParameters": {
+      "Target": {
+        "logicalName": "account",
+        "id": "00000000-0000-0000-0000-000000000001",
+        "attributes": {
+          "name": "Contoso Ltd",
+          "revenue": 1000000,
+          "primarycontactid": {
+            "logicalName": "contact",
+            "id": "00000000-0000-0000-0000-0000000000c1"
+          }
+        }
+      }
+    }
+  },
+  "organizationServiceMock": {
+    "retrieveResponses": [
+      {
+        "request": {
+          "entityName": "contact",
+          "id": "00000000-0000-0000-0000-0000000000c1",
+          "columnSet": ["fullname", "emailaddress1"]
+        },
+        "response": {
+          "logicalName": "contact",
+          "id": "00000000-0000-0000-0000-0000000000c1",
+          "attributes": {
+            "fullname": "Alex Taylor",
+            "emailaddress1": "alex.taylor@example.com"
+          }
+        }
+      }
+    ]
+  }
+}
+```
+
+The run passes when the plugin completes without throwing, and `xg run` exits with code `0`.
+
+### Expecting an exception
+
+Rejection is behaviour too. Derive the negative case from the scenario above — same plugin, an input
+the plugin is supposed to refuse — and declare what it must throw:
+
+```json
+{
+  "scenarioName": "Account create — a negative revenue is rejected",
+  "pluginAssemblyName": "MyCompany.Plugins.dll",
+  "pluginTypeName": "MyCompany.Plugins.Account.ApplyCreditLimit",
+  "executionContext": {
+    "messageName": "Create",
+    "primaryEntityName": "account",
+    "primaryEntityId": "00000000-0000-0000-0000-000000000001",
+    "stage": 20,
+    "mode": 0,
+    "inputParameters": {
+      "Target": {
+        "logicalName": "account",
+        "id": "00000000-0000-0000-0000-000000000001",
+        "attributes": {
+          "name": "Contoso Ltd",
+          "revenue": -1
+        }
+      }
+    }
+  },
+  "expectedException": {
+    "typeName": "Microsoft.Xrm.Sdk.InvalidPluginExecutionException",
+    "messageContains": "Revenue cannot be negative"
+  }
+}
+```
+
+Four rules govern how that declaration is evaluated:
+
+- **`typeName` is mandatory and fully qualified.** It is the exception's namespace *and* type name —
+  `Microsoft.Xrm.Sdk.InvalidPluginExecutionException`, not `InvalidPluginExecutionException` — and
+  the comparison is **exact**: no base classes, no case-insensitivity, no partial names. An
+  `expectedException` whose `typeName` is **missing or empty matches nothing**, and the run fails;
+  an unwritten assertion is never a green run.
+- **The whole exception chain is examined, from the outermost exception inward** through
+  `InnerException`. When a plugin catches a failure and rethrows it wrapped, the outer type is a
+  legitimate thing to declare — you do not have to dig down to the root cause.
+- **`messageContains` is optional, and is checked on the same link as the type.** It is an
+  ordinal substring test on that exception's message. A link whose type matches but whose message
+  does not is *not* the answer: the walk continues inward, because the same type can appear twice in
+  one chain and only the inner one may carry the text you named. Omitting `messageContains` simply
+  states no constraint on the message.
+- **A satisfied expectation is a passing run.** `xg run` exits `0` and still prints the exception,
+  because the diagnostic it carries is what the scenario was written to inspect.
+
+The expectation covers the **plugin's own execution and nothing wider**. A failure to load the
+assembly or to construct the plugin type is the harness being broken, and stays red whatever the
+scenario declares.
+
+| What happens | Result |
+|---|---|
+| No `expectedException`, plugin does not throw | Pass — exit code `0` |
+| No `expectedException`, plugin throws | Fail — exit code `1` |
+| `expectedException` satisfied by some link of the chain | Pass — exit code `0`, exception still reported |
+| `expectedException` declared, plugin throws a different type or a message that does not contain `messageContains` | Fail — exit code `1` |
+| `expectedException` declared, plugin throws nothing | Fail — exit code `1` |
+| `expectedException` declared with a missing or empty `typeName` | Fail — exit code `1` |
+
+:::caution expectedTraceLog is not an assertion
+`xg generate-scenario` emits an `expectedTraceLog` key and the CLI carries it through, but nothing
+compares it against the traces a run produced. Do not treat it as a check — read the traces with
+`-v` or `-d` instead.
+:::
+
+## See Also
+
+- [`xg run`](/cli/reference/run/) — execute a scenario, with the full flag reference and exit codes
+- [`xg generate-scenario`](/cli/reference/generate-scenario/) — produce a starting template from an assembly and plugin type
+- [Using the Skills](/skills/using-skills/) — how an AI coding agent authors, runs and debugs these files with you
+
+
+---
+
 # Source: https://docs.xrmghost.tech/cli/reference/
 
 > Landing page for the XrmGhost CLI reference area. Explains the reference structure, distinguishes manual IA guidance from future generated command documentation, and links to the command-group mapping artifact.
@@ -834,7 +1185,7 @@ The per-agent location matrix and copy procedure are maintained in the repositor
 
 # Source: https://docs.xrmghost.tech/skills/using-skills/
 
-> How the XrmGhost skills work day to day — authoring scenario files, running and debugging plugins and Custom APIs locally with xg, the post-run protocol, auto mode, and choosing a data source.
+> How the XrmGhost skills work day to day — the four-stage local loop, running and debugging plugins and Custom APIs with xg, the post-run protocol, auto mode, and choosing a data source.
 
 
 # Using the Skills
@@ -856,66 +1207,17 @@ A well-behaved agent surfaces local execution as the obvious next step at two na
 
 ## Authoring scenarios
 
-A scenario is a JSON document describing one operation. The authoring skill knows the shape and, more importantly, the typing rules that are the most common source of errors.
+A scenario is a JSON document describing one operation. The authoring skill knows its shape and,
+more importantly, the typing rules that are the most common source of errors: how an OptionSet and
+an `EntityReference` must be written, which of `organizationServiceMock.retrieveResponses` and the
+root-level `entities` key a given message reads, how a pre-image is supplied, what a Custom API
+scenario does differently, and how `expectedException` turns a rejection into a passing run.
 
-### Minimum shape
+The complete anatomy of the document — with examples — lives in **[Scenario Files](/cli/scenarios/)**,
+which is the canonical reference for it. Read it when you want to write or review a scenario
+yourself; the skill applies the same rules on your behalf when an agent is doing the writing.
 
-```json
-{
-  "scenarioName": "Short description of the operation",
-  "pluginAssemblyName": "MyCompany.Plugins.dll",
-  "pluginTypeName": "MyCompany.Plugins.Namespace.PluginClass",
-  "executionContext": {
-    "messageName": "Create",
-    "primaryEntityName": "account",
-    "primaryEntityId": "00000000-0000-0000-0000-000000000001",
-    "stage": 20,
-    "mode": 0,
-    "inputParameters": {
-      "Target": {
-        "logicalName": "account",
-        "id": "00000000-0000-0000-0000-000000000001",
-        "attributes": { }
-      }
-    }
-  }
-}
-```
-
-### Attribute value typing
-
-Inside any `attributes` object, value typing must be explicit or the framework misreads it:
-
-- **Plain values** (string, number, bool): written directly — `"name": "Contoso Ltd"`, `"revenue": 1000000`.
-- **OptionSet / Picklist**: `{ "value": X }` — never the bare number.
-- **EntityReference / lookup**: `{ "logicalName": "...", "id": "...", "name": "..." }` (`name` optional).
-- **GUIDs must be valid hex.** IDs with non-hex characters fail to parse inside EntityReference objects.
-
-### Describing the expected outcome
-
-- **Expect success**: omit `expectedException`. A run that does not throw is the success.
-- **Expect rejection**: declare `expectedException` with a `typeName` and a `messageContains` substring. The run matches only if that exception is thrown.
-
-### Supplying data the code reads
-
-When the code reads other records while it runs, that data is described — and there are two distinct mechanisms. Using the wrong one is the second most common mistake:
-
-- **`Retrieve` (single record)** → `organizationServiceMock.retrieveResponses`, where attributes are **nested** under an `attributes` object.
-- **`RetrieveMultiple` (query)** → a **root-level** `entities` key (a sibling of `executionContext`), grouped by logical name, where attributes sit **directly on the entity object** — the opposite of `retrieveResponses`. Include every field the query's filter references, or the record gets filtered out. The CLI applies the QueryExpression itself and returns only matches.
-
-A pre-image is provided via a root-level `preEntityImages` key whose name matches the image registered on the step (read in code via `Context.PreEntityImages["PreImage"]`).
-
-### Custom API scenarios
-
-A Custom API scenario differs from an entity plugin in its input parameters:
-
-- **Message name**: `custom_<publisherprefix>_<ApiName>` — both the `custom_` segment and the publisher prefix are required.
-- **No `Target`**: each declared request parameter is a direct key under `inputParameters`.
-- **Primary entity**: empty string `""` or omitted — Custom APIs are global, not bound to a record.
-
-Backing data (`retrieveResponses`, `entities`) works exactly as for a plugin.
-
-> The full authoring reference — every format, every edge case — lives in the [`authoring-dataverse-plugin-scenarios`](https://github.com/xrmghost/xrmghost-skills/blob/main/skills/authoring-dataverse-plugin-scenarios/SKILL.md) skill.
+> The skill's own source — the instructions the agent loads — is the [`authoring-dataverse-plugin-scenarios`](https://github.com/xrmghost/xrmghost-skills/blob/main/skills/authoring-dataverse-plugin-scenarios/SKILL.md) skill file.
 
 ## Running and debugging
 
@@ -3411,7 +3713,7 @@ xg run -a <ASSEMBLY_PATH> -t <PLUGIN_TYPE> [options]
 
 The command has two required arguments — the assembly path and the fully-qualified plugin type name — and a rich set of optional flags that control scenario injection, verbosity, debugging, configuration strings, and data-source routing.
 
-**Scenario files** are JSON documents generated by [`xg generate-scenario`](/cli/reference/generate-scenario/) and let you define the execution context (message name, entity, stage, depth), input parameters, pre/post entity images, mock OrganizationService responses, and expected outcomes. Without a scenario file the host constructs a minimal default context.
+**Scenario files** are JSON documents — generated by [`xg generate-scenario`](/cli/reference/generate-scenario/) and then edited by hand — that let you define the execution context (message name, entity, stage, depth), input parameters, pre/post entity images, mock OrganizationService responses, and expected outcomes. Without a scenario file the host constructs a minimal default context. The full anatomy of the document — the minimum shape, attribute value typing, mocking `Retrieve` and `RetrieveMultiple`, pre-images, Custom API scenarios and `expectedException` — is documented in [Scenario Files](/cli/scenarios/).
 
 **Verbosity flags** (`-n`, `-v`, `-d`) are mutually exclusive in practice: use the lowest level that gives you the information you need. The default (no verbosity flag) shows only plugin traces, which keeps the output clean in CI.
 
@@ -3423,7 +3725,7 @@ The command has two required arguments — the assembly path and the fully-quali
 |---|---|---|---|
 | `-a`, `--assembly-path` | `string` | *(required)* | Path to the plugin assembly DLL. The file must exist at the time the command is invoked. |
 | `-t`, `--plugin-type` | `string` | *(required)* | Fully-qualified name of the plugin type to execute (e.g., `MyPlugins.MyPluginClass`). |
-| `-s`, `--scenario` | `string` | — | Path to a JSON scenario file. When provided, the file is deserialised into a `ScenarioDefinition` that supplies the execution context, input parameters, entity images, mock data, and expected outcomes. |
+| `-s`, `--scenario` | `string` | — | Path to a JSON scenario file. When provided, the file is deserialised into a `ScenarioDefinition` that supplies the execution context, input parameters, entity images, mock data, and expected outcomes. See [Scenario Files](/cli/scenarios/) for the document's full anatomy. |
 | `-f`, `--framework-host-path` | `string` | — | Explicit path to `XrmGhost.FrameworkHost.exe`. When omitted, the CLI resolves the host from its managed application-data install root, then falls back to legacy beside-the-CLI locations (`bin/`, then the CLI directory). |
 | `-w`, `--debug-plugin-wait` | `bool` | `false` | Instructs FrameworkHost to pause before executing the plugin and wait for a debugger to attach. The CLI prints the host process ID and step-by-step attach instructions. |
 | `-c`, `--continue-on-unlicensed` | `bool` | `false` | When a Pro-tier feature is encountered without a valid license, execution continues with a mocked result and a warning instead of terminating with a non-zero exit code. |
@@ -3439,8 +3741,16 @@ The command has two required arguments — the assembly path and the fully-quali
 
 | Code | Meaning |
 |---|---|
-| `0` | Plugin executed successfully. |
+| `0` | Plugin executed successfully — either it completed without throwing, or it threw the exception the scenario declared in `expectedException` and that expectation was satisfied. |
 | `1` | Plugin execution failed, scenario file not found, assembly not found, FrameworkHost failed to start or become healthy, or an unexpected error occurred. |
+
+A scenario that declares `expectedException` inverts what "successfully" means for that run: the
+exception is the expected result, so a satisfied expectation exits `0` and the exception is still
+printed, because the diagnostic it carries is what the scenario was written to inspect. The run
+exits `1` when the plugin throws an exception of a different type, throws a matching type whose
+message does not contain the declared `messageContains`, or throws nothing at all. The matching
+rules — exact fully-qualified `typeName`, the walk along the exception chain, the optional
+`messageContains` — are documented in [Scenario Files](/cli/scenarios/#expecting-an-exception).
 
 ## Examples
 
@@ -3504,6 +3814,7 @@ With `-c`, any Pro-tier feature encountered (such as Final Entity States) return
 
 ## See Also
 
+- [Scenario Files](/cli/scenarios/) — The canonical reference for the scenario JSON document, including `expectedException`
 - [`xg generate-scenario`](/cli/reference/generate-scenario/) — Generate a scenario JSON template for a plugin assembly and type
 - [`xg doctor`](/cli/reference/doctor/) — Diagnose CLI configuration, FrameworkHost connectivity, and license validity
 - [CLI Overview](/cli/) — Introduction to the XrmGhost CLI and how this documentation is organised
