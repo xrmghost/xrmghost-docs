@@ -792,8 +792,11 @@ Four rules govern how that declaration is evaluated:
   does not is *not* the answer: the walk continues inward, because the same type can appear twice in
   one chain and only the inner one may carry the text you named. Omitting `messageContains` simply
   states no constraint on the message.
-- **A satisfied expectation is a passing run.** `xg run` exits `0` and still prints the exception,
-  because the diagnostic it carries is what the scenario was written to inspect.
+- **A satisfied expectation is a passing run.** `xg run` exits `0` and the run summary reports
+  `Execution Succeeded!` followed by an `Expected Exception Matched:` line. That line restates the
+  expectation you declared — the `typeName`, plus `(message contains: …)` when `messageContains` is
+  set — and is the confirmation that the match happened. The summary does not print the thrown
+  exception, its message or its stack trace.
 
 The expectation covers the **plugin's own execution and nothing wider**. A failure to load the
 assembly or to construct the plugin type is the harness being broken, and stays red whatever the
@@ -803,7 +806,7 @@ scenario declares.
 |---|---|
 | No `expectedException`, plugin does not throw | Pass — exit code `0` |
 | No `expectedException`, plugin throws | Fail — exit code `1` |
-| `expectedException` satisfied by some link of the chain | Pass — exit code `0`, exception still reported |
+| `expectedException` satisfied by some link of the chain | Pass — exit code `0`, summary line `Expected Exception Matched:` |
 | `expectedException` declared, plugin throws a different type or a message that does not contain `messageContains` | Fail — exit code `1` |
 | `expectedException` declared, plugin throws nothing | Fail — exit code `1` |
 | `expectedException` declared with a missing or empty `typeName` | Fail — exit code `1` |
@@ -3745,8 +3748,10 @@ The command has two required arguments — the assembly path and the fully-quali
 | `1` | Plugin execution failed, scenario file not found, assembly not found, FrameworkHost failed to start or become healthy, or an unexpected error occurred. |
 
 A scenario that declares `expectedException` inverts what "successfully" means for that run: the
-exception is the expected result, so a satisfied expectation exits `0` and the exception is still
-printed, because the diagnostic it carries is what the scenario was written to inspect. The run
+exception is the expected result, so a satisfied expectation exits `0` and the run summary shows
+`Execution Succeeded!` followed by `Expected Exception Matched:`, which restates the declared
+`typeName` and, when set, the `messageContains` text. The summary confirms the match; it does not
+print the thrown exception, its message or its stack trace. The run
 exits `1` when the plugin throws an exception of a different type, throws a matching type whose
 message does not contain the declared `messageContains`, or throws nothing at all. The matching
 rules — exact fully-qualified `typeName`, the walk along the exception chain, the optional

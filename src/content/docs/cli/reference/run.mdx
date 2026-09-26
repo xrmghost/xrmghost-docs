@@ -51,8 +51,10 @@ The command has two required arguments — the assembly path and the fully-quali
 | `1` | Plugin execution failed, scenario file not found, assembly not found, FrameworkHost failed to start or become healthy, or an unexpected error occurred. |
 
 A scenario that declares `expectedException` inverts what "successfully" means for that run: the
-exception is the expected result, so a satisfied expectation exits `0` and the exception is still
-printed, because the diagnostic it carries is what the scenario was written to inspect. The run
+exception is the expected result, so a satisfied expectation exits `0` and the run summary shows
+`Execution Succeeded!` followed by `Expected Exception Matched:`, which restates the declared
+`typeName` and, when set, the `messageContains` text. The summary confirms the match; it does not
+print the thrown exception, its message or its stack trace. The run
 exits `1` when the plugin throws an exception of a different type, throws a matching type whose
 message does not contain the declared `messageContains`, or throws nothing at all. The matching
 rules — exact fully-qualified `typeName`, the walk along the exception chain, the optional
