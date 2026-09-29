@@ -7,11 +7,23 @@ description: Orient yourself with the XrmGhost CLI, discover available commands,
 
 The `xrmghost` CLI (invoked as `xg`) is the primary way to run Dataverse plugins, manage environments, and interact with the XrmGhost ecosystem from a terminal.
 
-This guide helps you orient yourself after obtaining the CLI binary — covering how to explore available commands, confirm your setup, and find your way into the main workflows.
+This guide covers installing the CLI, then orienting yourself — how to explore available commands, confirm your setup, and find your way into the main workflows.
 
-:::info Before you begin
-This guide assumes you already have the CLI binary available in your `PATH`. Installation and platform-specific prerequisites are covered in your distribution's release notes or onboarding instructions.
-:::
+## Install the CLI
+
+The primary channel is the **signed ZIP for Windows x64**, published on the release page of the public repository, [github.com/xrmghost/xrmghost/releases](https://github.com/xrmghost/xrmghost/releases). Install the asset named `xrmghost-cli-<version>-full.zip`: it carries `xg.exe` and, in the `bin\` folder next to it, the signed host that executes your plugins — there is no separate host download.
+
+> **TODO:** The first signed stable ZIP of the CLI is not published yet. The direct download link for the stable asset will be added once it is on the release page, as part of ADO-2619.
+
+1. **Verify the signature before installing.** The publisher to expect and how to check it, including WDAC policies, are in [Trust and WDAC](/cli/trust-and-wdac/).
+2. **Extract the ZIP** to a folder of its own, for example `C:\Tools\XrmGhost`, keeping `xg.exe` and `bin\` together.
+3. **Add the folder that contains `xg.exe`** — not its `bin\` subfolder — to your user `PATH`, then open a new shell.
+
+**Coming from the .NET global tool?** The old installation left an `xg` shim in `%USERPROFILE%\.dotnet\tools`. Run `Get-Command xg -All` (or `where xg` from `cmd`): if a line points to `.dotnet\tools`, remove it with `dotnet tool uninstall -g XrmGhost.Cli`, or put the ZIP folder before it in `PATH`. The first line must be the `xg.exe` you extracted, so that only one `xg` answers.
+
+The .NET global tool is soft-deprecated: the `XrmGhost.Cli` package stays on NuGet, but it is no longer the recommended channel. `winget install XrmGhost.Cli` is not available yet — it follows the first signed stable ZIP and the external review of `winget-pkgs`; see [winget publication](/cli/winget-publication/). Alpha builds are not signed and may be blocked by Smart App Control.
+
+The full walkthrough, with prerequisites, is in [Getting Started](/getting-started/#1-install-the-cli).
 
 ## Confirm the CLI is available
 
@@ -21,7 +33,7 @@ Once the binary is in place, verify it responds:
 xg --version
 ```
 
-You should see a version header showing the CLI version and the bundled Core version. If the command is not found, ensure the binary is on your `PATH`.
+You should see a version header showing the CLI version and the bundled Core version. If the command is not found, make sure the folder that contains `xg.exe` is on your `PATH` and that you opened a new shell after changing it.
 
 ## Discover available commands
 
