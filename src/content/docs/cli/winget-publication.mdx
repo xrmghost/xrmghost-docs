@@ -23,7 +23,7 @@ from your distribution's release notes or onboarding instructions in the meantim
 | Manifest field | Value | Notes |
 |----------------|-------|-------|
 | `PackageIdentifier` | `XrmGhost.Cli` | The id users type with `winget install --id`. |
-| `Publisher` | `XrmGhost` | Must match the publisher of the signed binaries. |
+| `Publisher` | `XrmGhost` | The brand shown in the winget manifest. It is distinct from the Authenticode publisher (certificate subject) of the signed binaries and is not required to match it; to verify the signature, see [Trust and WDAC](/cli/trust-and-wdac/). |
 | `Moniker` | `xg` | The short name, identical to the command users run. |
 | Fallback moniker | `xrmghost` | Used only if `xg` is already taken in the winget community repository at submission time. |
 
