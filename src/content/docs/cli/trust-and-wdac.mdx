@@ -42,7 +42,7 @@ deliberately **does not publish** the certificate subject or any of its fields (
 a value typed from the company name, or copied from documentation, may differ from the real one by
 a single character — and a rule that does not match lets nothing through.
 
-Take the values from a verified source at the moment you write the policy, in one of two ways.
+Take the values from the signed binary itself, at the moment you write the policy.
 
 ### From the first signed binary
 
@@ -65,12 +65,6 @@ $sig.SignerCertificate.Issuer     # the issuing CA of the leaf certificate
 ```
 
 If `Status` is anything other than `Valid`, stop: do not build a policy from that file.
-
-### From the portal
-
-If you have access to the XrmGhost portal, the certificate subject published there for the release
-can be used instead. Copy it verbatim — do not retype it — and cross-check it against a signed
-binary before you roll the policy out.
 
 ## Write a publisher-level WDAC rule
 
@@ -106,7 +100,7 @@ signed by the same publisher.
 
 - [ ] Install with the PackageIdentifier `XrmGhost.Cli`.
 - [ ] The binary's signature is `Valid` and its publisher is `Agostini Lab Srl`.
-- [ ] Subject and issuing CA were copied from a signed binary (or the portal), not typed from this
+- [ ] Subject and issuing CA were copied from a signed binary, not typed from this
       page or from the company name.
 - [ ] The WDAC rule is at the publisher level and uses both values.
 - [ ] No rule pins the leaf certificate thumbprint or the file hash.
