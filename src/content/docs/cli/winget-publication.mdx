@@ -1,0 +1,87 @@
+---
+title: winget Publication Contract
+description: The frozen contract for publishing the XrmGhost CLI to winget — package identity, the portable ZIP layout, the pre-submission gate, and who owns the submission.
+---
+
+# winget Publication Contract
+
+This page freezes the contract the XrmGhost CLI must honour when it is published to the Windows
+Package Manager (winget). It is a reference for whoever prepares the first submission and for
+anyone reviewing it: the values below are the ones the manifest is expected to carry.
+
+> **TODO:** The winget channel is not yet published (ADO-2610). `winget install xg` and
+> `winget install XrmGhost.Cli` do not work until the first signed stable ZIP release.
+
+:::caution[Status]
+The winget channel is not yet published. Until the first signed stable ZIP release exists and has
+been submitted, `winget install xg` and `winget install XrmGhost.Cli` do not work. Obtain the CLI
+from your distribution's release notes or onboarding instructions in the meantime.
+:::
+
+## Package identity
+
+| Manifest field | Value | Notes |
+|----------------|-------|-------|
+| `PackageIdentifier` | `XrmGhost.Cli` | The id users type with `winget install --id`. |
+| `Publisher` | `XrmGhost` | The brand shown in the winget manifest. It is distinct from the Authenticode publisher (certificate subject) of the signed binaries and is not required to match it; to verify the signature, see [Trust and WDAC](/cli/trust-and-wdac/). |
+| `Moniker` | `xg` | The short name, identical to the command users run. |
+| Fallback moniker | `xrmghost` | Used only if `xg` is already taken in the winget community repository at submission time. |
+
+The moniker is the preferred short handle because it matches the executable name. The fallback
+exists because a moniker is shared across the whole winget catalogue: if the pre-submission search
+below finds `xg` in use by another package, the manifest uses `xrmghost` instead.
+
+## Package format: portable ZIP
+
+The CLI is published as a **portable** package delivered inside a **ZIP** archive — there is no
+installer. The manifest declares the archive as a ZIP with a nested portable `xg.exe`, and sets:
+
+```yaml
+ArchiveBinariesDependOnPath: true
+```
+
+The release ZIP contains `xg.exe` at its root and the Framework Host payload under `bin\`, and the
+CLI resolves that payload relative to its own location. `ArchiveBinariesDependOnPath: true` tells
+winget that the binary depends on the extracted directory: winget adds the extraction directory to
+`PATH` instead of creating a symlink to `xg.exe` alone, so `bin\` stays next to `xg.exe` and the
+host is still found at run time.
+
+## Pre-submission gate
+
+The first submission — and every submission after it — happens only when both conditions hold.
+
+1. **A signed stable ZIP exists.** The archive referenced by the manifest must be the full stable
+   release ZIP, with `xg.exe` and the binaries under `bin\` signed. Alpha builds and unsigned
+   archives are never submitted.
+2. **The identity is re-checked immediately before submitting.** Run the searches again at
+   submission time and inspect the results before building the manifest:
+
+   ```powershell
+   winget search --exact XrmGhost.Cli
+   winget search --exact xg
+   winget search --exact xrmghost
+   ```
+
+   - `XrmGhost.Cli` must not belong to another publisher.
+   - If `xg` is already used as a moniker by another package, use the fallback `xrmghost` — and
+     confirm that one is free too.
+
+Earlier results are not a substitute for this step. The availability of the id and of the
+monikers, and the availability of the submission tools, can change at any time: a check recorded
+on a previous date is a snapshot, not a fact to rely on. Repeat it every time.
+
+## Who owns the submission
+
+The submission belongs to the **stable release job of the owning release workflow** — the one that
+produces and signs the stable ZIP. That job:
+
+- provides the submission tool, either [`komac`](https://github.com/russellbanks/Komac) or
+  [`wingetcreate`](https://github.com/microsoft/winget-create);
+- runs the pre-submission gate above;
+- builds the manifest from this contract and opens the submission to the winget community
+  repository.
+
+**This repository does not perform the submission.** `xrmghost-docs` only documents the contract:
+it contains no winget manifest and no submission automation, and its site deployment workflow
+(`.github/workflows/deploy.yml`) publishes this documentation and nothing else. If the contract
+changes, update this page and the stable release job together.

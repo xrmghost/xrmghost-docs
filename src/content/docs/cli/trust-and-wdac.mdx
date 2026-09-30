@@ -1,0 +1,106 @@
+---
+title: Trust and WDAC
+description: How to verify who publishes and signs the XrmGhost CLI on Windows — PackageIdentifier, winget brand and Authenticode publisher — and how to allow it in a WDAC policy with a publisher-level rule.
+---
+
+# Trust and WDAC
+
+On Windows the XrmGhost CLI is distributed as an Authenticode-signed binary. Administrators who
+run [Windows Defender Application Control (WDAC)](https://learn.microsoft.com/windows/security/application-security/application-control/app-control-for-business/)
+or who simply want to verify what they are installing will meet **three different names**. Each
+one belongs to a different context, and each one answers a different question.
+
+## Three names, three contexts
+
+| Name | What it is | Where you see it |
+|---|---|---|
+| `XrmGhost.Cli` | The **PackageIdentifier** — the unique, machine-readable id of the package | The `PackageIdentifier` field of the winget manifest, and the argument you pass to `winget install` / `winget upgrade` |
+| `XrmGhost` | The **brand** — the product and publisher name shown to people in the winget manifest | The `Publisher` / display fields of the winget manifest and the winget listing |
+| `Agostini Lab Srl` | The **Authenticode publisher** — the legal entity the code-signing certificate was issued to | The signature of the binary: *Properties > Digital Signatures* in Explorer, `Get-AuthenticodeSignature`, and the WDAC publisher rule |
+
+Use each name only in its own context:
+
+- To install or upgrade with winget, use the PackageIdentifier `XrmGhost.Cli`.
+- To recognise the product in a listing, look for the brand `XrmGhost`.
+- To decide whether a binary is trusted — manually or through WDAC — look at the Authenticode
+  publisher, `Agostini Lab Srl`, and at the certificate details read from the signed binary itself.
+
+:::note[Why the signer is not called "XrmGhost"]
+**Agostini Lab Srl is the registered company name (ragione sociale) of the company that publishes
+the XrmGhost brand.** The code-signing certificate is issued to the legal entity, not to the brand,
+so the Authenticode publisher and the winget brand are different names by design.
+
+This difference is **expected and intentional**. It is **not an indicator of tampering or
+compromise** of the binary. What would be a warning sign is a missing signature, an invalid
+signature, or a signature whose publisher is anyone other than Agostini Lab Srl.
+:::
+
+## Read the exact certificate subject from a signed binary
+
+A WDAC rule must match the certificate exactly as it appears in the signature. This page
+deliberately **does not publish** the certificate subject or any of its fields (CN, O, L, C):
+a value typed from the company name, or copied from documentation, may differ from the real one by
+a single character — and a rule that does not match lets nothing through.
+
+Take the values from the signed binary itself, at the moment you write the policy.
+
+### From the first signed binary
+
+1. Download or install the XrmGhost CLI release you want to allow, and locate the signed
+   executable (the `xg` binary) on disk.
+2. Right-click the file and open **Properties > Digital Signatures**.
+3. Select the signature whose name is **Agostini Lab Srl** and choose **Details > View
+   Certificate**.
+4. On the **Details** tab, select **Subject** and copy the **exact** value shown.
+5. On the **Certification Path** tab, note the **issuing CA** — the certificate directly above the
+   signing (leaf) certificate in the chain — and copy its exact name as well.
+
+The same information is available from PowerShell, reading the binary rather than any document:
+
+```powershell
+$sig = Get-AuthenticodeSignature -FilePath .\xg.exe
+$sig.Status                       # must be Valid
+$sig.SignerCertificate.Subject    # the exact subject to use
+$sig.SignerCertificate.Issuer     # the issuing CA of the leaf certificate
+```
+
+If `Status` is anything other than `Valid`, stop: do not build a policy from that file.
+
+## Write a publisher-level WDAC rule
+
+Allow the CLI with a rule at the **publisher** level, built from **both** values read from the
+signed binary:
+
+- the **exact subject** of the signing certificate, and
+- the **issuing CA** of the certificate chain.
+
+The simplest way to get both right is to let WDAC read them from the signed file you have just
+verified, instead of typing them:
+
+```powershell
+$rules = New-CIPolicyRule -Level Publisher -DriverFilePath .\xg.exe
+Merge-CIPolicy -PolicyPaths .\YourPolicy.xml -OutputFilePath .\YourPolicy.xml -Rules $rules
+```
+
+Then compare the signer that appears in the resulting policy XML with the subject and issuing CA
+you copied in the previous section. If they differ, trust the binary and investigate the policy.
+
+:::caution[Do not pin the leaf certificate thumbprint or the file hash]
+Do **not** anchor the WDAC rule to the **thumbprint of the leaf certificate** (for example, a
+`LeafCertificate` level rule) or to the **file hash** (a `Hash` level rule, or a hash fallback).
+
+The XrmGhost CLI is signed with **Azure Trusted Signing**, whose certificates are **short-lived**:
+**every release is signed with a different leaf certificate that carries the same subject**. A rule
+pinned to a thumbprint or to a hash matches the release it was written against and stops matching
+the next one. A publisher-level rule — subject plus issuing CA — keeps matching across releases
+signed by the same publisher.
+:::
+
+## Checklist
+
+- [ ] Install with the PackageIdentifier `XrmGhost.Cli`.
+- [ ] The binary's signature is `Valid` and its publisher is `Agostini Lab Srl`.
+- [ ] Subject and issuing CA were copied from a signed binary, not typed from this
+      page or from the company name.
+- [ ] The WDAC rule is at the publisher level and uses both values.
+- [ ] No rule pins the leaf certificate thumbprint or the file hash.
