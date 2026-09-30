@@ -14,7 +14,7 @@ Both editions share the same core workflow — author a scenario, run it locally
 Standard covers the full local development loop for Dataverse server-side code.
 
 - **Run plugins and Custom APIs locally.** Execute your server-side C# on your own machine, in a runtime shaped to match the Dataverse plugin pipeline. (Support for custom workflow activities — CWA — is on the roadmap.)
-- **Headless execution.** Run a scenario and read the result straight away — ideal for a fast write-run-fix loop, for automation, and for CI.
+- **Headless execution.** Run a scenario and read the result straight away — ideal for a fast write-run-fix loop and for local automation, including an AI agent driving `xg` without a console attached.
 - **Line-by-line debugging.** Attach a debugger to your own code as it runs locally — in Visual Studio, *Debug → Attach to Process* onto the XrmGhost host — and step through your plugin exactly as you would any local program. No deploy, no remote profiler.
 - **Scenario-driven data.** The data a run reads is supplied by the scenario itself (mocked data), so a run is fully self-contained and reproducible.
 
@@ -26,6 +26,7 @@ Pro includes everything in Standard, and adds live integration with real Dataver
 
 - **Read-only access to live Dataverse environments.** This is the defining Pro capability, and it is strictly **read-only**: XrmGhost reads from the environment only to satisfy the queries your code makes during a local run, and never writes anything back. Your live data is never modified.
 - **Environment and connection library.** Register, organize, and switch between multiple Dataverse environments and connections, so you can point a run at whichever environment you need.
+- **Use in a CI pipeline.** Running `xg` as part of a CI pipeline (as opposed to local, interactive or agent-driven automation) requires Pro.
 - **Live data instead of mocks.** You design your scenario, pass the real id of the specific record or user you care about, and run your code locally — but every read query (`Retrieve` / `RetrieveMultiple`) resolves *live* against the environment. You no longer have to mock the data the code reads; XrmGhost fetches it from the real environment as the run executes.
 
 This is the `auto` / `live` data source described in [Using the Skills](/skills/using-skills/): on Standard a run reads only mocked scenario data; on Pro it can read live, read-only data from a configured environment.
@@ -42,6 +43,7 @@ Use Pro when you want to reproduce and debug real, live cases locally without ha
 | --- | --- |
 | Run and debug plugins / Custom APIs locally with data you define | Standard |
 | Read live, read-only data from real Dataverse environments during a run, and manage multiple environments | Pro |
+| Run `xg` as part of a CI pipeline | Pro |
 
 Pro is a superset of Standard: everything you can do in Standard, you can do in Pro.
 
