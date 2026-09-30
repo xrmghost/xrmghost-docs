@@ -3698,7 +3698,7 @@ The opt-out covers telemetry only. It does **not** disable:
 - **machine registration** — your Platform ID and the device details listed in section 3 are still sent to XrmGhost servers to register the machine;
 - **local hardware context handling** — the hardware contextual salt described in section 2 is still computed locally on each startup to protect your activated license.
 
-For the full privacy policy visit: **https://xrmghost.tech/privacy-policy**
+For the full privacy policy visit: **https://www.xrmghost.tech/legal/privacy-policy**
 
 ## Options
 
@@ -3739,7 +3739,7 @@ XrmGhost Data Collection & Privacy Information
    - Even with XRMGHOST_TELEMETRY=0, your Platform ID and the device details in section 3 (machine name, OS description, .NET runtime description, XrmGhost CLI version, username and user domain name) are still sent to XrmGhost servers for machine registration and license/API-key validation.
    - Machine registration and licensing remain active and cannot be disabled by this setting.
 
-For more detailed information, please visit our online privacy policy at: https://xrmghost.tech/privacy-policy
+For more detailed information, please visit our online privacy policy at: https://www.xrmghost.tech/legal/privacy-policy
 ```
 
 ## Exit Codes
@@ -3753,7 +3753,7 @@ For more detailed information, please visit our online privacy policy at: https:
 - [`xg license status`](/cli/reference/license-status/) — view your current license tier and the Platform ID used for activation
 - [CLI Reference](/cli/reference/) — landing page for all CLI reference pages
 - [CLI Overview](/cli/) — introduction to the `xg` CLI and command groups
-- [Privacy Policy](https://xrmghost.tech/privacy-policy) — full online privacy policy
+- [Privacy Policy](https://www.xrmghost.tech/legal/privacy-policy) — full online privacy policy
 
 
 ---

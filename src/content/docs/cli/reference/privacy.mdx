@@ -79,7 +79,28 @@ The opt-out covers telemetry only. It does **not** disable:
 - **machine registration** — your Platform ID and the device details listed in section 3 are still sent to XrmGhost servers to register the machine;
 - **local hardware context handling** — the hardware contextual salt described in section 2 is still computed locally on each startup to protect your activated license.
 
-For the full privacy policy visit: **https://xrmghost.tech/privacy-policy**
+For the full privacy policy visit: **https://www.xrmghost.tech/legal/privacy-policy**
+
+## First-run privacy notice
+
+The first time you run a **stable** version of the XrmGhost CLI interactively, it prints a short privacy notice **once**, before any telemetry is sent and before the machine is registered with XrmGhost servers. The notice points to `xg privacy` and to the online privacy policy.
+
+A run shows the notice only when **both** of these are true:
+
+- **The CLI version is stable** — a released, non-prerelease version. Prerelease builds (versions with an `-alpha` suffix) never show the notice.
+- **The output is not redirected** — the CLI is writing to an interactive terminal. When output is redirected to a file or piped to another command (for example in a CI pipeline), the notice is not shown.
+
+When the notice is shown, the CLI records that fact by writing a file named `first-run.sentinel`. Redirected or piped runs and prerelease runs **neither show the notice nor write the sentinel**, so the notice still appears on your first interactive run of a stable version, even if the CLI has already run many times in CI or as a prerelease.
+
+The sentinel lives in the same directory as the Platform ID file `machine_id.dat` (see the storage path table in [`xg license get-platform-id`](/cli/reference/license-get-platform-id/)):
+
+| Platform | Sentinel path |
+|---|---|
+| Windows | `%LOCALAPPDATA%\XrmGhost\XrmGhostCli\first-run.sentinel` |
+| Linux | `$XDG_DATA_HOME/xrmghost/xrmghostcli/first-run.sentinel` (falls back to `~/.local/share/xrmghost/xrmghostcli/first-run.sentinel`) |
+| macOS | `~/Library/Application Support/xrmghost/xrmghostcli/first-run.sentinel` |
+
+To see the notice again, delete `first-run.sentinel`: the notice is shown again on the next interactive run of a stable version. Delete only that file — deleting `machine_id.dat` from the same directory generates a new Platform ID and invalidates licenses bound to the old one.
 
 ## Options
 
@@ -120,7 +141,7 @@ XrmGhost Data Collection & Privacy Information
    - Even with XRMGHOST_TELEMETRY=0, your Platform ID and the device details in section 3 (machine name, OS description, .NET runtime description, XrmGhost CLI version, username and user domain name) are still sent to XrmGhost servers for machine registration and license/API-key validation.
    - Machine registration and licensing remain active and cannot be disabled by this setting.
 
-For more detailed information, please visit our online privacy policy at: https://xrmghost.tech/privacy-policy
+For more detailed information, please visit our online privacy policy at: https://www.xrmghost.tech/legal/privacy-policy
 ```
 
 ## Exit Codes
@@ -134,4 +155,4 @@ For more detailed information, please visit our online privacy policy at: https:
 - [`xg license status`](/cli/reference/license-status/) — view your current license tier and the Platform ID used for activation
 - [CLI Reference](/cli/reference/) — landing page for all CLI reference pages
 - [CLI Overview](/cli/) — introduction to the `xg` CLI and command groups
-- [Privacy Policy](https://xrmghost.tech/privacy-policy) — full online privacy policy
+- [Privacy Policy](https://www.xrmghost.tech/legal/privacy-policy) — full online privacy policy
