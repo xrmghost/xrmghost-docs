@@ -1,6 +1,6 @@
 ---
 title: xg privacy
-description: Display information about the data collected by XrmGhost, including Platform ID, hardware context, and telemetry scope. Prints the privacy policy URL and current machine identifiers.
+description: Display information about the data collected by XrmGhost, including Platform ID, hardware context, telemetry scope, and how to opt out of telemetry. Prints the privacy policy URL and current machine identifiers.
 ---
 
 # `xg privacy`
@@ -15,7 +15,7 @@ xg privacy
 
 `xg privacy` prints a structured summary of every category of data that XrmGhost collects, stores, or transmits. The command exits immediately after printing; it does not open a browser or make network requests.
 
-The output covers four distinct areas:
+The output covers five distinct areas:
 
 ### 1. Platform ID
 
@@ -55,6 +55,29 @@ For licensing, analytics, and error reporting the following additional data may 
 ### 4. Usage Analytics and Error Reporting
 
 XrmGhost may collect anonymised information about commands run, features used, and errors encountered. All telemetry is linked to your Platform ID. The purpose is to identify popular workflows, prioritise improvements, and diagnose bugs.
+
+### 5. Opting Out of Telemetry
+
+Set the environment variable `XRMGHOST_TELEMETRY=0` before running `xg` to stop the transmission of CLI telemetry:
+
+```shell
+# Linux / macOS
+export XRMGHOST_TELEMETRY=0
+
+# Windows (PowerShell)
+$env:XRMGHOST_TELEMETRY = "0"
+```
+
+With the opt-out set, the usage analytics, error reporting, traces and metrics described in section 4 are not collected, queued or uploaded.
+
+- **Only the exact value `0` disables telemetry** (surrounding whitespace is ignored). Any other value (for example `false`, `no` or `off`), or leaving the variable unset, keeps telemetry enabled.
+- **Telemetry already queued stays on disk.** Data queued on this machine before you opted out is neither uploaded nor deleted while `XRMGHOST_TELEMETRY` is `0`; it is left on disk unchanged.
+
+The opt-out covers telemetry only. It does **not** disable:
+
+- **license validation** — license and API-key validation keep contacting XrmGhost servers;
+- **machine registration** — your Platform ID and the device details listed in section 3 are still sent to XrmGhost servers to register the machine;
+- **local hardware context handling** — the hardware contextual salt described in section 2 is still computed locally on each startup to protect your activated license.
 
 For the full privacy policy visit: **https://www.xrmghost.tech/legal/privacy-policy**
 
@@ -110,6 +133,13 @@ XrmGhost Data Collection & Privacy Information
 
 4. Usage Analytics & Error Reporting:
    ...
+
+5. Opting Out of Telemetry:
+   - To opt out, set the environment variable XRMGHOST_TELEMETRY=0 before running XrmGhost.
+   - This stops the usage analytics, error reporting, traces and metrics described in section 4: nothing of it is collected, queued or uploaded.
+   - Telemetry already queued on this machine before opting out is not uploaded while the opt-out is set; it is left on disk unchanged.
+   - Even with XRMGHOST_TELEMETRY=0, your Platform ID and the device details in section 3 (machine name, OS description, .NET runtime description, XrmGhost CLI version, username and user domain name) are still sent to XrmGhost servers for machine registration and license/API-key validation.
+   - Machine registration and licensing remain active and cannot be disabled by this setting.
 
 For more detailed information, please visit our online privacy policy at: https://www.xrmghost.tech/legal/privacy-policy
 ```
