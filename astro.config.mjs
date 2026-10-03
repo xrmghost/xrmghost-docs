@@ -52,6 +52,17 @@ export default defineConfig({
 						},
 					}),
 				},
+				// Cookieless Pirsch analytics for the docs site, disclosed in
+				// the privacy policy v1.2.0 (AB#2975). No custom events.
+				{
+					tag: 'script',
+					attrs: {
+						defer: true,
+						src: 'https://api.pirsch.io/pa.js',
+						id: 'pianjs',
+						'data-code': 'iIZfMLNEyh636YcAMdVsIwkvR8nMXOcr',
+					},
+				},
 			],
 			sidebar: [
 				{

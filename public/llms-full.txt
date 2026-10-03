@@ -3700,6 +3700,10 @@ The opt-out covers telemetry only. It does **not** disable:
 
 For the full privacy policy visit: **https://www.xrmghost.tech/legal/privacy-policy**
 
+## Documentation site analytics
+
+`docs.xrmghost.tech` uses Pirsch Analytics for website analytics. Pirsch is cookieless: it does not set cookies on your device, does not process personal data, and does not use persistent identifiers to recognize or track you across visits or websites. It provides only aggregated statistics about website visits, such as page views, referrers, and general browser or device categories, so this site does not display a cookie banner for analytics. Pirsch website analytics are separate from the CLI telemetry described above. For details see the [Privacy Policy](https://www.xrmghost.tech/legal/privacy-policy).
+
 ## Options
 
 This command has no flags or options.
