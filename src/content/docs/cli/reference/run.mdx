@@ -15,7 +15,7 @@ xg run -a <ASSEMBLY_PATH> -t <PLUGIN_TYPE> [options]
 
 ## Description
 
-`xg run` is the primary execution command in the XrmGhost CLI. It loads the plugin assembly you specify, starts `XrmGhost.FrameworkHost.exe` as a background process, and dispatches the plugin execution over a local gRPC channel. The host process is terminated automatically when the run completes.
+`xg run` is the primary execution command in the XrmGhost CLI. It loads the plugin assembly you specify, starts `XrmGhost.Framework.Host.exe` as a background process, and dispatches the plugin execution over a local gRPC channel. The host process is terminated automatically when the run completes.
 
 The command has two required arguments — the assembly path and the fully-qualified plugin type name — and a rich set of optional flags that control scenario injection, verbosity, debugging, configuration strings, and data-source routing.
 
@@ -32,7 +32,7 @@ The command has two required arguments — the assembly path and the fully-quali
 | `-a`, `--assembly-path` | `string` | *(required)* | Path to the plugin assembly DLL. The file must exist at the time the command is invoked. |
 | `-t`, `--plugin-type` | `string` | *(required)* | Fully-qualified name of the plugin type to execute (e.g., `MyPlugins.MyPluginClass`). |
 | `-s`, `--scenario` | `string` | — | Path to a JSON scenario file. When provided, the file is deserialised into a `ScenarioDefinition` that supplies the execution context, input parameters, entity images, mock data, and expected outcomes. See [Scenario Files](/cli/scenarios/) for the document's full anatomy. |
-| `-f`, `--framework-host-path` | `string` | — | Explicit path to `XrmGhost.FrameworkHost.exe`. When omitted, the CLI resolves the host from its managed application-data install root, then falls back to legacy beside-the-CLI locations (`bin/`, then the CLI directory). |
+| `-f`, `--framework-host-path` | `string` | — | Explicit path to `XrmGhost.Framework.Host.exe`. When omitted, the CLI uses the host bundled in the `bin\` folder next to `xg.exe` (winget and ZIP installs), then its managed application-data install root (where the host is downloaded for the .NET global tool), then legacy beside-the-CLI locations. |
 | `-w`, `--debug-plugin-wait` | `bool` | `false` | Instructs FrameworkHost to pause before executing the plugin and wait for a debugger to attach. The CLI prints the host process ID and step-by-step attach instructions. |
 | `-c`, `--continue-on-unlicensed` | `bool` | `false` | When a Pro-tier feature is encountered without a valid license, execution continues with a mocked result and a warning instead of terminating with a non-zero exit code. |
 | `-n`, `--normal` | `bool` | `false` | Show plugin traces plus critical framework messages (errors and warnings). Expands the default output without the noise of full verbose mode. |
@@ -105,7 +105,7 @@ xg run \
   -d
 ```
 
-After the command prints the FrameworkHost PID and attach instructions, attach your debugger to `XrmGhost.FrameworkHost.exe`, set breakpoints in your plugin code, and then resume execution.
+After the command prints the FrameworkHost PID and attach instructions, attach your debugger to `XrmGhost.Framework.Host.exe`, set breakpoints in your plugin code, and then resume execution.
 
 ### Run with verbose output and unlicensed-Pro continuation
 
