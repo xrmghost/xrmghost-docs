@@ -55,6 +55,8 @@ dotnet tool install --global XrmGhost.Cli
 
 This channel is for **CI and automation only** — on a desktop, use winget. The package does not carry the host: on the first `xg run` or `xg generate-scenario` the CLI downloads it from the public release page into `%LOCALAPPDATA%\xrmghost\framework-host\`. To keep that step out of the run itself, install the host explicitly in the pipeline with [`xg setup host`](/cli/reference/setup-host/); with `--no-interactive`, a run fails instead of downloading a missing host. The agent must be Windows, because the host is a .NET Framework 4.7.2 process.
 
+The host is downloaded once and cached in that folder: later runs on the same agent reuse it. On an ephemeral agent the folder is empty at every run, so each run downloads the latest stable host. To pin the host version between runs, cache `%LOCALAPPDATA%\xrmghost\framework-host\` in your pipeline (for example with your CI's cache step).
+
 ### Last option: download the signed ZIP
 
 If winget is not available, download the same bundle by hand from the public repository's release page: **[github.com/xrmghost/xrmghost/releases](https://github.com/xrmghost/xrmghost/releases/latest)**. Pick the asset named `xrmghost-cli-<version>-full.zip`: it carries both `xg.exe` and the host. Before extracting, check who signed it, as described in **[Trust and WDAC](/cli/trust-and-wdac/)**.
