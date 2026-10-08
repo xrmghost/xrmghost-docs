@@ -51,7 +51,6 @@ With machine registration and license/API-key validation, the following is sent 
 | .NET runtime description | `RuntimeInformation.FrameworkDescription` | In clear |
 | XrmGhost CLI version | Embedded assembly version | In clear |
 | Platform ID | Stored Platform ID (section 1) | In clear |
-| Initial IP address | — | Not included in the payload |
 
 Machine name, username and user domain name are never sent as shown. Each is sent only as a lowercase hexadecimal SHA-256 hash of the value prefixed with its field name (for example `MachineName:<machine name>`). The hash is **deterministic and unsalted**: no secret or random salt is added, so the same value always produces the same hash. The hash keeps the plain value out of the payload, but it is only pseudonymisation: anyone who can guess a candidate value (a common username or machine name, for example) can compute the same hash and confirm the match.
 
