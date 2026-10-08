@@ -1,0 +1,315 @@
+---
+title: "From zero to a locally tested Dataverse plugin in 10 minutes"
+description: "Install the XrmGhost CLI, generate a scenario from your plugin's attributes, run the compiled plugin on your machine, and catch a data-dependent bug with a local exception and trace — no deployment, no trace-log wait."
+sidebar:
+  label: "First local run"
+---
+
+# From zero to a locally tested Dataverse plugin in 10 minutes
+
+The slow part of a Dataverse plugin is not writing it. It is finding out whether it works: build, deploy, trigger the message, wait, open the trace log. This page runs the compiled plugin on your machine instead, against one scenario, and shows what a failure looks like when it happens locally.
+
+Ten minutes assumes a Windows machine with a plugin project that builds. Everything you type is below; everything you should see is marked.
+
+## Prerequisites
+
+- **Windows 10/11, x64.** The host that executes your plugin is a .NET Framework 4.7.2 process; on Windows that framework is almost always already installed.
+- **A plugin project that builds**, targeting .NET Framework (plugin assemblies for Dataverse target `net462`), with `Microsoft.CrmSdk.CoreAssemblies` referenced.
+- **A terminal.** PowerShell is used here; `cmd` works the same.
+
+## 1. Install the CLI and check it
+
+On a desktop, install with winget:
+
+```powershell
+winget install XrmGhost.Cli
+```
+
+This puts `xg.exe` and the host on your machine and on your `PATH`. If you prefer not to use winget, the signed ZIP on the [release page](https://github.com/xrmghost/xrmghost/releases) (asset `xrmghost-cli-<version>-full.zip`, which carries `xg.exe` and the host in `bin\`) is the same build; the [Getting Started](/getting-started/) page covers unpacking it and adding it to `PATH`. In CI or automation, `dotnet tool install -g XrmGhost.Cli` from NuGet is the right channel.
+
+Then confirm the CLI sees its host:
+
+```powershell
+xg doctor
+```
+
+```text
+XrmGhost
+CLI v1.7.5  |  Core v1.0.2
+
+XrmGhost Environment Doctor
+
+CLI Information:
+  Version: 1.7.5
+  Location: 
+  Platform ID: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+
+Core Library (XrmGhost.Core) Information:
+  Version: 0.6.35.0
+  Location: 
+
+Platform Information:
+  OS Description: Microsoft Windows 10.0.26100
+  OS Architecture: X64
+  Process Architecture: X64
+  .NET Version: 9.0.20
+  Framework Description: .NET 9.0.20
+
+.NET SDKs Installed:
+  - 8.0.131 [C:\Program Files\dotnet\sdk]
+  - 8.0.206 [C:\Program Files\dotnet\sdk]
+  - 8.0.319 [C:\Program Files\dotnet\sdk]
+  - 8.0.425 [C:\Program Files\dotnet\sdk]
+  - 9.0.121 [C:\Program Files\dotnet\sdk]
+  - 9.0.205 [C:\Program Files\dotnet\sdk]
+  - 9.0.318 [C:\Program Files\dotnet\sdk]
+  - 10.0.112 [C:\Program Files\dotnet\sdk]
+  - 10.0.204 [C:\Program Files\dotnet\sdk]
+  - 10.0.303 [C:\Program Files\dotnet\sdk]
+  - 10.0.401 [C:\Program Files\dotnet\sdk]
+
+XrmGhost.Framework.Host.exe Status:
+  Location: <install dir>\bin\net472\win-x86\XrmGhost.Framework.Host.exe
+  Version: 1.0.2
+
+Local Configuration Files:
+  Bootstrap Key (`bootstrap.lic`): Not found. License activation may be required.
+  AKMS API Key: Not found. License activation required for Pro features.
+    Tier: Standard Unlicensed (no license activated)
+
+AKMS Connectivity:
+  Checking JWKS endpoint...
+    Successfully retrieved JWKS. Found 1 key(s).
+  Attempting test JWT issuance (if API key available)...
+    Skipped test JWT issuance: Valid local API key not found or expired.
+
+Subscription Claims Diagnostics
+  Total Claims: 0
+  Active Claims: 0
+  Expired Claims: 0
+  No subscription claims found - this is normal for unlicensed or basic licenses.
+
+All critical checks passed. Your environment looks good!
+
+Consider upgrading to a licensed version to unlock the full feature set.
+See plans and upgrade: https://www.xrmghost.tech/#pricing
+Closing activities...
+```
+
+Two things matter in that output: the host status shows a `Location` inside your `bin\` folder, and the last line says `All critical checks passed`. Having no license yet is reported, not failed: the local loop on this page runs without one. If the host is not found, [`xg doctor`](/cli/reference/doctor/) explains what it looked for.
+
+## 2. Describe the plugin with attributes
+
+XrmGhost builds a scenario from metadata it reads on the plugin class, through the [`XrmGhost.Attributes`](/attributes/) package. Add it to the plugin project:
+
+```powershell
+dotnet add package XrmGhost.Attributes
+```
+
+The plugin for this page runs on `Create` of an account, pre-operation, and writes a description that names the primary contact:
+
+```csharp
+using System;
+using Microsoft.Xrm.Sdk;
+using XrmGhost.Attributes;
+
+namespace Contoso.Plugins
+{
+    [PluginExecutionConfig("account", "Create", Stage = 20, Mode = 0)]
+    [HandlesMessage("Create")]
+    public class AccountCreatePlugin : IPlugin
+    {
+        public void Execute(IServiceProvider serviceProvider)
+        {
+            var context = (IPluginExecutionContext)serviceProvider.GetService(typeof(IPluginExecutionContext));
+            var tracing = (ITracingService)serviceProvider.GetService(typeof(ITracingService));
+
+            var target = (Entity)context.InputParameters["Target"];
+            var contact = target.GetAttributeValue<EntityReference>("primarycontactid");
+
+            tracing.Trace("Account '{0}', primary contact '{1}'", target.GetAttributeValue<string>("name"), contact.Name);
+            target["description"] = $"Primary contact: {contact.Name}";
+        }
+    }
+}
+```
+
+What each attribute feeds into the scenario:
+
+- `PluginExecutionConfig` supplies the primary entity, the stage and the mode of the generated execution context.
+- `HandlesMessage` decides which messages get a scenario file: one file per declared message. Without it, the generator defaults to `Create`.
+- `InputParameter`, `PreImage`, `PostImage` and `SharedVariable` (not used here) seed input parameters, images and shared variables with the JSON you give them, so a scenario can start closer to the real record.
+
+The attributes do nothing at run time in Dataverse. They are metadata, read by reflection, and the [attribute reference](/attributes/reference/) lists each one.
+
+Build the project:
+
+```powershell
+dotnet build -c Release
+```
+
+## 3. Generate the scenario
+
+```powershell
+xg generate-scenario -p bin\Release\net462\Contoso.Plugins.dll -t Contoso.Plugins.AccountCreatePlugin -o account-create.json
+```
+
+```text
+XrmGhost
+CLI v1.7.5  |  Core v1.0.2
+
+Generating Scenario for Plugin: Contoso.Plugins.AccountCreatePlugin
+Assembly Path: bin\Release\net462\Contoso.Plugins.dll
+Found HandlesMessageAttributes. Will generate scenarios for: Create
+Generating scenario for Message: Create...
+Added default UserSettings mock for UserId: 71e2d4ad-51dd-4183-a051-2f3c0f926f3c
+Scenario file for message 'Create' generated successfully at: C:\work\Contoso.Plugins\account-create.json
+Closing activities...
+```
+
+The CLI starts the host for a moment, asks it for the plugin's metadata, writes the file and stops the host. Pass `-o` a plain file name, as above: it lands in the current directory. The generated `account-create.json` has an `executionContext` with `messageName`, `primaryEntityName`, `stage` and `mode` taken from the attributes, a `Target` with a sample `name` and a default `ownerid`, and a mocked `usersettings` record for the calling user. The [Scenario Files](/cli/scenarios/) page is the reference for everything in it.
+
+The plugin reads `primarycontactid`, which the scaffold does not know about. Add it to `inputParameters.Target.attributes`, next to `name`:
+
+```json
+"primarycontactid": {
+  "logicalName": "contact",
+  "id": "00000000-0000-0000-0000-0000000000c1",
+  "name": "Alex Taylor"
+}
+```
+
+## 4. Run it
+
+```powershell
+xg run -a bin\Release\net462\Contoso.Plugins.dll -t Contoso.Plugins.AccountCreatePlugin -s account-create.json
+```
+
+```text
+XrmGhost
+CLI v1.7.5  |  Core v1.0.2
+
+Executing Plugin: Contoso.Plugins.AccountCreatePlugin
+Assembly Path: bin\Release\net462\Contoso.Plugins.dll
+Scenario Loaded: Scenario for Contoso.Plugins.AccountCreatePlugin - Create
+Waiting for FrameworkHost (PID: 3908) to become healthy. Timeout in 60s...
+Executing plugin in FrameworkHost...
+--- Plugin Execution Result ---
+Entity Operations Summary:
+Total Operations: 0
+Successful: 0
+
+Trace Log:
+   PLUGIN              | 4ms      | Account 'Sample account Name for Create', primary contact 'Alex Taylor'
+
+Performance:
+[PERFORMANCE] Total: 4ms, Traces: 43 [Framework: 25, OperationTracker: 11, AssemblyResolver: 4, Diagnostic: 2, Plugin: 1]
+
+Final Entity States: [PRO FEATURE - UPGRADE TO UNLOCK]
+   View final entity data, plugin modifications, and newly created records.
+   Get detailed insights into what your plugins actually changed.
+   → Upgrade to Pro: https://www.xrmghost.tech/#pricing
+
+Execution Succeeded!
+Output Parameters: {}
+Closing activities...
+```
+
+Read it top to bottom. **Entity Operations Summary** lists every call the plugin made through `IOrganizationService` and whether it was served by the scenario; this plugin makes none. **Trace Log** is your `ITracingService` output, available immediately: by default only the plugin's own traces are shown, `-n` adds framework errors and warnings, `-v` shows everything in order. **Final Entity States** is a Pro feature and says so on Standard. `Execution Succeeded!` and exit code `0` mean the plugin returned without throwing.
+
+## 5. The bug that depends on the data
+
+The plugin above works for every account that has a primary contact. Accounts created from an import, or by another integration, often do not. Reproduce that record: delete the `primarycontactid` block you added in step 3, save, and run the same command again.
+
+```text
+XrmGhost
+CLI v1.7.5  |  Core v1.0.2
+
+Executing Plugin: Contoso.Plugins.AccountCreatePlugin
+Assembly Path: bin\Release\net462\Contoso.Plugins.dll
+Scenario Loaded: Scenario for Contoso.Plugins.AccountCreatePlugin - Create
+Waiting for FrameworkHost (PID: 5880) to become healthy. Timeout in 60s...
+Executing plugin in FrameworkHost...
+--- Plugin Execution Result ---
+───────────────────────────────── Stack Trace ──────────────────────────────────
+System.NullReferenceException: Object reference not set to an instance of an object.
+   at Contoso.Plugins.AccountCreatePlugin.Execute(IServiceProvider serviceProvider)
+   ...
+────────────────────────────────────────────────────────────────────────────────
+Entity Operations Summary:
+Total Operations: 0
+Successful: 0
+
+
+Performance:
+[PERFORMANCE] Total: 10ms, Traces: 40 [Framework: 25, OperationTracker: 9, AssemblyResolver: 4, Diagnostic: 2]
+
+Final Entity States: [PRO FEATURE - UPGRADE TO UNLOCK]
+   View final entity data, plugin modifications, and newly created records.
+   Get detailed insights into what your plugins actually changed.
+   → Upgrade to Pro: https://www.xrmghost.tech/#pricing
+
+Execution Failed!
+Error Type: System.NullReferenceException
+Error Message: Object reference not set to an instance of an object.
+Closing activities...
+```
+
+The exception type, the message and the stack trace pointing at `Execute` arrive in the same terminal, seconds after the run, not in a trace log after a deployment. `xg run` exits `1`.
+
+The fix is the usual one:
+
+```csharp
+var contact = target.GetAttributeValue<EntityReference>("primarycontactid");
+if (contact == null)
+{
+    tracing.Trace("Account '{0}' has no primary contact; description left unchanged.", target.GetAttributeValue<string>("name"));
+    return;
+}
+```
+
+Rebuild and rerun. The host reads the assembly bytes and does not lock the file, so a rebuild while you iterate is picked up by the next run.
+
+```text
+XrmGhost
+CLI v1.7.5  |  Core v1.0.2
+
+Executing Plugin: Contoso.Plugins.AccountCreatePlugin
+Assembly Path: bin\Release\net462\Contoso.Plugins.dll
+Scenario Loaded: Scenario for Contoso.Plugins.AccountCreatePlugin - Create
+Waiting for FrameworkHost (PID: 8752) to become healthy. Timeout in 60s...
+Executing plugin in FrameworkHost...
+--- Plugin Execution Result ---
+Entity Operations Summary:
+Total Operations: 0
+Successful: 0
+
+Trace Log:
+   PLUGIN              | 4ms      | Account 'Sample account Name for Create' has no primary contact; description left unchanged.
+
+Performance:
+[PERFORMANCE] Total: 4ms, Traces: 41 [Framework: 25, OperationTracker: 9, AssemblyResolver: 4, Plugin: 1, Diagnostic: 2]
+
+Final Entity States: [PRO FEATURE - UPGRADE TO UNLOCK]
+   View final entity data, plugin modifications, and newly created records.
+   Get detailed insights into what your plugins actually changed.
+   → Upgrade to Pro: https://www.xrmghost.tech/#pricing
+
+Execution Succeeded!
+Output Parameters: {}
+Closing activities...
+```
+
+Keep both scenarios. `account-create.json` with the contact and a copy without it are two cases you can rerun after every change: one scenario per run, so a regression check is a loop of `xg run` invocations, not one command.
+
+If you want to step through the plugin instead of reading traces, add `-w`: the host waits for a debugger, and you attach to `XrmGhost.Framework.Host.exe` from Visual Studio (*Debug → Attach to Process*) before resuming. The [`xg run`](/cli/reference/run/) reference covers that and the other flags.
+
+## What this loop does not cover
+
+- The data the plugin reads is what the scenario says. On Standard, `Retrieve` and `RetrieveMultiple` are served from the scenario's mocks; on Pro, read-only queries can resolve against a live environment. See [Editions](/editions/).
+- The host mirrors the Dataverse server-side plugin model; it is not Dataverse. A green local run is a reason to deploy, not a reason to skip validating in your target environment.
+- One scenario per run.
+
+## Next: let your coding agent run this loop
+
+Everything above is a sequence of commands with a file in between, which is exactly what a coding agent is good at. The [XrmGhost skills](/skills/) teach Claude Code, Copilot CLI, Codex CLI and other agents how to author the scenario, run it, read the failure and change the code until it passes, without a person typing each step. If an agent already writes your Dataverse C#, that is where to go next.

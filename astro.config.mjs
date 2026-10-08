@@ -75,6 +75,11 @@ export default defineConfig({
 				},
 				{ label: 'Getting Started', slug: 'getting-started' },
 				{
+					label: 'How-to',
+					collapsed: true,
+					items: [{ autogenerate: { directory: 'how-to' } }],
+				},
+				{
 					label: 'Skills',
 					collapsed: true,
 					items: [{ autogenerate: { directory: 'skills' } }],
