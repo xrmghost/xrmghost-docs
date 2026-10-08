@@ -23,9 +23,9 @@ When the XrmGhost CLI is first run, it generates a unique GUID called the **Plat
 
 - stored locally in your user application data directory
 - printed to the console by this command alongside the current value
-- transmitted to XrmGhost servers for **licensing validation** and **anonymised usage analytics**
+- transmitted to XrmGhost servers in clear for **licensing validation** and **pseudonymised usage analytics**
 
-The Platform ID persists across CLI updates. It is the primary key used to associate your machine with an activated license.
+The Platform ID persists across CLI updates. It is the primary key used to associate your machine with an activated license. Because data sent to XrmGhost is linked to it, that data is pseudonymised: it remains linked to your machine.
 
 ### 2. Local Hardware Context
 
@@ -38,23 +38,28 @@ On each startup the CLI computes a **hardware contextual salt** from:
 
 This value is hashed locally and used to harden activated license files against being copied to a different machine. **The salt itself is never transmitted to XrmGhost servers.**
 
-### 3. Other Information Sent Remotely
+### 3. Device Details Sent for Machine Registration and License/API-Key Validation
 
-For licensing, analytics, and error reporting the following additional data may be sent alongside the Platform ID:
+With machine registration and license/API-key validation, the following is sent to XrmGhost servers:
 
-| Field | Example source |
-|---|---|
-| IP address | Inferred at connection time |
-| Machine name | `Environment.MachineName` |
-| OS description | `RuntimeInformation.OSDescription` |
-| .NET runtime description | `RuntimeInformation.FrameworkDescription` |
-| XrmGhost CLI version | Embedded assembly version |
-| Username | `Environment.UserName` |
-| User domain name | `Environment.UserDomainName` |
+| Field | Example source | How it is sent |
+|---|---|---|
+| Machine name | `Environment.MachineName` | Shown locally by `xg privacy`; sent only as a SHA-256 hash |
+| Username | `Environment.UserName` | Shown locally by `xg privacy`; sent only as a SHA-256 hash |
+| User domain name | `Environment.UserDomainName` | Shown locally by `xg privacy`; sent only as a SHA-256 hash |
+| OS description | `RuntimeInformation.OSDescription` | In clear |
+| .NET runtime description | `RuntimeInformation.FrameworkDescription` | In clear |
+| XrmGhost CLI version | Embedded assembly version | In clear |
+| Platform ID | Stored Platform ID (section 1) | In clear |
+| Initial IP address | — | Not included in the payload |
+
+Machine name, username and user domain name are never sent as shown. Each is sent only as a lowercase hexadecimal SHA-256 hash of the value prefixed with its field name (for example `MachineName:<machine name>`). The hash is **deterministic and unsalted**: no secret or random salt is added, so the same value always produces the same hash. The hash keeps the plain value out of the payload, but it is only pseudonymisation: anyone who can guess a candidate value (a common username or machine name, for example) can compute the same hash and confirm the match.
+
+Like any network service, XrmGhost servers receive the IP address of the connection, but the CLI does not include it in the data it sends.
 
 ### 4. Usage Analytics and Error Reporting
 
-XrmGhost may collect anonymised information about commands run, features used, and errors encountered. All telemetry is linked to your Platform ID. The purpose is to identify popular workflows, prioritise improvements, and diagnose bugs.
+XrmGhost may collect pseudonymised information about commands run, features used, and errors encountered. All telemetry is linked to your Platform ID. The purpose is to identify popular workflows, prioritise improvements, and diagnose bugs.
 
 ### 5. Opting Out of Telemetry
 
@@ -76,7 +81,7 @@ With the opt-out set, the usage analytics, error reporting, traces and metrics d
 The opt-out covers telemetry only. It does **not** disable:
 
 - **license validation** — license and API-key validation keep contacting XrmGhost servers;
-- **machine registration** — your Platform ID and the device details listed in section 3 are still sent to XrmGhost servers to register the machine;
+- **machine registration** — your Platform ID and the device details listed in section 3 are still sent to XrmGhost servers to register the machine; machine name, username and user domain name are sent only as deterministic, unsalted SHA-256 hashes, as described in section 3;
 - **local hardware context handling** — the hardware contextual salt described in section 2 is still computed locally on each startup to protect your activated license.
 
 For the full privacy policy visit: **https://www.xrmghost.tech/legal/privacy-policy**
@@ -125,24 +130,43 @@ XrmGhost Data Collection & Privacy Information
    - A unique identifier (GUID) is generated when XrmGhost CLI is first run. This is your Platform ID.
    - This Platform ID is stored locally on your machine in your user application data directory.
    - Your current Platform ID: 3fa85f64-5717-4562-b3fc-2c963f66afa6
-   - Purpose: This Platform ID is used to associate your machine with any activated licenses and for collecting anonymized usage analytics and error reports to help improve XrmGhost.
+   - Purpose: This Platform ID is used to associate your machine with any activated licenses and for collecting pseudonymized usage analytics and error reports to help improve XrmGhost.
    - Sent Remotely: Yes, this Platform ID is sent to XrmGhost servers for licensing and analytics.
 
 2. Local Hardware Context (`HardwareContextualSalt`):
-   ...
+   - On each startup, XrmGhost generates a local 'fingerprint' based on:
+     - Your primary network adapter's MAC address.
+     - Operating System description.
+     - Processor count.
+     - Current username.
+   - This fingerprint is hashed and used as a 'salt'.
+   - Purpose: This salt is used locally to help secure your activated license information on your machine. It makes it harder for license files to be copied between different machine contexts without re-validation.
    - Sent Remotely: No, this hardware salt itself is NOT sent to XrmGhost servers.
 
-3. Other Information Sent Remotely (with your Platform ID):
-   ...
+3. Device Details Sent for Machine Registration and License/API-Key Validation (with your Platform ID):
+   - With machine registration and license/API-key validation, the following is sent:
+     - Machine Name (shown locally): DESKTOP-4F7K2QX
+     - Username (shown locally): jdoe
+     - User Domain Name (shown locally): CONTOSO
+     - Machine name, username and user domain name are never sent as shown: each is sent only as a deterministic, unsalted SHA-256 hash of the value prefixed with a fixed field-name prefix (for example `MachineName:`).
+     - OS Description (sent in clear): Microsoft Windows 10.0.22631
+     - .NET Runtime Description (sent in clear): .NET 9.0.0
+     - XrmGhost CLI Version (sent in clear).
+     - Platform ID (sent in clear).
+   - Like any network service, XrmGhost servers receive the IP address of the connection, but the CLI does not include it in the data it sends.
+   - Purpose: To register your machine and associate it with your activated licenses, and to validate your license or API key.
 
 4. Usage Analytics & Error Reporting:
-   ...
+   - XrmGhost may collect pseudonymized information about how you use the CLI (e.g., commands run, features used) and details about errors encountered.
+   - This data is linked to your Platform ID.
+   - Purpose: To identify popular features, areas for improvement, and to diagnose and fix bugs more effectively.
 
 5. Opting Out of Telemetry:
    - To opt out, set the environment variable XRMGHOST_TELEMETRY=0 before running XrmGhost.
    - This stops the usage analytics, error reporting, traces and metrics described in section 4: nothing of it is collected, queued or uploaded.
    - Telemetry already queued on this machine before opting out is not uploaded while the opt-out is set; it is left on disk unchanged.
    - Even with XRMGHOST_TELEMETRY=0, your Platform ID and the device details in section 3 (machine name, OS description, .NET runtime description, XrmGhost CLI version, username and user domain name) are still sent to XrmGhost servers for machine registration and license/API-key validation.
+   - Machine name, username and user domain name are sent only as hashes, as described in section 3.
    - Machine registration and licensing remain active and cannot be disabled by this setting.
 
 For more detailed information, please visit our online privacy policy at: https://www.xrmghost.tech/legal/privacy-policy
