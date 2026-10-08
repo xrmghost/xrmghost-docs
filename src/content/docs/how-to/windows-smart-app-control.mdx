@@ -36,7 +36,7 @@ Alpha builds are not signed. If you installed a prerelease to pick up a fix earl
 - **On a desktop**, install the signed ZIP from [GitHub Releases](https://github.com/xrmghost/xrmghost/releases), asset `xrmghost-cli-<version>-full.zip` (it carries `xg.exe` and the signed host in `bin\`), or use `winget install XrmGhost.Cli` once the listing is live. [Getting Started](/getting-started/) walks through extraction and `PATH`.
 - **In CI and automation**, `dotnet tool install -g XrmGhost.Cli` from NuGet is the right channel and stays supported. A global tool runs through a small `xg` launcher that the SDK generates on your machine, which we cannot sign: irrelevant on a build agent, and the reason we point desktops to the ZIP.
 
-If you had the global tool before and now extract the ZIP, keep only one `xg` on your `PATH`; the [migration note](/getting-started/) shows how.
+If you had the global tool before and now extract the ZIP, keep only one `xg` on your `PATH`; the [migration note](/getting-started/#moving-a-desktop-off-the-global-tool) shows how.
 
 ## Verify the signature yourself
 
