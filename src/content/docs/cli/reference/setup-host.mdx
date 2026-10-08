@@ -15,14 +15,18 @@ xg setup host [OPTIONS]
 
 When called without any option, `setup host` inspects the current installation state and prints a status message. It automatically performs an install if the Framework Host is missing from the expected location.
 
+:::note[When you need it]
+If you installed the CLI with winget or from the `-full.zip`, the signed Framework Host is already bundled in the `bin\` folder next to `xg.exe` and takes precedence: you do not need `setup host`. The command is for the .NET global tool, which is meant for CI only and does not carry the host — see [Getting Started](/getting-started/#in-ci-only-the-net-global-tool).
+:::
+
 ## Description
 
-The Plugin Framework Host is a .NET Framework 4.7.2 Windows process that XrmGhost uses to host Dataverse plugin assemblies in an isolated, out-of-process environment. The `xg run` command requires the Framework Host to be present and compatible before it can execute a plugin. If it is not found, `run` will prompt you to install it first.
+The Plugin Framework Host is a .NET Framework 4.7.2 Windows process that XrmGhost uses to host Dataverse plugin assemblies in an isolated, out-of-process environment. The `xg run` command requires the Framework Host to be present and compatible before it can execute a plugin. If it is not found, `run` downloads and installs it automatically before executing, unless `--no-interactive` is set, in which case the command fails.
 
 `setup host` manages the entire bootstrap lifecycle:
 
 - **Check** (`--check`): reads the current installation state and reports it without making any changes.
-- **Install / Update** (`--update`): downloads the latest compatible `XrmGhost.Framework.Host` NuGet package from the configured feed and extracts the executable to the managed install root under the XrmGhost user-data directory.
+- **Install / Update** (`--update`): downloads the latest compatible `XrmGhost.Framework.Host` package from the official public GitHub release ([github.com/xrmghost/xrmghost/releases](https://github.com/xrmghost/xrmghost/releases)) and extracts the executable to the managed install root under the XrmGhost user-data directory.
 
 The managed install root is located at:
 
@@ -39,14 +43,14 @@ The Framework Host executable (`XrmGhost.Framework.Host.exe`) targets the `net47
 |---|---|
 | **Windows only** | The Framework Host is a `net472 win-x86` executable. `setup host` must be run on Windows. |
 | **Write access to the user-data directory** | The install writes to `%LOCALAPPDATA%\xrmghost\`. No system-wide write access is required. If your environment restricts access to `%LOCALAPPDATA%`, rerun from an elevated terminal or adjust directory permissions. |
-| **NuGet feed reachable** | The CLI resolves and downloads the Framework Host from the configured NuGet sources. Ensure `nuget.org` (or your private feed) is accessible from the machine. |
+| **GitHub reachable** | The CLI resolves the Framework Host release through `api.github.com` and downloads the asset from `github.com`. Ensure both are accessible from the machine (on a build agent, through its proxy if it has one). |
 
 ## Options
 
 | Flag | Default | Description |
 |---|---|---|
 | `--check` | `false` | Inspect the current Framework Host installation state and print a status message. Does **not** modify the local installation. Cannot be combined with `--update`. |
-| `--update` | `false` | Download and install the latest compatible Framework Host package from the configured NuGet feed. Also triggered automatically when the Framework Host is missing and no flag is specified. Cannot be combined with `--check`. |
+| `--update` | `false` | Download and install the latest compatible Framework Host package from the official public GitHub release. Also triggered automatically when the Framework Host is missing and no flag is specified. Cannot be combined with `--check`. |
 
 > **Mutual exclusion:** `--check` and `--update` cannot be specified together. The command returns a validation error if both are provided.
 
@@ -70,18 +74,18 @@ xg setup host --check
 Example output when the Framework Host is up to date:
 
 ```
-Framework Host is current (1.4.0).
+Framework Host is current (1.0.2).
 ```
 
 Example output when an update is available:
 
 ```
-Framework Host 1.3.0 is installed. 1.4.0 is available. Run 'xg setup host --update'.
+Framework Host 1.0.1 is installed. 1.0.2 is available from the official GitHub release source. Run 'xg setup host --update'.
 ```
 
 ### Install or update to the latest Framework Host
 
-Download and install the latest compatible Framework Host from the configured NuGet feed:
+Download and install the latest compatible Framework Host from the official public GitHub release:
 
 ```shell
 xg setup host --update
@@ -90,7 +94,7 @@ xg setup host --update
 Example output on success:
 
 ```
-Framework Host installed (1.4.0).
+Framework Host installed from the official GitHub release (1.0.2).
 ```
 
 ### First-run install (no flag required)
@@ -106,7 +110,7 @@ xg setup host
 | Symptom | Likely cause | Resolution |
 |---|---|---|
 | `Failed to install XrmGhost.Framework.Host` | The current user cannot write to the managed install root, or another process is locking the directory | Verify write permissions under `%LOCALAPPDATA%\xrmghost\`. Close any tools that may be locking the directory, or rerun from an elevated terminal. |
-| `All configured NuGet sources were unreachable` | Network or feed connectivity issue | Check that the NuGet feed (`nuget.org` or your private feed) is reachable from the machine. |
+| `The GitHub release source 'xrmghost/xrmghost' could not be reached` | Network or proxy issue, or GitHub API rate limiting | Check that `api.github.com` and `github.com` are reachable from the machine, then retry. |
 | `Framework Host is incompatible or corrupted` | The installed version is not compatible with the current CLI | Run `xg setup host --update` to replace the installation, or run `xg doctor --verbose` to inspect the resolved host path. |
 
 ## See Also

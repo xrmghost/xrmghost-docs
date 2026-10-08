@@ -70,6 +70,7 @@ export default defineConfig({
 					items: [
 						{ label: 'Overview', slug: 'overview' },
 						{ label: 'How It Works', slug: 'how-it-works' },
+						{ label: 'Deploy loop timing', slug: 'how-it-works/deploy-loop-timing' },
 						{ label: 'Editions', slug: 'editions' },
 					],
 				},

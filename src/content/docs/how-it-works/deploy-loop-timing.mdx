@@ -1,0 +1,120 @@
+---
+title: "How long one Dataverse plugin iteration takes: deploy loop vs local run"
+description: We timed the same plugin change through the Dataverse deploy-and-read-the-trace loop and through a local XrmGhost run, five iterations each. Full per-step numbers, setup and anomalies.
+sidebar:
+  label: Deploy loop timing
+---
+
+# How long one Dataverse plugin iteration takes: deploy loop vs local run
+
+We measured how long it takes to change one line of a Dataverse plugin and learn whether the change works, two ways: through the platform (build, deploy the assembly, trigger the message, read the plugin trace log) and locally with XrmGhost (build, `xg run`, read the output). Same source file, same DLL, same deliberate bug, five iterations each.
+
+**Result.** Median of the warm iterations: **25.64 s** for the remote loop, **4.70 s** for the local loop, a ratio of **5.45×**. The first, cold iteration took 24.13 s remote and 6.02 s local.
+
+With five iterations per loop the median is indicative, not statistical: one remote iteration took 60.59 s and another 7.93 s. Treat the numbers as one measured session, not as a benchmark.
+
+## Setup
+
+Measured on 2026-10-06. Every step was scripted and timestamped (`date +%s.%N` before and after); no step ran in a UI and no stopwatch was held by hand.
+
+| Item | Value |
+|---|---|
+| CPU | Intel Core i7-13620H (10 cores, 16 threads) |
+| RAM | 64 GB |
+| Operating system | Windows 11 Home 25H2 (build 26200) |
+| XrmGhost | CLI 1.7.5, host 1.0.2 |
+| Local data source | Scenario data, no environment connection |
+| Remote environment | Dataverse development environment (not production), Europe region; client connected from Italy |
+| Plugin | Synchronous `IPlugin`, PostOperation on `Update` of `contact`: reads the contact with `Retrieve`, reads the active contacts of the same account with a `QueryExpression`, writes the result to the trace |
+| Deploy tool | `pac plugin push --type Assembly` (Power Platform CLI 2.7.4), updating the content of an already registered plugin assembly |
+| Trigger and trace read | Dataverse Web API v9.2 (Python script with `requests`): `PATCH` the record, then poll `plugintracelogs` once per second |
+| Build | `dotnet build -c Release`, .NET SDK 10.0.103, target `net462`, `Microsoft.CrmSdk.CoreAssemblies` 9.0.2.60, strong-named assembly |
+
+**The plugin.** One dedicated assembly, one source file, no dependency beyond the Dataverse SDK (classic assemblies do not carry their dependencies). The same source file and the same DLL are used in both loops. The remote step fires only on `Update` with a filtering attribute (`pager`, an unused column in that environment), and the plugin returns immediately unless the new value carries the marker `E020-`, so no other record in the environment triggers it.
+
+**The line that changes.** The plugin takes the last contact of the list:
+
+```csharp
+var last = siblings.Entities[siblings.Entities.Count];      // broken: ArgumentOutOfRangeException
+var last = siblings.Entities[siblings.Entities.Count - 1];  // fixed: traces "RESULT OK last sibling = ..."
+```
+
+Iterations alternate the two versions, so each one contains a real change and a result to read: odd iterations apply the fix (expected: `RESULT OK`), even iterations reintroduce the bug (expected: the exception). Both loops start from the broken version, already compiled and, in the remote loop, already deployed.
+
+## What counts as one iteration
+
+An iteration starts when the line is edited (by script, not typed: human typing time is excluded and would be the same in both loops). It ends when the script has read the line that says whether the change works: in the remote loop, the Plugin Trace Log row carrying that iteration's marker; in the local loop, the output of `xg run`.
+
+- **Remote:** edit, build, `pac plugin push`, trigger (`PATCH` of the filtered column on a test contact, with a unique marker), wait for the trace (poll `plugintracelogs` until the row with that marker appears).
+- **Local:** edit, build, `xg run` on the scenario, read the outcome from the output.
+
+## Remote loop: build, push, trigger, Plugin Trace Log
+
+Seconds. Raw values were recorded with nanosecond timestamps and are rounded to two decimals for display only; medians are computed on the raw values.
+
+| Iter. | Change | Edit | Build | Push | Trigger | Trace wait | **Total** | Outcome read |
+|---|---|---|---|---|---|---|---|---|
+| 1 (cold) | fix | 0.02 | 1.78 | 2.30 | 0.83 | 19.21 | **24.13** | RESULT OK |
+| 2 | bug | 0.02 | 0.78 | 3.12 | 1.39 | 55.29 | **60.59** | exception (on the second trigger, see anomalies) |
+| 3 | fix | 0.02 | 0.78 | 2.47 | 0.81 | 25.55 | **29.62** | RESULT OK |
+| 4 | bug | 0.02 | 0.77 | 2.84 | 3.07 | 1.24 | **7.93** | exception |
+| 5 | fix | 0.02 | 0.76 | 2.35 | 1.01 | 17.52 | **21.65** | RESULT OK |
+
+- First iteration (cold): **24.13 s**
+- Median of the warm iterations (2–5: 7.93, 21.65, 29.62, 60.59): **25.64 s**
+
+"Trigger" is the duration of the `PATCH` calls, which includes the synchronous plugin execution. "Trace wait" is the time from the end of the `PATCH` to the row being read, including the start of the polling script and the 1 s pauses between reads.
+
+Polling detail (from the end of the `PATCH` to the row found): iteration 1: 19.1 s (19 reads); iteration 2: 25.5 s + 29.7 s across two triggers; iteration 3: 25.4 s (25 reads); iteration 4: 1.1 s (2 reads); iteration 5: 17.3 s (17 reads). The trace wait dominates the remote loop and has the highest variance: from 1 s to 30 s for the same plugin and the same trigger.
+
+## Local loop: build, `xg run`
+
+Seconds, rounded to two decimals for display only.
+
+| Iter. | Change | Edit | Build | `xg run` | Output read | **Total** | Outcome read |
+|---|---|---|---|---|---|---|---|
+| 1 (cold) | fix | 0.02 | 1.86 | 4.11 | 0.04 | **6.02** | RESULT OK |
+| 2 | bug | 0.02 | 0.81 | 3.78 | 0.03 | **4.64** | exception |
+| 3 | fix | 0.02 | 0.91 | 3.86 | 0.04 | **4.83** | RESULT OK |
+| 4 | bug | 0.02 | 0.77 | 3.79 | 0.05 | **4.63** | exception |
+| 5 | fix | 0.03 | 0.87 | 3.82 | 0.05 | **4.76** | RESULT OK |
+
+- First iteration (cold): **6.02 s**
+- Median of the warm iterations (2–5: 4.63, 4.64, 4.76, 4.83): **4.70 s**
+
+Locally the outcome arrives in the output of the same run: the plugin's trace line (`RESULT OK last sibling = ...`) or `Execution Failed!` with the exception type and message and the stack trace down to the plugin line.
+
+## Summary
+
+| | Cold (iter. 1) | Median, warm (iter. 2–5) |
+|---|---|---|
+| Remote loop | 24.13 s | 25.64 s |
+| Local loop | 6.02 s | 4.70 s |
+| Remote / local | 4.01× | **5.45×** |
+
+Five iterations per loop make the median indicative, not statistical. In the remote loop a single iteration (2) weighs 60 s and another (4) weighs 8 s; the local loop stayed within 0.2 s of its median on every warm iteration.
+
+## What is excluded
+
+- Login and tokens: Power Platform CLI authentication and the Web API token were obtained before the measurement.
+- Opening tools and writing the scripts.
+- Initial remote registration: creating the plugin assembly, plugin type and step (via Web API), one trial trigger and one trial `pac plugin push`, all done before the measurement.
+- Local setup: creating the project, the first package restore, writing the scenario, one trial `xg run`.
+- Human typing and reading time: both loops use a scripted edit and a scripted read.
+- Final cleanup of the environment.
+
+## Anomalies and rough edges
+
+We report these as they happened, without cleaning them up.
+
+1. **Remote iteration 2: the first trigger after the push ran the old code.** `pac plugin push` completed successfully, but the next `PATCH` returned 204 and the trace showed `RESULT OK`: the fixed version, which the push should have replaced with the broken one. The script recognised the unexpected outcome and triggered again with a new marker; the second trigger produced the exception. The time of the first attempt (0.73 s of `PATCH` plus 25.5 s of polling) is **included** in the 60.59 s total. A developer working by hand would have seen "it works" on code that did not work.
+2. **In the bug iterations the error arrives in the HTTP response before it arrives in the trace.** The `PATCH` fails with the exception message (`Index was out of range...`) in 0.7–3 s; the Plugin Trace Log row, which is the end point of the protocol, arrives later. The gap was 1.2 s in iteration 4 and 29.7 s in iteration 2. In the fix iterations, on the other hand, the trace is the only evidence that the new code did the right thing.
+3. **Partial cold start.** Before each loop the .NET build server was shut down (`dotnet build-server shutdown`), so the build of iteration 1 is cold in both loops. The setup trials had already warmed up the rest: one push and one trigger in the remote loop, one trial `xg run` in the local loop, which took **9.43 s** (against 4.11 s in iteration 1). "Cold" here means "first run of the measurement session", not "first start of the machine": a first local run on a cold machine can be about 5 s slower.
+4. **Local data source.** The local loop ran on scenario data, with no environment connection: `Retrieve` and `RetrieveMultiple` were served by the scenario. The local loop never touched the remote environment.
+5. **Per-step overhead.** The small overhead of each step (starting `cmd.exe`, `pac`, the Python interpreter) is inside the measurements, with no subtraction.
+
+## Where to go next
+
+- **[How It Works](/how-it-works/)** for the local-first model behind the local loop.
+- **[Scenario Files](/cli/scenarios/)** for how a scenario supplies the data a local run reads.
+- **[`xg run`](/cli/reference/run/)** for the command used in the local loop.

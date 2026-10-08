@@ -26,12 +26,12 @@ xg generate-scenario -p <PLUGIN_ASSEMBLY_PATH> -t <PLUGIN_TYPE_NAME> [options]
 | `--plugin-assembly-path` | `-p` | `string` | *(required)* | Path to the compiled plugin assembly DLL. The file must exist at the specified path. |
 | `--plugin-type` | `-t` | `string` | *(required)* | Fully-qualified name of the plugin class to introspect (e.g. `MyPlugins.MyPluginClass`). |
 | `--output` | `-o` | `string` | Same directory as the assembly | Path where the generated scenario JSON file is written. If omitted, or if only a filename is given, the file is placed alongside the plugin DLL. When multiple messages are generated, the filename is suffixed with `_<MessageName>_Scenario.json`. |
-| `--framework-host-path` | `-f` | `string` | Auto-resolved | Path to `XrmGhost.FrameworkHost.exe`. When not provided the CLI checks the managed application-data install root first, then falls back to legacy beside-the-CLI locations (`bin`, then the CLI directory). |
+| `--framework-host-path` | `-f` | `string` | Auto-resolved | Path to `XrmGhost.Framework.Host.exe`. When not provided the CLI uses the host bundled in the `bin\` folder next to `xg.exe` first (winget and ZIP installs), then its managed application-data install root, then legacy beside-the-CLI locations. |
 | `--debug-mode` | `-d` | `bool` | `false` | Emits detailed verbose output, including FrameworkHost startup information, gRPC health-check status, and per-field scaffold decisions. |
 | `--no-default-user-settings` | — | `bool` | `false` | Suppresses the automatic insertion of a default `usersettings` mock (Retrieve response) for the calling user context. |
 | `--no-default-owner` | — | `bool` | `false` | Suppresses the automatic insertion of a default `ownerid` (EntityReference to `systemuser`) in the generated `Target` entity. |
 | `--online` | — | `bool` | `false` | Enables online mode, which activates live Dataverse metadata integration. Requires an active **Pro** license. |
-| `--no-interactive` | — | `bool` | `false` | Exits immediately if FrameworkHost is not installed instead of prompting the user to download it. Useful in CI pipelines. |
+| `--no-interactive` | — | `bool` | `false` | Exits immediately if FrameworkHost is not installed instead of downloading it automatically. Useful in CI pipelines. |
 
 ---
 
