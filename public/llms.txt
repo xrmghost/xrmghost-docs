@@ -14,8 +14,9 @@
 - [Skills](https://docs.xrmghost.tech/skills/): agent skills for running and debugging plugins locally.
 
 ## Elsewhere
-- [XrmGhost releases](https://github.com/xrmghost/xrmghost/releases): the primary install channel — the signed win-x64 ZIP `xrmghost-cli-<version>-full.zip`, with `xg.exe` and the signed host in `bin\`.
-- [XrmGhost.Cli on NuGet](https://www.nuget.org/packages/XrmGhost.Cli/): the soft-deprecated .NET global tool package, kept for existing installations; new installs use the signed ZIP.
+- [Install with winget](https://docs.xrmghost.tech/getting-started/#install-with-winget): the recommended install on a development machine — `winget install XrmGhost.Cli` installs the signed `xg.exe` with the host in `bin\`.
+- [XrmGhost.Cli on NuGet](https://www.nuget.org/packages/XrmGhost.Cli/): the .NET global tool package, for CI pipelines and automation only; it does not carry the host, which the CLI downloads on first use or `xg setup host` installs.
+- [XrmGhost releases](https://github.com/xrmghost/xrmghost/releases): the last option, for machines without winget — the signed win-x64 ZIP `xrmghost-cli-<version>-full.zip`, with `xg.exe` and the signed host in `bin\`.
 - [XrmGhost.Attributes on NuGet](https://www.nuget.org/packages/XrmGhost.Attributes/): add the Attributes library to your plugin project as a package reference.
 - [www.xrmghost.tech](https://www.xrmghost.tech): product overview, positioning, and editions.
 - [github.com/xrmghost](https://github.com/xrmghost): organization profile and the full index of public repositories.

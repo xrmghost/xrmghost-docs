@@ -11,17 +11,21 @@ This guide covers installing the CLI, then orienting yourself — how to explore
 
 ## Install the CLI
 
-The primary channel is the **signed ZIP for Windows x64**, published on the release page of the public repository, [github.com/xrmghost/xrmghost/releases](https://github.com/xrmghost/xrmghost/releases). Install the asset named `xrmghost-cli-<version>-full.zip`: it carries `xg.exe` and, in the `bin\` folder next to it, the signed host that executes your plugins — there is no separate host download.
+On your development machine, install with **winget**:
 
-> **TODO:** The first signed stable ZIP of the CLI is not published yet. The direct download link for the stable asset will be added once it is on the release page, as part of ADO-2619.
+```powershell
+winget install XrmGhost.Cli
+```
 
-1. **Verify the signature before installing.** The publisher to expect and how to check it, including WDAC policies, are in [Trust and WDAC](/cli/trust-and-wdac/).
-2. **Extract the ZIP** to a folder of its own, for example `C:\Tools\XrmGhost`, keeping `xg.exe` and `bin\` together.
-3. **Add the folder that contains `xg.exe`** — not its `bin\` subfolder — to your user `PATH`, then open a new shell.
+It installs the signed `xg.exe` and, in the `bin\` folder next to it, the signed host that executes your plugins — there is no separate host download. Open a new shell afterwards so the updated `PATH` is picked up. The publisher to expect and how to verify the signature, including WDAC policies, are in [Trust and WDAC](/cli/trust-and-wdac/).
 
-**Coming from the .NET global tool?** The old installation left an `xg` shim in `%USERPROFILE%\.dotnet\tools`. Run `Get-Command xg -All` (or `where xg` from `cmd`): if a line points to `.dotnet\tools`, remove it with `dotnet tool uninstall -g XrmGhost.Cli`, or put the ZIP folder before it in `PATH`. The first line must be the `xg.exe` you extracted, so that only one `xg` answers.
+**In CI only**, install the .NET global tool from NuGet: `dotnet tool install --global XrmGhost.Cli`. It is meant for build agents and automation, not for a desktop. It needs the .NET 9 runtime and does not carry the host: the CLI downloads the host on first use, or you install it in the pipeline with [`xg setup host`](/cli/reference/setup-host/).
 
-The .NET global tool is soft-deprecated: the `XrmGhost.Cli` package stays on NuGet, but it is no longer the recommended channel. `winget install XrmGhost.Cli` is not available yet — it follows the first signed stable ZIP and the external review of `winget-pkgs`; see [winget publication](/cli/winget-publication/). Alpha builds are not signed and may be blocked by Smart App Control.
+**Last option:** without winget, download `xrmghost-cli-<version>-full.zip` from the [release page](https://github.com/xrmghost/xrmghost/releases/latest), extract it to a folder of its own keeping `xg.exe` and `bin\` together, and add that folder — not `bin\` — to your user `PATH`.
+
+**Coming from the .NET global tool on your desktop?** The old installation left an `xg` shim in `%USERPROFILE%\.dotnet\tools`. Run `Get-Command xg -All` (or `where xg` from `cmd`): if a line points to `.dotnet\tools`, remove it with `dotnet tool uninstall -g XrmGhost.Cli`, or put the winget or ZIP folder before it in `PATH`. The first line must be the signed `xg.exe`, so that only one `xg` answers.
+
+Alpha builds are not signed and may be blocked by Smart App Control.
 
 The full walkthrough, with prerequisites, is in [Getting Started](/getting-started/#1-install-the-cli).
 

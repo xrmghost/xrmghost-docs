@@ -244,26 +244,53 @@ It's three steps: install the CLI, confirm the runtime host, run.
 
 ## Prerequisites
 
-The primary channel is a **signed, self-contained ZIP for Windows x64**. What you need depends on how you install:
+XrmGhost runs on **Windows x64**. What you need depends on how you install:
 
-| Channel | Requirement | Why |
-| --- | --- | --- |
-| **Signed ZIP (win-x64)** — primary | **.NET Framework 4.7.2** | Runs the host that executes your plugins, matching the Dataverse server-side runtime. `xg.exe` is self-contained: no .NET runtime is needed for the CLI itself. |
-| **.NET global tool** — soft-deprecated | **.NET 9 runtime** and **.NET Framework 4.7.2** | The global tool runs `xg` on the shared .NET 9 runtime; the host still needs 4.7.2. |
+| Channel | Use it for | Requirement | Why |
+| --- | --- | --- | --- |
+| **winget** — recommended | Your development machine | **.NET Framework 4.7.2** | Installs the signed, self-contained `xg.exe` together with the host that executes your plugins, matching the Dataverse server-side runtime. No .NET runtime is needed for the CLI itself. |
+| **.NET global tool** — CI only | Build agents and automation | **.NET 9 runtime** and **.NET Framework 4.7.2** | The global tool runs `xg` on the shared .NET 9 runtime; the host still needs 4.7.2. |
+| **Signed ZIP** | Machines without winget | **.NET Framework 4.7.2** | The same signed bundle winget installs, downloaded by hand. |
 
-On Windows 10/11 the 4.7.2 framework is almost always already there; on a clean build agent it may not be. If you stay on the global tool, check for the .NET 9 runtime with `dotnet --list-runtimes` and look for a `Microsoft.NETCore.App 9.x` line.
+On Windows 10/11 the 4.7.2 framework is almost always already there; on a clean build agent it may not be. For the global tool, check for the .NET 9 runtime with `dotnet --list-runtimes` and look for a `Microsoft.NETCore.App 9.x` line.
 
 ## 1. Install the CLI
 
-### Download the signed ZIP
+### Install with winget
 
-Stable releases are published on the public repository's release page: **[github.com/xrmghost/xrmghost/releases](https://github.com/xrmghost/xrmghost/releases)**. Download the asset named `xrmghost-cli-<version>-full.zip` — the full bundle that carries both `xg.exe` and the host. The archive without the `-full` suffix contains the executable alone and is not the one to install.
+On your development machine, install with the Windows Package Manager:
 
-> **TODO:** The first signed stable ZIP of the CLI is not published yet. The direct download link for the stable asset will be added here once it is on the release page, as part of ADO-2619.
+```powershell
+winget install XrmGhost.Cli
+```
 
-Before extracting, check who signed it: the publisher to expect and how to verify it (including WDAC policies) are described in **[Trust and WDAC](/cli/trust-and-wdac/)**.
+This installs the signed `xg.exe` and, in the `bin\` folder next to it, the signed host that executes your plugins: there is nothing separate to download. winget adds the install folder to your `PATH`; open a new shell, so the new `PATH` is picked up, and confirm:
 
-### Extract it and add the folder to PATH
+```powershell
+xg --version
+```
+
+To update later:
+
+```powershell
+winget upgrade XrmGhost.Cli
+```
+
+The publisher to expect and how to verify the signature (including WDAC policies) are described in **[Trust and WDAC](/cli/trust-and-wdac/)**.
+
+### In CI only: the .NET global tool
+
+On build agents and in automation, install the `XrmGhost.Cli` package from NuGet as a .NET global tool:
+
+```powershell
+dotnet tool install --global XrmGhost.Cli
+```
+
+This channel is for **CI and automation only** — on a desktop, use winget. The package does not carry the host: on the first `xg run` or `xg generate-scenario` the CLI downloads it from the public release page into `%LOCALAPPDATA%\xrmghost\framework-host\`. To keep that step out of the run itself, install the host explicitly in the pipeline with [`xg setup host`](/cli/reference/setup-host/); with `--no-interactive`, a run fails instead of downloading a missing host. The agent must be Windows, because the host is a .NET Framework 4.7.2 process.
+
+### Last option: download the signed ZIP
+
+If winget is not available, download the same bundle by hand from the public repository's release page: **[github.com/xrmghost/xrmghost/releases](https://github.com/xrmghost/xrmghost/releases/latest)**. Pick the asset named `xrmghost-cli-<version>-full.zip`: it carries both `xg.exe` and the host. Before extracting, check who signed it, as described in **[Trust and WDAC](/cli/trust-and-wdac/)**.
 
 Extract the ZIP to a folder of its own, for example `C:\Tools\XrmGhost`. The layout is:
 
@@ -273,17 +300,11 @@ C:\Tools\XrmGhost\
 └── bin\        the signed host that executes your plugins
 ```
 
-Add **the folder that contains `xg.exe`** — `C:\Tools\XrmGhost`, not `bin\` — to your user `PATH` (*Settings → System → About → Advanced system settings → Environment Variables*). Then open a new shell, so the new `PATH` is picked up, and confirm:
+Add **the folder that contains `xg.exe`** — `C:\Tools\XrmGhost`, not `bin\` — to your user `PATH` (*Settings → System → About → Advanced system settings → Environment Variables*), open a new shell and run `xg --version`. To update later, download the newer `-full.zip` and extract it over the same folder: `xg.exe` and `bin\` move together.
 
-```powershell
-xg --version
-```
+### Moving a desktop off the global tool
 
-To update later, download the newer `-full.zip` and extract it over the same folder: `xg.exe` and `bin\` move together.
-
-### Migrating from the global tool
-
-If you previously installed XrmGhost with `dotnet tool install -g XrmGhost.Cli`, that installation left an `xg` shim in `%USERPROFILE%\.dotnet\tools`, which is on your `PATH` too. Two `xg` commands on the `PATH` means the one that runs depends on the order of the entries. Find every `xg` your shell can see:
+If you previously installed XrmGhost on your desktop with `dotnet tool install -g XrmGhost.Cli`, that installation left an `xg` shim in `%USERPROFILE%\.dotnet\tools`, which is on your `PATH` too. Two `xg` commands on the `PATH` means the one that runs depends on the order of the entries. Find every `xg` your shell can see:
 
 ```powershell
 Get-Command xg -All | Select-Object Source
@@ -295,17 +316,13 @@ Get-Command xg -All | Select-Object Source
 dotnet tool uninstall -g XrmGhost.Cli
 ```
 
-If you need to keep the global tool installed for now, make sure the ZIP folder comes **before** `%USERPROFILE%\.dotnet\tools` in your `PATH`. Either way, open a new shell and run `Get-Command xg -All` again: the first line must be the `xg.exe` in the folder you extracted.
+If you need to keep the global tool installed for now, make sure the winget or ZIP folder comes **before** `%USERPROFILE%\.dotnet\tools` in your `PATH`. Either way, open a new shell and run `Get-Command xg -All` again: the first line must be the signed `xg.exe`.
 
-### Other channels
-
-- **.NET global tool — soft-deprecated.** The `XrmGhost.Cli` package stays on NuGet and is not unlisted, but it is no longer the recommended channel: a global tool cannot be shipped as a signed executable. It needs the .NET 9 runtime, and it does not carry the host.
-- **winget — not published yet.** `winget install XrmGhost.Cli` becomes an option only after the first signed stable ZIP is released and the submission has passed the external review of `winget-pkgs`. Until then, use the ZIP. The publication contract is described in **[winget publication](/cli/winget-publication/)**.
-- **Alpha builds are not signed.** Prereleases are not code-signed, so Windows Smart App Control may block them. Use them only if you need a fix before it reaches a stable release.
+**Alpha builds are not signed.** Prereleases are not code-signed, so Windows Smart App Control may block them. Use them only if you need a fix before it reaches a stable release.
 
 ## 2. Confirm the runtime host
 
-The CLI is light. The component that actually executes your plugins is the **host** — a .NET Framework 4.7.2 process that mirrors the Dataverse server-side runtime. With the ZIP, the signed host is already in the `bin\` folder next to `xg.exe`: there is nothing separate to download, and `xg` uses that host before any other installation it finds.
+The CLI is light. The component that actually executes your plugins is the **host** — a .NET Framework 4.7.2 process that mirrors the Dataverse server-side runtime. With winget or the ZIP, the signed host is already in the `bin\` folder next to `xg.exe`, and `xg` uses that host before any other installation it finds.
 
 Check that the CLI sees it:
 
@@ -313,7 +330,7 @@ Check that the CLI sees it:
 xg doctor
 ```
 
-`xg doctor --verbose` also prints the resolved host path, which should point inside the `bin\` folder of your extracted ZIP.
+`xg doctor --verbose` also prints the resolved host path, which should point inside the `bin\` folder next to `xg.exe`. With the global tool in CI, it points to the host downloaded under `%LOCALAPPDATA%\xrmghost\framework-host\`.
 
 ## 3. Run
 
@@ -402,17 +419,21 @@ This guide covers installing the CLI, then orienting yourself — how to explore
 
 ## Install the CLI
 
-The primary channel is the **signed ZIP for Windows x64**, published on the release page of the public repository, [github.com/xrmghost/xrmghost/releases](https://github.com/xrmghost/xrmghost/releases). Install the asset named `xrmghost-cli-<version>-full.zip`: it carries `xg.exe` and, in the `bin\` folder next to it, the signed host that executes your plugins — there is no separate host download.
+On your development machine, install with **winget**:
 
-> **TODO:** The first signed stable ZIP of the CLI is not published yet. The direct download link for the stable asset will be added once it is on the release page, as part of ADO-2619.
+```powershell
+winget install XrmGhost.Cli
+```
 
-1. **Verify the signature before installing.** The publisher to expect and how to check it, including WDAC policies, are in [Trust and WDAC](/cli/trust-and-wdac/).
-2. **Extract the ZIP** to a folder of its own, for example `C:\Tools\XrmGhost`, keeping `xg.exe` and `bin\` together.
-3. **Add the folder that contains `xg.exe`** — not its `bin\` subfolder — to your user `PATH`, then open a new shell.
+It installs the signed `xg.exe` and, in the `bin\` folder next to it, the signed host that executes your plugins — there is no separate host download. Open a new shell afterwards so the updated `PATH` is picked up. The publisher to expect and how to verify the signature, including WDAC policies, are in [Trust and WDAC](/cli/trust-and-wdac/).
 
-**Coming from the .NET global tool?** The old installation left an `xg` shim in `%USERPROFILE%\.dotnet\tools`. Run `Get-Command xg -All` (or `where xg` from `cmd`): if a line points to `.dotnet\tools`, remove it with `dotnet tool uninstall -g XrmGhost.Cli`, or put the ZIP folder before it in `PATH`. The first line must be the `xg.exe` you extracted, so that only one `xg` answers.
+**In CI only**, install the .NET global tool from NuGet: `dotnet tool install --global XrmGhost.Cli`. It is meant for build agents and automation, not for a desktop. It needs the .NET 9 runtime and does not carry the host: the CLI downloads the host on first use, or you install it in the pipeline with [`xg setup host`](/cli/reference/setup-host/).
 
-The .NET global tool is soft-deprecated: the `XrmGhost.Cli` package stays on NuGet, but it is no longer the recommended channel. `winget install XrmGhost.Cli` is not available yet — it follows the first signed stable ZIP and the external review of `winget-pkgs`; see [winget publication](/cli/winget-publication/). Alpha builds are not signed and may be blocked by Smart App Control.
+**Last option:** without winget, download `xrmghost-cli-<version>-full.zip` from the [release page](https://github.com/xrmghost/xrmghost/releases/latest), extract it to a folder of its own keeping `xg.exe` and `bin\` together, and add that folder — not `bin\` — to your user `PATH`.
+
+**Coming from the .NET global tool on your desktop?** The old installation left an `xg` shim in `%USERPROFILE%\.dotnet\tools`. Run `Get-Command xg -All` (or `where xg` from `cmd`): if a line points to `.dotnet\tools`, remove it with `dotnet tool uninstall -g XrmGhost.Cli`, or put the winget or ZIP folder before it in `PATH`. The first line must be the signed `xg.exe`, so that only one `xg` answers.
+
+Alpha builds are not signed and may be blocked by Smart App Control.
 
 The full walkthrough, with prerequisites, is in [Getting Started](/getting-started/#1-install-the-cli).
 
@@ -1176,7 +1197,7 @@ The correct path is the manual copy described below. It takes seconds once you k
 
 ## Prerequisites
 
-The skills assume the `xg` CLI is installed and the runtime host is set up. First-time setup — installing `xg`, running `xg setup host`, and activating a license — is covered by [Getting Started](/getting-started/). XrmGhost is distributed for evaluation; runs stop working as expected once the evaluation period lapses.
+The skills assume the `xg` CLI is installed. First-time setup — installing `xg` with `winget install XrmGhost.Cli` (the runtime host comes with it) and activating a license — is covered by [Getting Started](/getting-started/). XrmGhost is distributed for evaluation; runs stop working as expected once the evaluation period lapses.
 
 ## Where each agent looks for skills
 
@@ -1268,7 +1289,7 @@ xg run \
 
 ### Debugging line by line
 
-Add `--debug-plugin-wait` to the `run` command. The CLI starts and pauses, printing a process ID. In Visual Studio use **Debug → Attach to Process…** (Ctrl+Alt+P), attach to `GhostPlugin.FrameworkHost.exe` matching that process ID, set your breakpoints, and execution resumes into them.
+Add `--debug-plugin-wait` to the `run` command. The CLI starts and pauses, printing a process ID. In Visual Studio use **Debug → Attach to Process…** (Ctrl+Alt+P), attach to `XrmGhost.Framework.Host.exe` matching that process ID, set your breakpoints, and execution resumes into them.
 
 ### The post-run protocol
 
@@ -1908,7 +1929,7 @@ xg doctor [options]
 2. **Core Library** — Reports the version and location of the bundled `XrmGhost.Core` assembly.
 3. **Platform Information** — Displays OS description, OS architecture, process architecture, .NET runtime version, and framework description.
 4. **.NET SDKs** — Lists all .NET SDK versions found via `dotnet --list-sdks`. Warns if .NET 8 is absent.
-5. **FrameworkHost** — Resolves the `XrmGhost.FrameworkHost.exe` binary (managed app-data install root first, then legacy beside-CLI locations) and reports its path and version. Fails if the executable cannot be found.
+5. **FrameworkHost** — Resolves the `XrmGhost.Framework.Host.exe` binary (the host bundled in the `bin\` folder next to `xg.exe` first, then the managed app-data install root, then legacy beside-CLI locations) and reports its path and version. Fails if the executable cannot be found.
 6. **Local Configuration Files** — Verifies that `bootstrap.lic` can be decrypted and that the AKMS API key is present and unexpired. Displays the license tier when the key is valid.
 7. **AKMS Connectivity** — Contacts the AKMS JWKS endpoint to confirm network reachability, then attempts a test JWT issuance if a valid local API key exists.
 8. **Subscription Claims Diagnostics** — Reads the current license status and displays subscription claims. In `--verbose` mode, also attempts a live JWT round-trip to validate claims parsing.
@@ -1924,7 +1945,7 @@ Running `xg doctor --verbose` before reporting a bug gives you a complete diagno
 | Option | Short | Type | Default | Description |
 |---|---|---|---|---|
 | `--verbose` | `-v` | flag | `false` | Enable verbose output. Adds resolved file paths, discovery source for FrameworkHost, full subscription claims details, and a JWT round-trip test. |
-| `--framework-host-path <FRAMEWORK_HOST_PATH>` | `-f` | string | _(auto-discovered)_ | Override the path to `XrmGhost.FrameworkHost.exe`. When provided, the CLI validates that the file exists at the given path and skips auto-discovery. |
+| `--framework-host-path <FRAMEWORK_HOST_PATH>` | `-f` | string | _(auto-discovered)_ | Override the path to `XrmGhost.Framework.Host.exe`. When provided, the CLI validates that the file exists at the given path and skips auto-discovery. |
 
 ## Exit Codes
 
@@ -1954,7 +1975,7 @@ Includes resolved file paths, FrameworkHost discovery source, full subscription 
 ### Override the FrameworkHost path
 
 ```shell
-xg doctor --framework-host-path "C:\Tools\XrmGhost\XrmGhost.FrameworkHost.exe"
+xg doctor --framework-host-path "C:\Tools\XrmGhost\bin\net472\win-x86\XrmGhost.Framework.Host.exe"
 ```
 
 Checks a specific FrameworkHost binary instead of relying on auto-discovery. Useful in non-standard install layouts or when testing a freshly built binary.
@@ -1962,7 +1983,7 @@ Checks a specific FrameworkHost binary instead of relying on auto-discovery. Use
 ### Combine override with verbose output
 
 ```shell
-xg doctor -v -f "./bin/XrmGhost.FrameworkHost.exe"
+xg doctor -v -f "./bin/XrmGhost.Framework.Host.exe"
 ```
 
 ## Checks Performed
@@ -1975,7 +1996,7 @@ The table below maps each check to the condition that makes it fail.
 | Core Library | `XrmGhost.Core` assembly cannot be located or its metadata is unreadable. |
 | Platform Information | OS or .NET runtime metadata is inaccessible (rare; indicates a severely broken runtime). |
 | .NET SDKs | `dotnet --list-sdks` exits with a non-zero code or the process cannot be started. A warning (not a failure) is printed if .NET 8 is absent. |
-| FrameworkHost | The executable cannot be resolved at the managed app-data root, legacy beside-CLI locations, or the path given with `--framework-host-path`. |
+| FrameworkHost | The executable cannot be resolved in the bundled `bin\` folder, the managed app-data root, legacy beside-CLI locations, or the path given with `--framework-host-path`. |
 | Local Configuration Files | `bootstrap.lic` is missing or cannot be decrypted **and** the AKMS API key is missing or expired. |
 | AKMS Connectivity | The JWKS endpoint is unreachable or returns no keys, **or** the test JWT issuance fails when a valid API key is present. |
 | Subscription Claims Diagnostics | An unhandled exception occurs while reading or displaying license claims. |
@@ -3205,12 +3226,12 @@ xg generate-scenario -p <PLUGIN_ASSEMBLY_PATH> -t <PLUGIN_TYPE_NAME> [options]
 | `--plugin-assembly-path` | `-p` | `string` | *(required)* | Path to the compiled plugin assembly DLL. The file must exist at the specified path. |
 | `--plugin-type` | `-t` | `string` | *(required)* | Fully-qualified name of the plugin class to introspect (e.g. `MyPlugins.MyPluginClass`). |
 | `--output` | `-o` | `string` | Same directory as the assembly | Path where the generated scenario JSON file is written. If omitted, or if only a filename is given, the file is placed alongside the plugin DLL. When multiple messages are generated, the filename is suffixed with `_<MessageName>_Scenario.json`. |
-| `--framework-host-path` | `-f` | `string` | Auto-resolved | Path to `XrmGhost.FrameworkHost.exe`. When not provided the CLI checks the managed application-data install root first, then falls back to legacy beside-the-CLI locations (`bin`, then the CLI directory). |
+| `--framework-host-path` | `-f` | `string` | Auto-resolved | Path to `XrmGhost.Framework.Host.exe`. When not provided the CLI uses the host bundled in the `bin\` folder next to `xg.exe` first (winget and ZIP installs), then its managed application-data install root, then legacy beside-the-CLI locations. |
 | `--debug-mode` | `-d` | `bool` | `false` | Emits detailed verbose output, including FrameworkHost startup information, gRPC health-check status, and per-field scaffold decisions. |
 | `--no-default-user-settings` | — | `bool` | `false` | Suppresses the automatic insertion of a default `usersettings` mock (Retrieve response) for the calling user context. |
 | `--no-default-owner` | — | `bool` | `false` | Suppresses the automatic insertion of a default `ownerid` (EntityReference to `systemuser`) in the generated `Target` entity. |
 | `--online` | — | `bool` | `false` | Enables online mode, which activates live Dataverse metadata integration. Requires an active **Pro** license. |
-| `--no-interactive` | — | `bool` | `false` | Exits immediately if FrameworkHost is not installed instead of prompting the user to download it. Useful in CI pipelines. |
+| `--no-interactive` | — | `bool` | `false` | Exits immediately if FrameworkHost is not installed instead of downloading it automatically. Useful in CI pipelines. |
 
 ---
 
@@ -3779,7 +3800,7 @@ xg run -a <ASSEMBLY_PATH> -t <PLUGIN_TYPE> [options]
 
 ## Description
 
-`xg run` is the primary execution command in the XrmGhost CLI. It loads the plugin assembly you specify, starts `XrmGhost.FrameworkHost.exe` as a background process, and dispatches the plugin execution over a local gRPC channel. The host process is terminated automatically when the run completes.
+`xg run` is the primary execution command in the XrmGhost CLI. It loads the plugin assembly you specify, starts `XrmGhost.Framework.Host.exe` as a background process, and dispatches the plugin execution over a local gRPC channel. The host process is terminated automatically when the run completes.
 
 The command has two required arguments — the assembly path and the fully-qualified plugin type name — and a rich set of optional flags that control scenario injection, verbosity, debugging, configuration strings, and data-source routing.
 
@@ -3796,7 +3817,7 @@ The command has two required arguments — the assembly path and the fully-quali
 | `-a`, `--assembly-path` | `string` | *(required)* | Path to the plugin assembly DLL. The file must exist at the time the command is invoked. |
 | `-t`, `--plugin-type` | `string` | *(required)* | Fully-qualified name of the plugin type to execute (e.g., `MyPlugins.MyPluginClass`). |
 | `-s`, `--scenario` | `string` | — | Path to a JSON scenario file. When provided, the file is deserialised into a `ScenarioDefinition` that supplies the execution context, input parameters, entity images, mock data, and expected outcomes. See [Scenario Files](/cli/scenarios/) for the document's full anatomy. |
-| `-f`, `--framework-host-path` | `string` | — | Explicit path to `XrmGhost.FrameworkHost.exe`. When omitted, the CLI resolves the host from its managed application-data install root, then falls back to legacy beside-the-CLI locations (`bin/`, then the CLI directory). |
+| `-f`, `--framework-host-path` | `string` | — | Explicit path to `XrmGhost.Framework.Host.exe`. When omitted, the CLI uses the host bundled in the `bin\` folder next to `xg.exe` (winget and ZIP installs), then its managed application-data install root (where the host is downloaded for the .NET global tool), then legacy beside-the-CLI locations. |
 | `-w`, `--debug-plugin-wait` | `bool` | `false` | Instructs FrameworkHost to pause before executing the plugin and wait for a debugger to attach. The CLI prints the host process ID and step-by-step attach instructions. |
 | `-c`, `--continue-on-unlicensed` | `bool` | `false` | When a Pro-tier feature is encountered without a valid license, execution continues with a mocked result and a warning instead of terminating with a non-zero exit code. |
 | `-n`, `--normal` | `bool` | `false` | Show plugin traces plus critical framework messages (errors and warnings). Expands the default output without the noise of full verbose mode. |
@@ -3869,7 +3890,7 @@ xg run \
   -d
 ```
 
-After the command prints the FrameworkHost PID and attach instructions, attach your debugger to `XrmGhost.FrameworkHost.exe`, set breakpoints in your plugin code, and then resume execution.
+After the command prints the FrameworkHost PID and attach instructions, attach your debugger to `XrmGhost.Framework.Host.exe`, set breakpoints in your plugin code, and then resume execution.
 
 ### Run with verbose output and unlicensed-Pro continuation
 
@@ -3911,14 +3932,18 @@ xg setup host [OPTIONS]
 
 When called without any option, `setup host` inspects the current installation state and prints a status message. It automatically performs an install if the Framework Host is missing from the expected location.
 
+:::note[When you need it]
+If you installed the CLI with winget or from the `-full.zip`, the signed Framework Host is already bundled in the `bin\` folder next to `xg.exe` and takes precedence: you do not need `setup host`. The command is for the .NET global tool, which is meant for CI only and does not carry the host — see [Getting Started](/getting-started/#in-ci-only-the-net-global-tool).
+:::
+
 ## Description
 
-The Plugin Framework Host is a .NET Framework 4.7.2 Windows process that XrmGhost uses to host Dataverse plugin assemblies in an isolated, out-of-process environment. The `xg run` command requires the Framework Host to be present and compatible before it can execute a plugin. If it is not found, `run` will prompt you to install it first.
+The Plugin Framework Host is a .NET Framework 4.7.2 Windows process that XrmGhost uses to host Dataverse plugin assemblies in an isolated, out-of-process environment. The `xg run` command requires the Framework Host to be present and compatible before it can execute a plugin. If it is not found, `run` downloads and installs it automatically before executing, unless `--no-interactive` is set, in which case the command fails.
 
 `setup host` manages the entire bootstrap lifecycle:
 
 - **Check** (`--check`): reads the current installation state and reports it without making any changes.
-- **Install / Update** (`--update`): downloads the latest compatible `XrmGhost.Framework.Host` NuGet package from the configured feed and extracts the executable to the managed install root under the XrmGhost user-data directory.
+- **Install / Update** (`--update`): downloads the latest compatible `XrmGhost.Framework.Host` package from the official public GitHub release ([github.com/xrmghost/xrmghost/releases](https://github.com/xrmghost/xrmghost/releases)) and extracts the executable to the managed install root under the XrmGhost user-data directory.
 
 The managed install root is located at:
 
@@ -3935,14 +3960,14 @@ The Framework Host executable (`XrmGhost.Framework.Host.exe`) targets the `net47
 |---|---|
 | **Windows only** | The Framework Host is a `net472 win-x86` executable. `setup host` must be run on Windows. |
 | **Write access to the user-data directory** | The install writes to `%LOCALAPPDATA%\xrmghost\`. No system-wide write access is required. If your environment restricts access to `%LOCALAPPDATA%`, rerun from an elevated terminal or adjust directory permissions. |
-| **NuGet feed reachable** | The CLI resolves and downloads the Framework Host from the configured NuGet sources. Ensure `nuget.org` (or your private feed) is accessible from the machine. |
+| **GitHub reachable** | The CLI resolves the Framework Host release through `api.github.com` and downloads the asset from `github.com`. Ensure both are accessible from the machine (on a build agent, through its proxy if it has one). |
 
 ## Options
 
 | Flag | Default | Description |
 |---|---|---|
 | `--check` | `false` | Inspect the current Framework Host installation state and print a status message. Does **not** modify the local installation. Cannot be combined with `--update`. |
-| `--update` | `false` | Download and install the latest compatible Framework Host package from the configured NuGet feed. Also triggered automatically when the Framework Host is missing and no flag is specified. Cannot be combined with `--check`. |
+| `--update` | `false` | Download and install the latest compatible Framework Host package from the official public GitHub release. Also triggered automatically when the Framework Host is missing and no flag is specified. Cannot be combined with `--check`. |
 
 > **Mutual exclusion:** `--check` and `--update` cannot be specified together. The command returns a validation error if both are provided.
 
@@ -3966,18 +3991,18 @@ xg setup host --check
 Example output when the Framework Host is up to date:
 
 ```
-Framework Host is current (1.4.0).
+Framework Host is current (1.0.2).
 ```
 
 Example output when an update is available:
 
 ```
-Framework Host 1.3.0 is installed. 1.4.0 is available. Run 'xg setup host --update'.
+Framework Host 1.0.1 is installed. 1.0.2 is available from the official GitHub release source. Run 'xg setup host --update'.
 ```
 
 ### Install or update to the latest Framework Host
 
-Download and install the latest compatible Framework Host from the configured NuGet feed:
+Download and install the latest compatible Framework Host from the official public GitHub release:
 
 ```shell
 xg setup host --update
@@ -3986,7 +4011,7 @@ xg setup host --update
 Example output on success:
 
 ```
-Framework Host installed (1.4.0).
+Framework Host installed from the official GitHub release (1.0.2).
 ```
 
 ### First-run install (no flag required)
@@ -4002,7 +4027,7 @@ xg setup host
 | Symptom | Likely cause | Resolution |
 |---|---|---|
 | `Failed to install XrmGhost.Framework.Host` | The current user cannot write to the managed install root, or another process is locking the directory | Verify write permissions under `%LOCALAPPDATA%\xrmghost\`. Close any tools that may be locking the directory, or rerun from an elevated terminal. |
-| `All configured NuGet sources were unreachable` | Network or feed connectivity issue | Check that the NuGet feed (`nuget.org` or your private feed) is reachable from the machine. |
+| `The GitHub release source 'xrmghost/xrmghost' could not be reached` | Network or proxy issue, or GitHub API rate limiting | Check that `api.github.com` and `github.com` are reachable from the machine, then retry. |
 | `Framework Host is incompatible or corrupted` | The installed version is not compatible with the current CLI | Run `xg setup host --update` to replace the installation, or run `xg doctor --verbose` to inspect the resolved host path. |
 
 ## See Also
