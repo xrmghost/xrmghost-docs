@@ -7,12 +7,14 @@ description: Run environment and configuration health checks to diagnose connect
 
 Runs a set of diagnostic checks against your local environment, verifying that all prerequisite components are reachable and correctly configured. The command exits with code `0` if every critical check passes, or `1` if any check fails.
 
+Without `--fix`, `doctor` is **read-only**: it reports and changes nothing. With `--fix`, it also repairs the Framework Host where the CLI owns it — see [Repairing the host with `--fix`](#repairing-the-host-with---fix).
+
 Use `doctor` any time the CLI behaves unexpectedly, before raising a support ticket, or as part of a scripted health verification step.
 
 ## Synopsis
 
 ```shell
-xg doctor [options]
+xg doctor [-v] [-f <FRAMEWORK_HOST_PATH>] [--fix] [--no-interactive]
 ```
 
 ## Description
@@ -23,7 +25,7 @@ xg doctor [options]
 2. **Core Library** — Reports the version and location of the bundled `XrmGhost.Core` assembly.
 3. **Platform Information** — Displays OS description, OS architecture, process architecture, .NET runtime version, and framework description.
 4. **.NET SDKs** — Lists all .NET SDK versions found via `dotnet --list-sdks`. Warns if .NET 8 is absent.
-5. **FrameworkHost** — Resolves the `XrmGhost.Framework.Host.exe` binary (the host bundled in the `bin\` folder next to `xg.exe` first, then the managed app-data install root, then legacy beside-CLI locations) and reports its path and version. Fails if the executable cannot be found.
+5. **FrameworkHost** — Resolves the `XrmGhost.Framework.Host.exe` binary (the host bundled in the `bin\` folder next to `xg.exe` first, then the managed install root `%LOCALAPPDATA%\xrmghost\framework-host\current\`, then legacy beside-CLI locations) and reports its path, version and verdict. The verdict is the same one `xg run` acts on, so a host that `run` would stop on cannot pass here. Fails if the host is missing, corrupted or incompatible. With `--fix`, the repair runs first and the check reports the state after it.
 6. **Local Configuration Files** — Verifies that `bootstrap.lic` can be decrypted and that the AKMS API key is present and unexpired. Displays the license tier when the key is valid.
 7. **AKMS Connectivity** — Contacts the AKMS JWKS endpoint to confirm network reachability, then attempts a test JWT issuance if a valid local API key exists.
 8. **Subscription Claims Diagnostics** — Reads the current license status and displays subscription claims. In `--verbose` mode, also attempts a live JWT round-trip to validate claims parsing.
@@ -39,7 +41,27 @@ Running `xg doctor --verbose` before reporting a bug gives you a complete diagno
 | Option | Short | Type | Default | Description |
 |---|---|---|---|---|
 | `--verbose` | `-v` | flag | `false` | Enable verbose output. Adds resolved file paths, discovery source for FrameworkHost, full subscription claims details, and a JWT round-trip test. |
-| `--framework-host-path <FRAMEWORK_HOST_PATH>` | `-f` | string | _(auto-discovered)_ | Override the path to `XrmGhost.Framework.Host.exe`. When provided, the CLI validates that the file exists at the given path and skips auto-discovery. |
+| `--framework-host-path <FRAMEWORK_HOST_PATH>` | `-f` | string | _(auto-discovered)_ | Override the path to `XrmGhost.Framework.Host.exe`. When provided, the CLI validates that the file exists at the given path and skips auto-discovery. A host passed this way is never modified, even with `--fix`. |
+| `--fix` | — | flag | `false` | Repair the Framework Host where the CLI owns it: install it when missing, or repair and update the managed install. A bundled or explicit host is never modified. |
+| `--no-interactive` | — | flag | `false` | Run without prompts. With `--fix`, the Framework Host is still downloaded into the managed root when the repair requires it. |
+
+## Repairing the host with `--fix`
+
+`--fix` acts on the **managed install** only — the copy of the host the CLI keeps under `%LOCALAPPDATA%\xrmghost\framework-host\`. What it does depends on where the host was resolved:
+
+| Host resolved as | What `--fix` does |
+|---|---|
+| **Missing** — no host found anywhere | Installs the latest host into the managed root. |
+| **Managed** — in the managed install root | Reinstalls it when it is corrupted or incompatible, and updates it when a newer compatible host is available. |
+| **LegacyBin / LegacyRoot** — beside the CLI, outside the managed root | Installs the host into the managed root. |
+| **Bundled** — in the `bin\` folder of the ZIP | Nothing: the bundled host is never modified. If it is corrupted, `doctor` reports to re-extract the ZIP, making sure `xg.exe` and `bin\` come from the same ZIP. |
+| **Explicit** — passed with `--framework-host-path` | Nothing: an explicit host is never modified. Pass a valid host, or omit the option. |
+
+`--fix` downloads at most once per command. If the download fails, the FrameworkHost check fails with the reason, and the command exits `1`.
+
+:::note[Updating a ZIP install]
+`doctor --fix` does not update the host in a ZIP's `bin\` folder, and since that host takes precedence, a managed install does not change what `xg run` uses. To update a ZIP install, download the newer `-full.zip` from [GitHub Releases](https://github.com/xrmghost/xrmghost/releases/latest) and extract it over the same folder.
+:::
 
 ## Exit Codes
 
@@ -74,6 +96,14 @@ xg doctor --framework-host-path "C:\Tools\XrmGhost\bin\net472\win-x86\XrmGhost.F
 
 Checks a specific FrameworkHost binary instead of relying on auto-discovery. Useful in non-standard install layouts or when testing a freshly built binary.
 
+### Repair the managed host
+
+```shell
+xg doctor --fix
+```
+
+Installs the host when it is missing, or repairs and updates the managed install, then reports the FrameworkHost check against the repaired state. Add `--no-interactive` in automation.
+
 ### Combine override with verbose output
 
 ```shell
@@ -90,7 +120,7 @@ The table below maps each check to the condition that makes it fail.
 | Core Library | `XrmGhost.Core` assembly cannot be located or its metadata is unreadable. |
 | Platform Information | OS or .NET runtime metadata is inaccessible (rare; indicates a severely broken runtime). |
 | .NET SDKs | `dotnet --list-sdks` exits with a non-zero code or the process cannot be started. A warning (not a failure) is printed if .NET 8 is absent. |
-| FrameworkHost | The executable cannot be resolved in the bundled `bin\` folder, the managed app-data root, legacy beside-CLI locations, or the path given with `--framework-host-path`. |
+| FrameworkHost | The executable cannot be resolved in the bundled `bin\` folder, the managed install root, legacy beside-CLI locations, or the path given with `--framework-host-path`; or the resolved host is corrupted or incompatible; or, with `--fix`, the install failed. |
 | Local Configuration Files | `bootstrap.lic` is missing or cannot be decrypted **and** the AKMS API key is missing or expired. |
 | AKMS Connectivity | The JWKS endpoint is unreachable or returns no keys, **or** the test JWT issuance fails when a valid API key is present. |
 | Subscription Claims Diagnostics | An unhandled exception occurs while reading or displaying license claims. |
@@ -101,6 +131,7 @@ A warning on the `.NET 8 SDK` check does not cause an overall failure. The check
 
 ## See Also
 
+- [`xg init`](/cli/reference/init/) — prepare or repair the installation and print the next step
 - [CLI Reference](/cli/reference/) — overview of the reference area and command groups
 - [CLI Command Groups](/cli/reference/command-groups/) — all command groups and their intended reference-page shape
 - [Getting Started with the CLI](/cli/getting-started/) — first-time orientation and safe exploration path
