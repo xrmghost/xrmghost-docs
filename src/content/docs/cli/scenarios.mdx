@@ -82,14 +82,16 @@ the single most common source of scenario errors:
   — fails to parse inside an `EntityReference` and takes the whole scenario down with it.
 
 ```json
-"attributes": {
-  "name": "Contoso Ltd",
-  "revenue": 1000000,
-  "statuscode": { "value": 2 },
-  "primarycontactid": {
-    "logicalName": "contact",
-    "id": "00000000-0000-0000-0000-0000000000c1",
-    "name": "Alex Taylor"
+{
+  "attributes": {
+    "name": "Contoso Ltd",
+    "revenue": 1000000,
+    "statuscode": { "value": 2 },
+    "primarycontactid": {
+      "logicalName": "contact",
+      "id": "00000000-0000-0000-0000-0000000000c1",
+      "name": "Alex Taylor"
+    }
   }
 }
 ```
@@ -120,24 +122,26 @@ matches on `entityName` **and** `id`; `request.columnSet` does not take part in 
 omitted:
 
 ```json
-"organizationServiceMock": {
-  "retrieveResponses": [
-    {
-      "request": {
-        "entityName": "contact",
-        "id": "00000000-0000-0000-0000-0000000000c1",
-        "columnSet": ["fullname", "emailaddress1"]
-      },
-      "response": {
-        "logicalName": "contact",
-        "id": "00000000-0000-0000-0000-0000000000c1",
-        "attributes": {
-          "fullname": "Alex Taylor",
-          "emailaddress1": "alex.taylor@example.com"
+{
+  "organizationServiceMock": {
+    "retrieveResponses": [
+      {
+        "request": {
+          "entityName": "contact",
+          "id": "00000000-0000-0000-0000-0000000000c1",
+          "columnSet": ["fullname", "emailaddress1"]
+        },
+        "response": {
+          "logicalName": "contact",
+          "id": "00000000-0000-0000-0000-0000000000c1",
+          "attributes": {
+            "fullname": "Alex Taylor",
+            "emailaddress1": "alex.taylor@example.com"
+          }
         }
       }
-    }
-  ]
+    ]
+  }
 }
 ```
 
@@ -177,20 +181,22 @@ not-found fault, even if `retrieveResponses` or the seed still describe it.
 on the object** — the opposite of `retrieveResponses`:
 
 ```json
-"entities": {
-  "contact": [
-    {
-      "id": "00000000-0000-0000-0000-0000000000c1",
-      "fullname": "Alex Taylor",
-      "emailaddress1": "alex.taylor@example.com",
-      "statuscode": { "value": 1 },
-      "creditlimit": { "type": "Money", "value": 5000.50 },
-      "parentcustomerid": {
-        "logicalName": "account",
-        "id": "00000000-0000-0000-0000-000000000001"
+{
+  "entities": {
+    "contact": [
+      {
+        "id": "00000000-0000-0000-0000-0000000000c1",
+        "fullname": "Alex Taylor",
+        "emailaddress1": "alex.taylor@example.com",
+        "statuscode": { "value": 1 },
+        "creditlimit": { "type": "Money", "value": 5000.50 },
+        "parentcustomerid": {
+          "logicalName": "account",
+          "id": "00000000-0000-0000-0000-000000000001"
+        }
       }
-    }
-  ]
+    ]
+  }
 }
 ```
 
@@ -214,13 +220,15 @@ A pre-image is supplied through a root-level `preEntityImages` key, whose name m
 registered on the step — the same name the code reads:
 
 ```json
-"preEntityImages": {
-  "PreImage": {
-    "logicalName": "account",
-    "id": "00000000-0000-0000-0000-000000000001",
-    "attributes": {
-      "name": "Contoso Ltd",
-      "revenue": 900000
+{
+  "preEntityImages": {
+    "PreImage": {
+      "logicalName": "account",
+      "id": "00000000-0000-0000-0000-000000000001",
+      "attributes": {
+        "name": "Contoso Ltd",
+        "revenue": 900000
+      }
     }
   }
 }
