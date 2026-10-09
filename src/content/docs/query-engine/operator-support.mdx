@@ -419,9 +419,13 @@ operators" to keep in step with the registry and no typed scenario contract to f
 
 Two notes on how records are picked, because both are easy to get wrong:
 
-- **The caller is stated, not guessed.** The identity comes in from `ExecutionContext.UserId` — the
-  user the plugin runs *as*, not `InitiatingUserId` — and every per-user record is picked by
-  matching it. Reading "the first `usersettings` record" instead is correct while a scenario
+- **The caller is stated, not guessed.** The caller is the caller of the organization service the
+  query goes through: `ExecutionContext.UserId` — the user the plugin runs *as*, not
+  `InitiatingUserId` — for the service the context provides; the requested user for a service
+  from `CreateOrganizationService(userId)`; and a fixed internal **SYSTEM** identity for
+  `CreateOrganizationService(null)`, which has no business unit, no teams and no `usersettings`
+  record, so its queries run as UTC with no membership. Every per-user record is picked by
+  matching that caller. Reading "the first `usersettings` record" instead is correct while a scenario
   declares one user and quietly answers with a different person's settings as soon as it declares
   two.
 - **The `systemuser` hierarchy lookup is deduced, not wired.** The attribute followed is the single
