@@ -9,6 +9,18 @@ This page maps each `xrmghost` CLI command group to its purpose, known sub-comma
 
 ---
 
+## `init`
+
+**Reader-facing purpose:** Prepare the machine to run plugins, or repair the installation — the first command after extracting `xrmghost-cli-<version>-full.zip`. Checks Windows and .NET Framework 4.7.2, resolves the Framework Host (bundle `bin\` > managed install root > legacy), installs or repairs it in the managed root only, and names the next step. Exits `0` when the host is healthy or repaired, `1` when the state cannot be repaired.
+
+**Group type:** Top-level command (no sub-commands).
+
+**Known flags (from source — not authoritative):** `--no-interactive`.
+
+**Reference page:** [`docs/cli/reference/init.mdx`](/cli/reference/init/)
+
+---
+
 ## `run`
 
 **Reader-facing purpose:** Execute a Dataverse plugin out-of-process via FrameworkHost using a scenario file.
@@ -41,11 +53,11 @@ This page maps each `xrmghost` CLI command group to its purpose, known sub-comma
 
 ## `doctor`
 
-**Reader-facing purpose:** Diagnose CLI configuration, FrameworkHost connectivity, AKMS reachability, and license validity. Verbose mode includes JWT subscription claims diagnostics.
+**Reader-facing purpose:** Diagnose CLI configuration, FrameworkHost connectivity, AKMS reachability, and license validity. Verbose mode includes JWT subscription claims diagnostics. Read-only unless `--fix`, which installs a missing host and repairs or updates the managed install, never a bundled or explicit host.
 
 **Group type:** Top-level command (no sub-commands).
 
-**Known flags (from source — not authoritative):** `--verbose`.
+**Known flags (from source — not authoritative):** `-v`/`--verbose`, `-f`/`--framework-host-path`, `--fix`, `--no-interactive`.
 
 **Intended reference-page shape:**
 - Path: `docs/cli/reference/doctor.mdx`
@@ -123,7 +135,7 @@ This page maps each `xrmghost` CLI command group to its purpose, known sub-comma
 
 ## `setup`
 
-**Reader-facing purpose:** Install or update managed infrastructure components, specifically the FrameworkHost managed payload.
+**Reader-facing purpose:** Advanced: install or update the FrameworkHost in the managed install root. Not the first setup — that is `init`. On a ZIP install the bundled host in `bin\` takes precedence, so `setup host` does not change the host used by `run`.
 
 **Group type:** Command group with sub-commands.
 
@@ -131,9 +143,9 @@ This page maps each `xrmghost` CLI command group to its purpose, known sub-comma
 
 | Sub-command | Purpose |
 |---|---|
-| `setup host` | Install or update the managed FrameworkHost component |
+| `setup host` | Advanced: install or update the FrameworkHost in the managed install root, from GitHub Releases |
 
-**Known flags for `setup host` (from source — not authoritative):** `--update`.
+**Known flags for `setup host` (from source — not authoritative):** `--check`, `--update`.
 
 **Intended reference-page shape:**
 - Path: `docs/cli/reference/setup-host.mdx`
