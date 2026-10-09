@@ -47,6 +47,76 @@ xg generate-scenario -p <PLUGIN_ASSEMBLY_PATH> -t <PLUGIN_TYPE_NAME> [options]
 - **`ownerid` attribute** — an `EntityReference` pointing to the context's `UserId` as a `systemuser`. Suppressed by `--no-default-owner`.
 - **Default UserSettings mock** — a Retrieve response that returns a realistic `usersettings` entity for the calling user. Suppressed by `--no-default-user-settings`.
 
+### Shape of the generated file
+
+The file follows the [scenario format](/cli/scenarios/) and contains these top-level keys:
+
+- `scenarioName` — `Scenario for <PluginTypeName> - <MessageName>`.
+- `pluginAssemblyName` and `pluginTypeName`.
+- `executionContext` — the context built above, with `Target` under `inputParameters`.
+- `organizationServiceMock.retrieveResponses` — the default `usersettings` response, matched on
+  `entityName` and `id` and written without a `columnSet`; the list is empty with
+  `--no-default-user-settings`.
+- `expectedTraceLog` — a placeholder line. It is not an assertion; see
+  [Scenario Files](/cli/scenarios/#expecting-the-outcome).
+
+A trimmed example (generated ids are random GUIDs; the remaining context fields and most `usersettings`
+attributes are omitted):
+
+```json
+{
+  "scenarioName": "Scenario for MyCompany.Plugins.AccountCreatePlugin - Create",
+  "pluginAssemblyName": "MyCompany.Plugins.dll",
+  "pluginTypeName": "MyCompany.Plugins.AccountCreatePlugin",
+  "executionContext": {
+    "messageName": "Create",
+    "primaryEntityName": "account",
+    "primaryEntityId": "00000000-0000-0000-0000-000000000001",
+    "stage": 20,
+    "userId": "00000000-0000-0000-0000-0000000000a1",
+    "inputParameters": {
+      "Target": {
+        "logicalName": "account",
+        "id": "00000000-0000-0000-0000-000000000001",
+        "attributes": {
+          "name": "Sample account Name for Create",
+          "ownerid": {
+            "logicalName": "systemuser",
+            "id": "00000000-0000-0000-0000-0000000000a1"
+          }
+        }
+      }
+    }
+  },
+  "organizationServiceMock": {
+    "retrieveResponses": [
+      {
+        "request": {
+          "entityName": "usersettings",
+          "id": "00000000-0000-0000-0000-0000000000a1"
+        },
+        "response": {
+          "logicalName": "usersettings",
+          "id": "00000000-0000-0000-0000-0000000000a1",
+          "attributes": {
+            "fullname": "Plugin User",
+            "uilanguageid": 1033,
+            "localeid": 1033
+          }
+        }
+      }
+    ]
+  },
+  "expectedTraceLog": ["Trace log for Create (expected)"]
+}
+```
+
+The generated file has **no root-level `entities` seed and no `expectedException`**: add them by
+hand when the plugin reads records through `RetrieveMultiple` or is expected to throw. The generator
+does not emit the `{ "type": "Money", "value": X }` tag; with the current release, write that tag only
+in the `entities` seed, as explained in
+[Attribute value typing](/cli/scenarios/#attribute-value-typing).
+
 ### Multiple message handlers
 
 When a plugin implements `[HandlesMessage]` for more than one message, the command generates one scenario file per message, each named `<PluginTypeName>_<MessageName>_Scenario.json`.
