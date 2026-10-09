@@ -3696,6 +3696,13 @@ For licensing, analytics, and error reporting the following additional data may 
 
 XrmGhost may collect anonymised information about commands run, features used, and errors encountered. All telemetry is linked to your Platform ID. The purpose is to identify popular workflows, prioritise improvements, and diagnose bugs.
 
+Each telemetry record also carries a **release channel** field, `channel`, emitted as `prod` or `dev` to identify the release channel of the CLI build that produced it:
+
+- **`prod`** — a **stable** version of the XrmGhost CLI: a released, non-prerelease version.
+- **`dev`** — a **prerelease** version (for example one with an `-alpha` suffix), or a local build without a recognisable version.
+
+The value depends only on the XrmGhost CLI version, not on how the CLI was installed (winget, NuGet or ZIP). `channel` is a build/release constant, **not personal data**, and it is subject to the same opt-out as the rest of this section.
+
 ### 5. Opting Out of Telemetry
 
 Set the environment variable `XRMGHOST_TELEMETRY=0` before running `xg` to stop the transmission of CLI telemetry:
@@ -3720,6 +3727,27 @@ The opt-out covers telemetry only. It does **not** disable:
 - **local hardware context handling** — the hardware contextual salt described in section 2 is still computed locally on each startup to protect your activated license.
 
 For the full privacy policy visit: **https://www.xrmghost.tech/legal/privacy-policy**
+
+## First-run privacy notice
+
+The first time you run a **stable** version of the XrmGhost CLI interactively, it prints a short privacy notice **once**, before any telemetry is sent and before the machine is registered with XrmGhost servers. The notice points to `xg privacy` and to the online privacy policy.
+
+A run shows the notice only when **both** of these are true:
+
+- **The CLI version is stable** — a released, non-prerelease version. Prerelease builds (versions with an `-alpha` suffix) never show the notice.
+- **The output is not redirected** — the CLI is writing to an interactive terminal. When output is redirected to a file or piped to another command (for example in a CI pipeline), the notice is not shown.
+
+When the notice is shown, the CLI records that fact by writing a file named `first-run.sentinel`. Redirected or piped runs and prerelease runs **neither show the notice nor write the sentinel**, so the notice still appears on your first interactive run of a stable version, even if the CLI has already run many times in CI or as a prerelease.
+
+The sentinel lives in the same directory as the Platform ID file `machine_id.dat` (see the storage path table in [`xg license get-platform-id`](/cli/reference/license-get-platform-id/)):
+
+| Platform | Sentinel path |
+|---|---|
+| Windows | `%LOCALAPPDATA%\XrmGhost\XrmGhostCli\first-run.sentinel` |
+| Linux | `$XDG_DATA_HOME/xrmghost/xrmghostcli/first-run.sentinel` (falls back to `~/.local/share/xrmghost/xrmghostcli/first-run.sentinel`) |
+| macOS | `~/Library/Application Support/xrmghost/xrmghostcli/first-run.sentinel` |
+
+To see the notice again, delete `first-run.sentinel`: the notice is shown again on the next interactive run of a stable version. Delete only that file — deleting `machine_id.dat` from the same directory generates a new Platform ID and invalidates licenses bound to the old one.
 
 ## Documentation site analytics
 
