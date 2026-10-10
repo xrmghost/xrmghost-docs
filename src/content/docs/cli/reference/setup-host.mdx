@@ -15,8 +15,12 @@ xg setup host [OPTIONS]
 
 When called without any option, `setup host` inspects the current installation state and prints a status message. It automatically performs an install if the Framework Host is missing from the expected location.
 
-:::caution[It does not change the host of a ZIP install]
-The CLI resolves the host in this order: the host bundled in the `bin\` folder next to `xg.exe`, then the managed install root, then legacy locations beside the CLI. `setup host` writes only to the managed install root. On an install from `xrmghost-cli-<version>-full.zip`, the bundled host in `bin\` takes precedence and is never modified, so **`setup host` does not change the host used by `xg run`**. To update a ZIP install, download the newer `-full.zip` from [GitHub Releases](https://github.com/xrmghost/xrmghost/releases/latest) and extract it over the same folder.
+:::note[When you need it]
+If you installed the CLI with winget or from the `-full.zip`, the signed Framework Host is already bundled in the `bin\` folder next to `xg.exe` and takes precedence: you do not need `setup host`. With the .NET global tool, which is meant for CI only and does not carry the host, install the host with `xg init --no-interactive` — see [Getting Started](/getting-started/#in-ci-only-the-net-global-tool). `setup host` remains for advanced management of the managed install.
+:::
+
+:::caution[It does not change the host of a winget or ZIP install]
+The CLI resolves the host in this order: the host bundled in the `bin\` folder next to `xg.exe`, then the managed install root, then legacy locations beside the CLI. `setup host` writes only to the managed install root. On a winget install or an install from `xrmghost-cli-<version>-full.zip`, the bundled host in `bin\` takes precedence and is never modified, so **`setup host` does not change the host used by `xg run`**. To update a winget install, run `winget upgrade XrmGhost.Cli`; to update a ZIP install, download the newer `-full.zip` from [GitHub Releases](https://github.com/xrmghost/xrmghost/releases/latest) and extract it over the same folder.
 :::
 
 ## Description
@@ -112,7 +116,7 @@ xg setup host
 | `Failed to install XrmGhost.Framework.Host` | The current user cannot write to the managed install root, or another process is locking the directory | Verify write permissions under `%LOCALAPPDATA%\xrmghost\`. Close any tools that may be locking the directory, or rerun from an elevated terminal. |
 | `The GitHub release source 'xrmghost/xrmghost' could not be reached` | Network or proxy issue, or GitHub API rate limiting | Check that `api.github.com` and `github.com` are reachable from the machine, then retry. |
 | `Framework Host is incompatible or corrupted` | The managed installation is not compatible with the current CLI | Run `xg doctor --fix` (or `xg init`) to repair the managed install, or `xg doctor --verbose` to inspect the resolved host path. |
-| A newer host was installed but `xg run` still uses the old one | On a ZIP install the bundled host in `bin\` takes precedence over the managed root | Update the ZIP: download the newer `-full.zip` and extract it over the same folder. |
+| A newer host was installed but `xg run` still uses the old one | On a winget or ZIP install the bundled host in `bin\` takes precedence over the managed root | Update the install: `winget upgrade XrmGhost.Cli`, or download the newer `-full.zip` and extract it over the same folder. |
 
 ## See Also
 

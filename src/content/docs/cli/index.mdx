@@ -5,7 +5,7 @@ description: Introduction to the XrmGhost command-line interface — what it doe
 
 # XrmGhost CLI
 
-The XrmGhost CLI (`xg`) is the primary developer interface for the XrmGhost ecosystem. It is distributed as a signed ZIP, `xrmghost-cli-<version>-full.zip`, on [GitHub Releases](https://github.com/xrmghost/xrmghost/releases/latest), and gives you terminal access to the main workflows: executing Dataverse plugins out-of-process, managing environment configurations, handling licensing, and diagnosing problems.
+The XrmGhost CLI (`xg`) is the primary developer interface for the XrmGhost ecosystem. On a development machine you install it with winget (`winget install XrmGhost.Cli`); in CI it is the `XrmGhost.Cli` .NET global tool from NuGet; without winget, the signed `xrmghost-cli-<version>-full.zip` from [GitHub Releases](https://github.com/xrmghost/xrmghost/releases/latest) carries the same bundle. Run `xg init` once before your first `xg run`. It gives you terminal access to the main workflows: executing Dataverse plugins out-of-process, managing environment configurations, handling licensing, and diagnosing problems.
 
 ## Who the CLI Is For
 
@@ -28,7 +28,7 @@ The CLI is aimed at developers who:
 | `privacy` | Display information about telemetry data collection and local storage |
 | `setup host` | Advanced: install or update the Framework Host in the managed install root |
 
-`run` uses the Framework Host bundled in the `bin\` folder next to `xg.exe` first, then the managed install root, then legacy locations; when none is found, it points to `xg init`. Because the bundled host takes precedence, `setup host` and `doctor --fix` do not change the host of a ZIP install: update it by extracting a newer ZIP.
+`run` uses the Framework Host bundled in the `bin\` folder next to `xg.exe` first, then the managed install root, then legacy locations; when none is found, it points to `xg init`. Because the bundled host takes precedence, `setup host` and `doctor --fix` do not change the host of a winget or ZIP install: update it with `winget upgrade XrmGhost.Cli` or by extracting a newer ZIP.
 
 For the full flag-level detail of every command and sub-command, see the [CLI Reference](/cli/reference/) section.
 

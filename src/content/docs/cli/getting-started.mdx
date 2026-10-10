@@ -11,19 +11,33 @@ This guide covers installing the CLI, then orienting yourself — how to explore
 
 ## Install the CLI
 
-Download `xrmghost-cli-<version>-full.zip` from [GitHub Releases](https://github.com/xrmghost/xrmghost/releases/latest). It is signed, and it carries the self-contained `xg.exe` together with the signed host that executes your plugins, in the `bin\` folder next to it — there is no separate host download. Extract it to a folder of its own keeping `xg.exe` and `bin\` together, add that folder — not `bin\` — to your user `PATH`, and open a new shell. The publisher to expect and how to verify the signature, including WDAC policies, are in [Trust and WDAC](/cli/trust-and-wdac/).
+On your development machine, install with **winget**:
 
-Then prepare the machine:
+```powershell
+winget install XrmGhost.Cli
+```
+
+It installs the signed `xg.exe` and, in the `bin\` folder next to it, the signed host that executes your plugins — there is no separate host download. Open a new shell afterwards so the updated `PATH` is picked up. The publisher to expect and how to verify the signature, including WDAC policies, are in [Trust and WDAC](/cli/trust-and-wdac/).
+
+**In CI only**, install the .NET global tool from NuGet: `dotnet tool install --global XrmGhost.Cli`. It is meant for build agents and automation, not for a desktop. It needs the .NET 9 runtime and does not carry the host: the pipeline installs it with `xg init --no-interactive`, as shown in [Run in CI](#run-in-ci).
+
+**Last option:** without winget, download `xrmghost-cli-<version>-full.zip` from [GitHub Releases](https://github.com/xrmghost/xrmghost/releases/latest), extract it to a folder of its own keeping `xg.exe` and `bin\` together, and add that folder — not `bin\` — to your user `PATH`.
+
+Then, with winget or the ZIP, prepare the machine before your first `xg run`:
 
 ```powershell
 xg init
 ```
 
-[`xg init`](/cli/reference/init/) checks Windows and .NET Framework 4.7.2, resolves the host — the one in the ZIP's `bin\` folder takes precedence — installs it into the managed root only if no usable host is found, and tells you the next step. It exits `0` when the host is healthy or repaired, `1` when the setup cannot be repaired.
+[`xg init`](/cli/reference/init/) checks Windows and .NET Framework 4.7.2, resolves the host — the one in the `bin\` folder next to `xg.exe` takes precedence — installs it into the managed root only if no usable host is found, and tells you the next step. It exits `0` when the host is healthy or repaired, `1` when the setup cannot be repaired.
 
-**To update**, download a newer `-full.zip` and extract it over the same folder: `xg.exe` and `bin\` move together. Neither `xg doctor --fix` nor `xg setup host` updates the host in `bin\`.
+**To update:**
 
-**Coming from the .NET global tool?** The old installation left an `xg` shim in `%USERPROFILE%\.dotnet\tools`, and `xg init` warns when it finds it. Run `Get-Command xg -All` (or `where xg` from `cmd`): if a line points to `.dotnet\tools`, remove it with `dotnet tool uninstall --global XrmGhost.Cli`. The first line must be the signed `xg.exe` from the ZIP, so that only one `xg` answers.
+- **winget** — `winget upgrade XrmGhost.Cli`; `xg.exe` and `bin\` are replaced together.
+- **ZIP** — download a newer `-full.zip` and extract it over the same folder: `xg.exe` and `bin\` move together. Neither `xg doctor --fix` nor `xg setup host` updates the host in `bin\`.
+- **Global tool in CI** — `dotnet tool update --global XrmGhost.Cli`.
+
+**Coming from the .NET global tool on your desktop?** The old installation left an `xg` shim in `%USERPROFILE%\.dotnet\tools`, and `xg init` warns when it finds it. Run `Get-Command xg -All` (or `where xg` from `cmd`): if a line points to `.dotnet\tools`, remove it with `dotnet tool uninstall --global XrmGhost.Cli`, or put the winget or ZIP folder before it in `PATH`. The first line must be the signed `xg.exe`, so that only one `xg` answers.
 
 Alpha builds are not signed and may be blocked by Smart App Control.
 
@@ -31,14 +45,15 @@ The full walkthrough, with prerequisites, is in [Getting Started](/getting-start
 
 ## Run in CI
 
-On a build agent, use the same ZIP and turn prompts off. Run `xg init --no-interactive` first, then `xg run --no-interactive`:
+On a build agent, install the global tool from NuGet and turn prompts off. Run `xg init --no-interactive` first, then `xg run --no-interactive`:
 
 ```powershell
+dotnet tool install --global XrmGhost.Cli
 xg init --no-interactive
 xg run --no-interactive -a .\bin\Release\MyPlugins.dll -t MyPlugins.AccountPreCreate -s .\scenarios\account-create.json
 ```
 
-Neither command prompts or starts an interactive sign-in. `xg run --no-interactive` does not download the host: if no usable host is found, it exits with a non-zero code and tells you to run `xg init --no-interactive`. `xg init --no-interactive` installs the host into the managed root when the setup requires it. The agent must be Windows: the host is a .NET Framework 4.7.2 process.
+None of these commands prompts or starts an interactive sign-in. `xg init --no-interactive` installs the host into the managed root (`%LOCALAPPDATA%\xrmghost\framework-host\`) when the agent has none. `xg run --no-interactive` does not download the host: if no usable host is found, it exits with a non-zero code and tells you to run `xg init --no-interactive`. The agent must be Windows: the host is a .NET Framework 4.7.2 process.
 
 ## Confirm the CLI is available
 
