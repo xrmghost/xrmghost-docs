@@ -17,6 +17,8 @@ This page maps each `xrmghost` CLI command group to its purpose, known sub-comma
 
 **Known flags (from source — not authoritative):** `-a`/`--assembly`, `-t`/`--type`, `-s`/`--scenario`, `--data-source`, `--normal`, `--verbose`, `--debug`, `--debug-plugin-wait`, `--unsecure-config`, `--secure-config`, `--no-interactive`, `--framework-host-path`.
 
+**Data-source routing and caller identity:** `--data-source` (`auto` by default) routes `Retrieve`, `RetrieveMultiple` and `RetrieveMultipleRequest`, not only `RetrieveMultiple`; `auto` is live-first, not mock-first. The contract — including what `CreateOrganizationService(null)` and an explicit user ID read as — is stated once, in the [`xg run` reference](/cli/reference/run/#data-source-routing).
+
 **Intended reference-page shape:**
 - Path: `docs/cli/reference/run.mdx`
 - Sections: Synopsis, Description, Options, Exit codes, Examples
