@@ -23,7 +23,30 @@ The command has two required arguments — the assembly path and the fully-quali
 
 **Verbosity flags** (`-n`, `-v`, `-d`) are mutually exclusive in practice: use the lowest level that gives you the information you need. The default (no verbosity flag) shows only plugin traces, which keeps the output clean in CI.
 
-**Data-source routing** (`--data-source`) controls how `RetrieveMultiple` calls are handled inside the simulated `IOrganizationService`. `auto` (the default) lets the host decide based on the scenario content.
+**Data-source routing** (`--data-source`) controls where the plugin's reads are answered inside the simulated `IOrganizationService`: `Retrieve`, `RetrieveMultiple`, and `Execute(RetrieveMultipleRequest)` — which is handed to `RetrieveMultiple` and follows exactly the same routing. `QueryByAttribute` is a multiple-record retrieval like any other query: sent to Dataverse as it is when the read goes live, and evaluated by the mock query engine when it does not. `auto` is the default. The full contract is in [Data-source routing](#data-source-routing) below.
+
+**Impersonation** (`IOrganizationServiceFactory.CreateOrganizationService`) gives the plugin a service bound to the caller it asked for. See [Caller identity](#caller-identity) below.
+
+### Data-source routing
+
+| Value | Mode | `Retrieve` | `RetrieveMultiple` / `RetrieveMultipleRequest` |
+|---|---|---|---|
+| `mock` | MockOnly | Scenario mocks only. Dataverse is never contacted. | Scenario mocks only. Dataverse is never contacted. |
+| `live` | LiveOnly | Dataverse only; the mocks are never read. A Dataverse fault — *record does not exist* included — is raised to the plugin unchanged. Without a Pro license (`ProFeatureNotLicensedException`), without an active environment, or when live cannot answer, the call throws, with a warning. | Dataverse only; the mocks are never read. A Dataverse fault is raised to the plugin unchanged. Without a Pro license or an active environment, or when the live attempt fails, the result is an **empty collection with a warning**. |
+| `auto` *(default)* | Auto | **Live first.** Falls back to the scenario mocks **only** when the record does not exist in Dataverse or live is unavailable (no Pro license, no active environment, or the live call fails), with a warning when live was attempted or expected. Any other Dataverse fault is raised to the plugin. | Live **only** with a Pro license and an active environment; otherwise the mocks answer. A live attempt that fails does **not** fall back to the mocks: the result is an empty collection with a warning stating that it is not mock data. A Dataverse fault is raised to the plugin. |
+
+`auto` is deliberately asymmetric. A `Retrieve` that finds nothing live may still be answered by a record the scenario mocks or the run created; a multiple-record query that was attempted live and failed is never silently replaced with mock rows, because mock rows in place of the live ones would be indistinguishable from an answer. The `Retrieve` fallback does not apply to `RetrieveMultiple`.
+
+### Caller identity
+
+What a plugin gets from `IOrganizationServiceFactory.CreateOrganizationService(userId)` is a new service bound to that caller, in every data-source mode. Services created for different callers share the run — mocks, records created during the run, live connection and cache, warnings — but never each other's caller.
+
+| `userId` | Mock reads | Live reads |
+|---|---|---|
+| `null` (or `Guid.Empty`) | A fixed internal **SYSTEM** identity with no business unit, no teams and no `usersettings`: caller-dependent query operators resolve against SYSTEM, not against the execution context's user. | The identity of the **configured connection**: `CallerId` is cleared, no one is impersonated. This is not Dataverse's true SYSTEM user — it reads with the connection user's privileges. |
+| An explicit user ID | Queries resolve caller-dependent operators as that user. | The request is impersonated as that user (`CallerId`). |
+
+`null` is never the execution context's own user: to read as the user the plugin runs as, pass `context.UserId` explicitly.
 
 ## Options
 
@@ -41,7 +64,7 @@ The command has two required arguments — the assembly path and the fully-quali
 | `--debug-mode` | `bool` | `false` | Enable detailed debug output for CLI-level operations (version info, scenario loading steps, license state, entitlement emission, entity extraction diagnostics). Distinct from `-d`/`--debug`, which controls plugin trace verbosity. |
 | `--unsecure-config` | `string` | — | Unsecure configuration string passed to the plugin as `IPluginExecutionContext.UnsecureConfig`. |
 | `--secure-config` | `string` | — | Secure configuration string passed to the plugin as `IPluginExecutionContext.SecureConfig`. |
-| `--data-source` | `string` | `auto` | Controls how `RetrieveMultiple` calls are routed inside the simulated `IOrganizationService`. Accepted values: `mock` (use scenario mock data only), `live` (route to a real Dataverse environment), `auto` (host decides based on scenario content). |
+| `--data-source` | `string` | `auto` | Controls where `Retrieve`, `RetrieveMultiple` and `RetrieveMultipleRequest` (including `QueryByAttribute`) are answered inside the simulated `IOrganizationService`. Accepted values: `mock` (scenario mocks only, Dataverse never contacted), `live` (Dataverse only, no fallback to mocks), `auto` (live first for `Retrieve` with a mock fallback for a missing record or unavailable live; live for queries only with Pro and an active environment, otherwise mocks). See [Data-source routing](#data-source-routing). |
 
 ## Exit Codes
 
