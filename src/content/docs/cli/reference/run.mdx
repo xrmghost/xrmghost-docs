@@ -51,7 +51,13 @@ The command has two required arguments — the assembly path and the fully-quali
 | Code | Meaning |
 |---|---|
 | `0` | Plugin executed successfully — either it completed without throwing, or it threw the exception the scenario declared in `expectedException` and that expectation was satisfied. |
-| `1` | Plugin execution failed, scenario file not found, assembly not found, FrameworkHost missing (with `--no-interactive`) or failed to start or become healthy, or an unexpected error occurred. |
+| `1` | Plugin execution failed, scenario file not found, the scenario's root-level `entities` seed is malformed, assembly not found, FrameworkHost missing (with `--no-interactive`) or failed to start or become healthy, or an unexpected error occurred. |
+
+A malformed `entities` seed — a value that cannot be parsed, or a record or attribute value that
+cannot be converted — fails the run before the plugin executes: the plugin is never run against a
+partially seeded store, the run is reported as not successful, and `xg run` exits `1`. An
+`expectedException` in the scenario does not change that outcome. The seed's format is documented in
+[Scenario Files](/cli/scenarios/#retrievemultiple--the-root-level-entities-key).
 
 A scenario that declares `expectedException` inverts what "successfully" means for that run: the
 exception is the expected result, so a satisfied expectation exits `0` and the run summary shows
