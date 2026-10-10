@@ -22,7 +22,7 @@ The correct path is the manual copy described below. It takes seconds once you k
 
 ## Prerequisites
 
-The skills assume the `xg` CLI is installed. First-time setup — installing `xg` with `winget install XrmGhost.Cli` (the runtime host comes with it) and activating a license — is covered by [Getting Started](/getting-started/). XrmGhost is distributed for evaluation; runs stop working as expected once the evaluation period lapses.
+The skills assume the `xg` CLI is installed and set up. First-time setup — downloading the signed `xrmghost-cli-<version>-full.zip` from [GitHub Releases](https://github.com/xrmghost/xrmghost/releases/latest) (the runtime host comes with it, in `bin\`), running `xg init`, and activating a license — is covered by [Getting Started](/getting-started/). If `xg run` reports that no Framework Host was found, run `xg init` (`xg init --no-interactive` in CI): the bundled host in `bin\` is used first, then the managed install, then legacy locations. XrmGhost is distributed for evaluation; runs stop working as expected once the evaluation period lapses.
 
 ## Where each agent looks for skills
 

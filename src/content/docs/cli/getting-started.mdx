@@ -11,23 +11,34 @@ This guide covers installing the CLI, then orienting yourself — how to explore
 
 ## Install the CLI
 
-On your development machine, install with **winget**:
+Download `xrmghost-cli-<version>-full.zip` from [GitHub Releases](https://github.com/xrmghost/xrmghost/releases/latest). It is signed, and it carries the self-contained `xg.exe` together with the signed host that executes your plugins, in the `bin\` folder next to it — there is no separate host download. Extract it to a folder of its own keeping `xg.exe` and `bin\` together, add that folder — not `bin\` — to your user `PATH`, and open a new shell. The publisher to expect and how to verify the signature, including WDAC policies, are in [Trust and WDAC](/cli/trust-and-wdac/).
+
+Then prepare the machine:
 
 ```powershell
-winget install XrmGhost.Cli
+xg init
 ```
 
-It installs the signed `xg.exe` and, in the `bin\` folder next to it, the signed host that executes your plugins — there is no separate host download. Open a new shell afterwards so the updated `PATH` is picked up. The publisher to expect and how to verify the signature, including WDAC policies, are in [Trust and WDAC](/cli/trust-and-wdac/).
+[`xg init`](/cli/reference/init/) checks Windows and .NET Framework 4.7.2, resolves the host — the one in the ZIP's `bin\` folder takes precedence — installs it into the managed root only if no usable host is found, and tells you the next step. It exits `0` when the host is healthy or repaired, `1` when the setup cannot be repaired.
 
-**In CI only**, install the .NET global tool from NuGet: `dotnet tool install --global XrmGhost.Cli`. It is meant for build agents and automation, not for a desktop. It needs the .NET 9 runtime and does not carry the host: the CLI downloads the host on first use, or you install it in the pipeline with [`xg setup host`](/cli/reference/setup-host/).
+**To update**, download a newer `-full.zip` and extract it over the same folder: `xg.exe` and `bin\` move together. Neither `xg doctor --fix` nor `xg setup host` updates the host in `bin\`.
 
-**Last option:** without winget, download `xrmghost-cli-<version>-full.zip` from the [release page](https://github.com/xrmghost/xrmghost/releases/latest), extract it to a folder of its own keeping `xg.exe` and `bin\` together, and add that folder — not `bin\` — to your user `PATH`.
-
-**Coming from the .NET global tool on your desktop?** The old installation left an `xg` shim in `%USERPROFILE%\.dotnet\tools`. Run `Get-Command xg -All` (or `where xg` from `cmd`): if a line points to `.dotnet\tools`, remove it with `dotnet tool uninstall -g XrmGhost.Cli`, or put the winget or ZIP folder before it in `PATH`. The first line must be the signed `xg.exe`, so that only one `xg` answers.
+**Coming from the .NET global tool?** The old installation left an `xg` shim in `%USERPROFILE%\.dotnet\tools`, and `xg init` warns when it finds it. Run `Get-Command xg -All` (or `where xg` from `cmd`): if a line points to `.dotnet\tools`, remove it with `dotnet tool uninstall --global XrmGhost.Cli`. The first line must be the signed `xg.exe` from the ZIP, so that only one `xg` answers.
 
 Alpha builds are not signed and may be blocked by Smart App Control.
 
 The full walkthrough, with prerequisites, is in [Getting Started](/getting-started/#1-install-the-cli).
+
+## Run in CI
+
+On a build agent, use the same ZIP and turn prompts off. Run `xg init --no-interactive` first, then `xg run --no-interactive`:
+
+```powershell
+xg init --no-interactive
+xg run --no-interactive -a .\bin\Release\MyPlugins.dll -t MyPlugins.AccountPreCreate -s .\scenarios\account-create.json
+```
+
+Neither command prompts or starts an interactive sign-in. `xg run --no-interactive` does not download the host: if no usable host is found, it exits with a non-zero code and tells you to run `xg init --no-interactive`. `xg init --no-interactive` installs the host into the managed root when the setup requires it. The agent must be Windows: the host is a .NET Framework 4.7.2 process.
 
 ## Confirm the CLI is available
 
@@ -63,12 +74,14 @@ The CLI organises its functionality into the following top-level areas:
 
 | Command | Purpose |
 |---|---|
+| `init` | Prepare the machine to run plugins: check the prerequisites and resolve or repair the host |
 | `run` | Execute a Dataverse plugin using a scenario file |
 | `generate-scenario` | Create a template JSON scenario file for a plugin |
 | `env` | Add, list, switch between, and manage environment configurations |
 | `license` | Activate a license, check status, and retrieve your machine ID |
-| `doctor` | Run health checks to diagnose configuration or connectivity issues |
+| `doctor` | Run health checks to diagnose configuration or connectivity issues; `--fix` repairs the managed host |
 | `privacy` | Display information about data collected by the tool |
+| `setup host` | Advanced: install or update the host in the managed install root only |
 
 These areas are stable entry points. Each has its own `--help` page.
 
@@ -86,7 +99,7 @@ If you are new to the CLI, the following sequence lets you explore without makin
    xg env list
    ```
 
-3. **Run diagnostics** — confirm connectivity and configuration are healthy:
+3. **Run diagnostics** — confirm connectivity and configuration are healthy (without `--fix`, `doctor` only reads):
    ```bash
    xg doctor
    ```
@@ -95,7 +108,7 @@ If you are new to the CLI, the following sequence lets you explore without makin
    xg doctor --verbose
    ```
 
-None of the commands above modify state. They are read-only discovery steps.
+None of the commands above modify state. They are read-only discovery steps. To repair the setup, use `xg init` or `xg doctor --fix`.
 
 ## When you are ready to act
 
@@ -107,11 +120,10 @@ Once you are oriented, typical next actions are:
 
 ## Getting detailed command reference
 
-Full reference documentation for every command, flag, and option is being generated as part of the ADO-1158 documentation pipeline and will appear under the **Reference** section of the CLI docs.
-
-Until that reference lands, `xg <command> --help` is the definitive source.
+Reference documentation for every command, flag, and option is under the [CLI Reference](/cli/reference/) section. `xg <command> --help` always reflects the installed version.
 
 ## Next steps
 
 - [CLI Overview](/cli/) — the role of the CLI in the XrmGhost ecosystem
-- **CLI Reference** _(coming soon)_ — auto-generated documentation for all commands
+- [`xg init`](/cli/reference/init/) — prepare or repair the installation
+- [CLI Reference](/cli/reference/) — every command and flag

@@ -1,0 +1,93 @@
+---
+title: "xg init"
+description: Prepare or repair the XrmGhost installation — check Windows and .NET Framework 4.7.2, resolve the Framework Host and install it into the managed root when needed, and print the next step.
+---
+
+# `xg init`
+
+Prepares the machine to run plugins, or repairs an installation that stopped working. It is the first command to run after extracting `xrmghost-cli-<version>-full.zip` from [GitHub Releases](https://github.com/xrmghost/xrmghost/releases/latest).
+
+## Synopsis
+
+```shell
+xg init [--no-interactive]
+```
+
+## Description
+
+`xg init` does four things, in order, and stops at the first one that fails:
+
+1. **Reports the running CLI** — the path of the `xg` that is running and its channel (`ZIP self-contained` or `dotnet tool`). If it is a .NET global tool shim, or a shim is also installed under `%USERPROFILE%\.dotnet\tools` and may shadow the ZIP's `xg.exe` on `PATH`, it prints a warning. The warning never stops the command.
+2. **Checks the prerequisites** — the machine must be Windows, and **.NET Framework 4.7.2** or later must be installed: the Framework Host is a .NET Framework 4.7.2 process.
+3. **Resolves and repairs the Framework Host** — it looks for the host in this order and uses the first one found:
+   1. the host bundled in the `bin\` folder next to `xg.exe` (the ZIP install);
+   2. the managed install root, `%LOCALAPPDATA%\xrmghost\framework-host\current\`;
+   3. legacy locations beside the CLI.
+
+   It repairs only what the CLI owns, the **managed install**: it installs the latest host there when none is found, replaces a managed host that is corrupted or incompatible, refreshes a managed host when a newer compatible one is available, and installs into the managed root when the host was found only in a legacy location. **The host in the ZIP's `bin\` is never modified**: if it is invalid, `init` fails and tells you to re-extract the ZIP, making sure `xg.exe` and `bin\` come from the same ZIP.
+4. **Names the next step** — based on local state only, without contacting any service: `xg license activate` if no license has been activated, `xg env add` if no environment is registered, otherwise `xg run`.
+
+`init` does not activate licenses, create environments, or change configuration and keys: those belong to the commands it points to.
+
+:::note[Updating a ZIP install]
+`init` does not update the host bundled in `bin\`. To update a ZIP install, download the newer `-full.zip` and extract it over the same folder.
+:::
+
+## Options
+
+| Option | Type | Default | Description |
+|---|---|---|---|
+| `--no-interactive` | flag | `false` | Run without prompts, for CI and automation. The Framework Host is still downloaded into the managed root when the setup requires it. |
+
+## Exit Codes
+
+| Code | Meaning |
+|---|---|
+| `0` | The Framework Host is healthy, or has been repaired. The final line names the next step. |
+| `1` | The setup is in a state `init` cannot repair — not Windows, .NET Framework 4.7.2 missing, a bundled host to re-extract, or a failed download. The message and a `Reason` code say what to do. |
+
+## Examples
+
+### First setup after extracting the ZIP
+
+```shell
+xg init
+```
+
+Example output on a ZIP install with no license activated yet:
+
+```text
+XrmGhost Init
+
+  Running xg: C:\Tools\XrmGhost\xg.exe
+  Channel: ZIP self-contained
+  .NET Framework: 4.7.2 or later
+  Framework Host: C:\Tools\XrmGhost\bin\...\XrmGhost.Framework.Host.exe (Bundled, <version>)
+
+Setup complete. Next step: run 'xg license activate' to activate your license.
+```
+
+### In a CI pipeline
+
+```shell
+xg init --no-interactive
+xg run --no-interactive -a ./bin/Release/MyPlugins.dll -t MyPlugins.AccountPreCreate
+```
+
+`init --no-interactive` prepares the host without prompts; `run --no-interactive` never downloads a missing host and points back to `xg init --no-interactive` instead.
+
+## Troubleshooting
+
+| Symptom | Resolution |
+|---|---|
+| `.NET Framework 4.7.2 or later is required by the Framework Host.` | Install .NET Framework 4.7.2 or later from [dotnet.microsoft.com](https://dotnet.microsoft.com/download/dotnet-framework) and rerun `xg init`. |
+| `The Framework Host bundled with the CLI is invalid` | Re-extract the ZIP, making sure `xg.exe` and the `bin\` folder come from the same ZIP. |
+| `Automatic installation of the Framework Host failed` | Check that `api.github.com` and `github.com` are reachable and that `%LOCALAPPDATA%\xrmghost\` is writable, then rerun. `xg doctor --verbose` shows the resolved host. |
+| `Warning: this xg is a dotnet tool shim.` | Use the `xg.exe` from the extracted ZIP; remove the shim with `dotnet tool uninstall --global XrmGhost.Cli`. |
+
+## See Also
+
+- [`xg doctor`](/cli/reference/doctor/) — read-only checks, and `--fix` to repair the managed host
+- [`xg run`](/cli/reference/run/) — execute a plugin with the resolved host
+- [`xg setup host`](/cli/reference/setup-host/) — advanced: manage the managed install directly
+- [Getting Started](/getting-started/) — download, `xg init`, `xg run`

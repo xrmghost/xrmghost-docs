@@ -1,65 +1,21 @@
 ---
 title: Getting Started
-description: Install the signed XrmGhost CLI with its runtime host, and run your first local plugin execution.
+description: Download the signed XrmGhost ZIP from GitHub Releases, prepare the machine with xg init, and run your first local plugin execution.
 ---
 
 # Getting Started
 
 XrmGhost runs your Dynamics plugins and tests on your machine. This page takes you from nothing installed to a first local run.
 
-It's three steps: install the CLI, confirm the runtime host, run.
+It's three steps: download the signed ZIP, run `xg init`, run `xg run`.
 
 ## Prerequisites
 
-XrmGhost runs on **Windows x64**. What you need depends on how you install:
-
-| Channel | Use it for | Requirement | Why |
-| --- | --- | --- | --- |
-| **winget** — recommended | Your development machine | **.NET Framework 4.7.2** | Installs the signed, self-contained `xg.exe` together with the host that executes your plugins, matching the Dataverse server-side runtime. No .NET runtime is needed for the CLI itself. |
-| **.NET global tool** — CI only | Build agents and automation | **.NET 9 runtime** and **.NET Framework 4.7.2** | The global tool runs `xg` on the shared .NET 9 runtime; the host still needs 4.7.2. |
-| **Signed ZIP** | Machines without winget | **.NET Framework 4.7.2** | The same signed bundle winget installs, downloaded by hand. |
-
-On Windows 10/11 the 4.7.2 framework is almost always already there; on a clean build agent it may not be. For the global tool, check for the .NET 9 runtime with `dotnet --list-runtimes` and look for a `Microsoft.NETCore.App 9.x` line.
+XrmGhost runs on **Windows x64** and needs **.NET Framework 4.7.2** or later. The CLI itself is self-contained — no .NET runtime is needed for `xg.exe` — but the host that executes your plugins is a .NET Framework 4.7.2 process, matching the Dataverse server-side runtime. On Windows 10/11 the 4.7.2 framework is almost always already there; on a clean build agent it may not be. `xg init` checks it for you.
 
 ## 1. Install the CLI
 
-### Install with winget
-
-On your development machine, install with the Windows Package Manager:
-
-```powershell
-winget install XrmGhost.Cli
-```
-
-This installs the signed `xg.exe` and, in the `bin\` folder next to it, the signed host that executes your plugins: there is nothing separate to download. winget adds the install folder to your `PATH`; open a new shell, so the new `PATH` is picked up, and confirm:
-
-```powershell
-xg --version
-```
-
-To update later:
-
-```powershell
-winget upgrade XrmGhost.Cli
-```
-
-The publisher to expect and how to verify the signature (including WDAC policies) are described in **[Trust and WDAC](/cli/trust-and-wdac/)**.
-
-### In CI only: the .NET global tool
-
-On build agents and in automation, install the `XrmGhost.Cli` package from NuGet as a .NET global tool:
-
-```powershell
-dotnet tool install --global XrmGhost.Cli
-```
-
-This channel is for **CI and automation only** — on a desktop, use winget. The package does not carry the host: on the first `xg run` or `xg generate-scenario` the CLI downloads it from the public release page into `%LOCALAPPDATA%\xrmghost\framework-host\`. To keep that step out of the run itself, install the host explicitly in the pipeline with [`xg setup host`](/cli/reference/setup-host/); with `--no-interactive`, a run fails instead of downloading a missing host. The agent must be Windows, because the host is a .NET Framework 4.7.2 process.
-
-The host is downloaded once and cached in that folder: later runs on the same agent reuse it. On an ephemeral agent the folder is empty at every run, so each run downloads the latest stable host. To pin the host version between runs, cache `%LOCALAPPDATA%\xrmghost\framework-host\` in your pipeline (for example with your CI's cache step).
-
-### Last option: download the signed ZIP
-
-If winget is not available, download the same bundle by hand from the public repository's release page: **[github.com/xrmghost/xrmghost/releases](https://github.com/xrmghost/xrmghost/releases/latest)**. Pick the asset named `xrmghost-cli-<version>-full.zip`: it carries both `xg.exe` and the host. Before extracting, check who signed it, as described in **[Trust and WDAC](/cli/trust-and-wdac/)**.
+XrmGhost is distributed as a signed ZIP on GitHub Releases, the public repository's release page: **[github.com/xrmghost/xrmghost/releases](https://github.com/xrmghost/xrmghost/releases/latest)**. Pick the asset named `xrmghost-cli-<version>-full.zip`: it carries both `xg.exe` and the signed host that executes your plugins, so there is nothing separate to download. Before extracting, check who signed it, as described in **[Trust and WDAC](/cli/trust-and-wdac/)**.
 
 Extract the ZIP to a folder of its own, for example `C:\Tools\XrmGhost`. The layout is:
 
@@ -69,11 +25,21 @@ C:\Tools\XrmGhost\
 └── bin\        the signed host that executes your plugins
 ```
 
-Add **the folder that contains `xg.exe`** — `C:\Tools\XrmGhost`, not `bin\` — to your user `PATH` (*Settings → System → About → Advanced system settings → Environment Variables*), open a new shell and run `xg --version`. To update later, download the newer `-full.zip` and extract it over the same folder: `xg.exe` and `bin\` move together.
+Add **the folder that contains `xg.exe`** — `C:\Tools\XrmGhost`, not `bin\` — to your user `PATH` (*Settings → System → About → Advanced system settings → Environment Variables*), open a new shell and confirm:
+
+```powershell
+xg --version
+```
+
+**Alpha builds are not signed.** Prereleases are not code-signed, so Windows Smart App Control may block them. Use them only if you need a fix before it reaches a stable release.
+
+### Updating
+
+To update, download the newer `xrmghost-cli-<version>-full.zip` and extract it over the same folder: `xg.exe` and `bin\` move together. The host in `bin\` is updated **only** this way — neither `xg doctor --fix` nor `xg setup host` changes it, because both work on a separate, managed install that the bundled host takes precedence over.
 
 ### Moving a desktop off the global tool
 
-If you previously installed XrmGhost on your desktop with `dotnet tool install -g XrmGhost.Cli`, that installation left an `xg` shim in `%USERPROFILE%\.dotnet\tools`, which is on your `PATH` too. Two `xg` commands on the `PATH` means the one that runs depends on the order of the entries. Find every `xg` your shell can see:
+If you previously installed XrmGhost with `dotnet tool install -g XrmGhost.Cli`, that installation left an `xg` shim in `%USERPROFILE%\.dotnet\tools`, which is on your `PATH` too. Two `xg` commands on the `PATH` means the one that runs depends on the order of the entries — and you may end up running a CLI older than the ZIP you extracted. `xg init` warns when it finds the shim. Find every `xg` your shell can see:
 
 ```powershell
 Get-Command xg -All | Select-Object Source
@@ -82,34 +48,43 @@ Get-Command xg -All | Select-Object Source
 (from `cmd`, `where xg` gives the same list). If a line points to `.dotnet\tools`, remove the old shim:
 
 ```powershell
-dotnet tool uninstall -g XrmGhost.Cli
+dotnet tool uninstall --global XrmGhost.Cli
 ```
 
-If you need to keep the global tool installed for now, make sure the winget or ZIP folder comes **before** `%USERPROFILE%\.dotnet\tools` in your `PATH`. Either way, open a new shell and run `Get-Command xg -All` again: the first line must be the signed `xg.exe`.
+Then open a new shell and run `Get-Command xg -All` again: the first line must be the signed `xg.exe` from the ZIP folder.
 
-**Alpha builds are not signed.** Prereleases are not code-signed, so Windows Smart App Control may block them. Use them only if you need a fix before it reaches a stable release.
+## 2. Run `xg init`
 
-## 2. Confirm the runtime host
-
-The CLI is light. The component that actually executes your plugins is the **host** — a .NET Framework 4.7.2 process that mirrors the Dataverse server-side runtime. With winget or the ZIP, the signed host is already in the `bin\` folder next to `xg.exe`, and `xg` uses that host before any other installation it finds.
-
-Check that the CLI sees it:
+The CLI is light. The component that actually executes your plugins is the **host** — a .NET Framework 4.7.2 process that mirrors the Dataverse server-side runtime. `xg init` prepares the machine to run it:
 
 ```powershell
-xg doctor
+xg init
 ```
 
-`xg doctor --verbose` also prints the resolved host path, which should point inside the `bin\` folder next to `xg.exe`. With the global tool in CI, it points to the host downloaded under `%LOCALAPPDATA%\xrmghost\framework-host\`.
+It reports which `xg` is running and from which channel, checks Windows and .NET Framework 4.7.2, and resolves the host. With the ZIP, the host is the one in the `bin\` folder next to `xg.exe`, which takes precedence over any other installation; `init` uses it as is. If no usable host is found, `init` installs the latest one into the managed install root (`%LOCALAPPDATA%\xrmghost\framework-host\`). It ends with the one next step that applies to you — activate a license with `xg license activate`, register an environment with `xg env add`, or start running plugins.
+
+`init` exits `0` when the host is healthy or has been repaired, and `1` when the setup is in a state it cannot repair — the message says what to do. The details are in the [`xg init` reference](/cli/reference/init/).
 
 ## 3. Run
 
 With CLI and host in place, you're ready. From a project that contains your plugins:
 
 ```powershell
-xg --help
+xg run -a .\bin\Debug\MyPlugins.dll -t MyPlugins.AccountPreCreate
 ```
 
-From here the command set covers running plugins locally, building and replaying test scenarios, and inspecting what happened. The [CLI Reference](/cli/) is the full map.
+The full set of options is in the [`xg run` reference](/cli/reference/run/); the [CLI Reference](/cli/) is the full map of commands.
+
+### In CI
+
+On a build agent the flow is the same ZIP, with prompts turned off. Run `xg init --no-interactive` before `xg run --no-interactive`:
+
+```powershell
+xg init --no-interactive
+xg run --no-interactive -a .\bin\Release\MyPlugins.dll -t MyPlugins.AccountPreCreate -s .\scenarios\account-create.json
+```
+
+Neither command prompts or opens an interactive sign-in. `xg run --no-interactive` never downloads the host: if no usable host is found, it stops with a non-zero exit code and points to `xg init --no-interactive`. `xg init --no-interactive` still installs the host into the managed root when the setup requires it — that is what it is for. The agent must be Windows, because the host is a .NET Framework 4.7.2 process.
 
 ## Where to go next
 
