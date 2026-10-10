@@ -39,9 +39,25 @@ The command has two required arguments — the assembly path and the fully-quali
 | `-v`, `--verbose` | `bool` | `false` | Show plugin traces and all framework traces, ordered chronologically. |
 | `-d`, `--debug` | `bool` | `false` | Show all traces including timing analysis and performance metrics. Most detailed output level. |
 | `--debug-mode` | `bool` | `false` | Enable detailed debug output for CLI-level operations (version info, scenario loading steps, license state, entitlement emission, entity extraction diagnostics). Distinct from `-d`/`--debug`, which controls plugin trace verbosity. |
-| `--unsecure-config` | `string` | — | Unsecure configuration string passed to the plugin as `IPluginExecutionContext.UnsecureConfig`. |
-| `--secure-config` | `string` | — | Secure configuration string passed to the plugin as `IPluginExecutionContext.SecureConfig`. |
+| `--unsecure-config` | `string` | `""` | Unsecure configuration string passed to the plugin's constructor. When omitted, the plugin receives an empty string, never `null`. See [Plugin configuration](#plugin-configuration). |
+| `--secure-config` | `string` | `""` | Secure configuration string passed to the plugin's `(string unsecureConfig, string secureConfig)` constructor. When omitted, the plugin receives an empty string, never `null`. Not delivered to a plugin that only has a `(string unsecureConfig)` constructor. See [Plugin configuration](#plugin-configuration). |
 | `--data-source` | `string` | `auto` | Controls how `RetrieveMultiple` calls are routed inside the simulated `IOrganizationService`. Accepted values: `mock` (use scenario mock data only), `live` (route to a real Dataverse environment), `auto` (host decides based on scenario content). |
+
+## Plugin configuration
+
+As in Dataverse, configuration reaches the plugin through its constructor, not through `IPluginExecutionContext`. FrameworkHost considers only public constructors whose parameters are exactly `(string, string)`, `(string)`, or none; constructors with any other signature, and non-public constructors, are not used. It picks the most specific supported shape the plugin type declares, in this order:
+
+1. `(string unsecureConfig, string secureConfig)` — receives both `--unsecure-config` and `--secure-config`.
+2. `(string unsecureConfig)` — receives only `--unsecure-config`. Secure configuration is intentionally not delivered to this constructor.
+3. Parameterless — receives no configuration.
+
+The shape is selected by what the plugin declares, regardless of whether the flags are present: a plugin with a `(string, string)` constructor is always activated through it, even when you pass neither flag. An omitted flag is delivered as an empty string, not `null`.
+
+When a plugin whose most specific constructor is `(string unsecureConfig)` receives `--secure-config`, the secure value is not delivered, and FrameworkHost records the fact only as a framework trace. The CLI does not show a warning in the default output: the notice appears among the framework traces, visible with `--verbose` or `--debug`, and it never contains the secure value, which is masked.
+
+If the plugin type exposes none of the three shapes, `xg run` fails before `Execute` is called, with an error naming the three accepted shapes.
+
+**Warning:** a `config == null` check behaves differently from Dataverse for unconfigured runs, because `xg run` delivers an empty string where Dataverse may pass `null`. Use `string.IsNullOrEmpty(config)` instead.
 
 ## Exit Codes
 
