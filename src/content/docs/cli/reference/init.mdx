@@ -17,20 +17,20 @@ xg init [--no-interactive]
 
 `xg init` does four things, in order, and stops at the first one that fails:
 
-1. **Reports the running CLI** — the path of the `xg` that is running and its channel (`ZIP self-contained` or `dotnet tool`). If it is a .NET global tool shim, or a shim is also installed under `%USERPROFILE%\.dotnet\tools` and may shadow the ZIP's `xg.exe` on `PATH`, it prints a warning. The warning never stops the command.
+1. **Reports the running CLI** — the path of the `xg` that is running and its channel (`ZIP self-contained` or `dotnet tool`). If it is a .NET global tool shim, or a shim is also installed under `%USERPROFILE%\.dotnet\tools` and may shadow the signed `xg.exe` on `PATH`, it prints a warning. A winget install is the same self-contained bundle as the ZIP and is reported as `ZIP self-contained`. The warning never stops the command.
 2. **Checks the prerequisites** — the machine must be Windows, and **.NET Framework 4.7.2** or later must be installed: the Framework Host is a .NET Framework 4.7.2 process.
 3. **Resolves and repairs the Framework Host** — it looks for the host in this order and uses the first one found:
-   1. the host bundled in the `bin\` folder next to `xg.exe` (the ZIP install);
+   1. the host bundled in the `bin\` folder next to `xg.exe` (winget and ZIP installs);
    2. the managed install root, `%LOCALAPPDATA%\xrmghost\framework-host\current\`;
    3. legacy locations beside the CLI.
 
-   It repairs only what the CLI owns, the **managed install**: it installs the latest host there when none is found, replaces a managed host that is corrupted or incompatible, refreshes a managed host when a newer compatible one is available, and installs into the managed root when the host was found only in a legacy location. **The host in the ZIP's `bin\` is never modified**: if it is invalid, `init` fails and tells you to re-extract the ZIP, making sure `xg.exe` and `bin\` come from the same ZIP.
+   It repairs only what the CLI owns, the **managed install**: it installs the latest host there when none is found, replaces a managed host that is corrupted or incompatible, refreshes a managed host when a newer compatible one is available, and installs into the managed root when the host was found only in a legacy location. **The bundled host in `bin\` (winget or ZIP) is never modified**: if it is invalid, `init` fails and tells you to re-extract the ZIP, making sure `xg.exe` and `bin\` come from the same ZIP.
 4. **Names the next step** — based on local state only, without contacting any service: `xg license activate` if no license has been activated, `xg env add` if no environment is registered, otherwise `xg run`.
 
 `init` does not activate licenses, create environments, or change configuration and keys: those belong to the commands it points to.
 
-:::note[Updating a ZIP install]
-`init` does not update the host bundled in `bin\`. To update a ZIP install, download the newer `-full.zip` and extract it over the same folder.
+:::note[Updating a winget or ZIP install]
+`init` does not update the host bundled in `bin\`. To update a winget install, run `winget upgrade XrmGhost.Cli`; to update a ZIP install, download the newer `-full.zip` and extract it over the same folder. With the .NET global tool in CI, update the CLI with `dotnet tool update --global XrmGhost.Cli`.
 :::
 
 ## Options

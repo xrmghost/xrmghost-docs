@@ -54,13 +54,13 @@ Running `xg doctor --verbose` before reporting a bug gives you a complete diagno
 | **Missing** — no host found anywhere | Installs the latest host into the managed root. |
 | **Managed** — in the managed install root | Reinstalls it when it is corrupted or incompatible, and updates it when a newer compatible host is available. |
 | **LegacyBin / LegacyRoot** — beside the CLI, outside the managed root | Installs the host into the managed root. |
-| **Bundled** — in the `bin\` folder of the ZIP | Nothing: the bundled host is never modified. If it is corrupted, `doctor` reports to re-extract the ZIP, making sure `xg.exe` and `bin\` come from the same ZIP. |
+| **Bundled** — in the `bin\` folder next to `xg.exe` (winget or ZIP) | Nothing: the bundled host is never modified. If it is corrupted, `doctor` reports to re-extract the ZIP, making sure `xg.exe` and `bin\` come from the same ZIP. |
 | **Explicit** — passed with `--framework-host-path` | Nothing: an explicit host is never modified. Pass a valid host, or omit the option. |
 
 `--fix` downloads at most once per command. If the download fails, the FrameworkHost check fails with the reason, and the command exits `1`.
 
-:::note[Updating a ZIP install]
-`doctor --fix` does not update the host in a ZIP's `bin\` folder, and since that host takes precedence, a managed install does not change what `xg run` uses. To update a ZIP install, download the newer `-full.zip` from [GitHub Releases](https://github.com/xrmghost/xrmghost/releases/latest) and extract it over the same folder.
+:::note[Updating a winget or ZIP install]
+`doctor --fix` does not update the host in the `bin\` folder of a winget or ZIP install, and since that host takes precedence, a managed install does not change what `xg run` uses. To update a winget install, run `winget upgrade XrmGhost.Cli`; to update a ZIP install, download the newer `-full.zip` from [GitHub Releases](https://github.com/xrmghost/xrmghost/releases/latest) and extract it over the same folder.
 :::
 
 ## Exit Codes
