@@ -58,6 +58,39 @@ For another agent, swap the destination for the matching row in the table above 
 
 Start (or restart) your agent and confirm it can see the skills — in Claude Code, the skills appear in the available-skills list, and the agent will engage them when a task matches their triggers (writing a scenario, running a plugin locally, interpreting an `xg` result). A quick check is to ask the agent to run a plugin scenario locally and watch whether it reaches for `xg run` with the right flags.
 
+## The agent marker in `xg` telemetry
+
+The `debugging-dataverse-plugins-locally` skill tells the agent to mark every `xg` invocation as agent-driven, so that the CLI's telemetry records `actor=agent` and which agent is running (see [Actor fields](/cli/reference/privacy/#actor-fields-who-is-running-the-cli) in `xg privacy`). The marker adds no command arguments; the agent prefixes each `xg` command with two environment variables, in the same shell command that invokes `xg`:
+
+```bash
+XRMGHOST_ACTOR="${XRMGHOST_ACTOR:-agent}" XRMGHOST_AGENT_NAME=<name> xg run ...
+```
+
+```powershell
+if (-not $env:XRMGHOST_ACTOR) { $env:XRMGHOST_ACTOR = 'agent' }; $env:XRMGHOST_AGENT_NAME = '<name>'; xg run ...
+```
+
+- `<name>` is the agent's own identifier from the closed list `claude-code`, `codex`, `copilot-cli`, `opencode`, `pi`, `gemini-cli`, `cursor`, `cline`, `mcp`, `other`. An agent that is not certain which one it is omits `XRMGHOST_AGENT_NAME` and lets the CLI fall back to its own detection.
+- **An existing `XRMGHOST_ACTOR` is kept.** If the variable is already set in the environment, the skill leaves it as it is, does not set `XRMGHOST_AGENT_NAME` either, and runs `xg` without the prefix.
+
+The marker identifies the execution context only; it does not change how any `xg` command behaves.
+
+### Opting out of the marker
+
+Because the skill keeps an existing value, set `XRMGHOST_ACTOR=human` in the environment the agent is launched from, **before the session starts**, so that every shell the agent opens inherits it:
+
+```bash
+# Linux / macOS
+export XRMGHOST_ACTOR=human
+```
+
+```powershell
+# Windows (PowerShell)
+$env:XRMGHOST_ACTOR = "human"
+```
+
+This opts out of the **agent marker only**: it also overrides the CLI's automatic agent detection, and telemetry records still carry `actor=human` and `is_ci`. It is not a telemetry opt-out. To stop CLI telemetry, set `XRMGHOST_TELEMETRY=0` instead, as described in [`xg privacy`](/cli/reference/privacy/#5-opting-out-of-telemetry).
+
 ## Keeping current
 
 The per-agent location matrix and copy procedure are maintained in the repository [`README.md`](https://github.com/xrmghost/xrmghost-skills#installation), which is the always-current source if a new agent is added or a path changes. A guided multi-agent installer — auto-detecting installed agents and letting you choose project vs user scope — is planned.
