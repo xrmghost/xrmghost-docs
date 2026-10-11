@@ -19,13 +19,16 @@ The `xrmghost` CLI surface is organised into the following top-level command gro
 
 | Command Group | Short Description |
 |---|---|
+| `init` | Prepare or repair the installation: prerequisites, Framework Host, next step |
 | `run` | Execute a Dataverse plugin via FrameworkHost |
 | `generate-scenario` | Generate a template JSON scenario file for a plugin |
-| `doctor` | Diagnose configuration and connectivity |
+| `doctor` | Diagnose configuration and connectivity; `--fix` repairs the managed Framework Host |
 | `privacy` | Display data-collection and privacy information |
 | `license` | Manage license status and activation |
 | `env` | Manage Dataverse environment configurations |
-| `setup` | Install or update managed infrastructure components |
+| `setup` | Advanced: install or update the Framework Host in the managed install root |
+
+First setup is `xg init`, not `xg setup host`. The CLI resolves the Framework Host in the order bundle `bin\` > managed install root > legacy locations; when none is found, the host-dependent commands point to `xg init` (`xg init --no-interactive` in CI). `setup host` only manages the managed install root, which a ZIP's bundled host takes precedence over.
 
 ## Related
 
