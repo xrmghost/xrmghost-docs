@@ -1289,10 +1289,42 @@ For another agent, swap the destination for the matching row in the table above 
 
 Start (or restart) your agent and confirm it can see the skills — in Claude Code, the skills appear in the available-skills list, and the agent will engage them when a task matches their triggers (writing a scenario, running a plugin locally, interpreting an `xg` result). A quick check is to ask the agent to run a plugin scenario locally and watch whether it reaches for `xg run` with the right flags.
 
+## The agent marker in `xg` telemetry
+
+The `debugging-dataverse-plugins-locally` skill tells the agent to mark every `xg` invocation as agent-driven, so that the CLI's telemetry records `actor=agent` and which agent is running (see [Actor fields](/cli/reference/privacy/#actor-fields-who-is-running-the-cli) in `xg privacy`). The marker adds no command arguments; the agent prefixes each `xg` command with two environment variables, in the same shell command that invokes `xg`:
+
+```bash
+XRMGHOST_ACTOR="${XRMGHOST_ACTOR:-agent}" XRMGHOST_AGENT_NAME=<name> xg run ...
+```
+
+```powershell
+if (-not $env:XRMGHOST_ACTOR) { $env:XRMGHOST_ACTOR = 'agent' }; $env:XRMGHOST_AGENT_NAME = '<name>'; xg run ...
+```
+
+- `<name>` is the agent's own identifier from the closed list `claude-code`, `codex`, `copilot-cli`, `opencode`, `pi`, `gemini-cli`, `cursor`, `cline`, `mcp`, `other`. An agent that is not certain which one it is omits `XRMGHOST_AGENT_NAME` and lets the CLI fall back to its own detection.
+- **An existing `XRMGHOST_ACTOR` is kept.** If the variable is already set in the environment, the skill leaves it as it is, does not set `XRMGHOST_AGENT_NAME` either, and runs `xg` without the prefix.
+
+The marker identifies the execution context only; it does not change how any `xg` command behaves.
+
+### Opting out of the marker
+
+Because the skill keeps an existing value, set `XRMGHOST_ACTOR=human` in the environment the agent is launched from, **before the session starts**, so that every shell the agent opens inherits it:
+
+```bash
+# Linux / macOS
+export XRMGHOST_ACTOR=human
+```
+
+```powershell
+# Windows (PowerShell)
+$env:XRMGHOST_ACTOR = "human"
+```
+
+This opts out of the **agent marker only**: it also overrides the CLI's automatic agent detection, and telemetry records still carry `actor=human` and `is_ci`. It is not a telemetry opt-out. To stop CLI telemetry, set `XRMGHOST_TELEMETRY=0` instead, as described in [`xg privacy`](/cli/reference/privacy/#5-opting-out-of-telemetry).
+
 ## Keeping current
 
 The per-agent location matrix and copy procedure are maintained in the repository [`README.md`](https://github.com/xrmghost/xrmghost-skills#installation), which is the always-current source if a new agent is added or a path changes. A guided multi-agent installer — auto-detecting installed agents and letting you choose project vs user scope — is planned.
-
 
 ---
 
@@ -3918,6 +3950,47 @@ Each telemetry record also carries a **release channel** field, `channel`, emitt
 
 The value depends only on the XrmGhost CLI version, not on how the CLI was installed (winget, NuGet or ZIP). `channel` is a build/release constant, **not personal data**, and it is subject to the same opt-out as the rest of this section.
 
+#### Actor fields: who is running the CLI
+
+Each telemetry record also carries three **actor** fields. They identify the **execution context** of the run — a person at a terminal, an AI agent, or a CI pipeline — and nothing else: they are not a feature switch, and no command behaves differently because of them. `xg privacy` prints them in section 4 with this text:
+
+> - Each telemetry record also carries who is running the CLI: actor (human, agent, ci, unknown), agent_name (present only when actor is agent; one of claude-code, codex, copilot-cli, opencode, pi, gemini-cli, cursor, cline, mcp, other) and is_ci (true or false, always computed from the CI environment variables, independently of actor).
+> - These fields are used only to measure who runs the CLI (a person, an AI agent or a CI pipeline); they never change how the product behaves.
+> - Setting XRMGHOST_ACTOR=human (or passing --actor human) removes only the agent marker: records still carry actor=human and is_ci.
+> - XRMGHOST_TELEMETRY=0 remains the only way to send none of these fields, as described in section 5.
+
+| Field | Values | When it is present |
+|---|---|---|
+| `actor` | `human`, `agent`, `ci`, `unknown` | Always |
+| `agent_name` | `claude-code`, `codex`, `copilot-cli`, `opencode`, `pi`, `gemini-cli`, `cursor`, `cline`, `mcp`, `other` | **Only when `actor` is `agent`**; omitted for `human`, `ci` and `unknown` |
+| `is_ci` | `true` or `false` | Always — computed from the CI environment variables, independently of `actor` (an agent can run inside a CI pipeline) |
+
+`agent_name` is a closed list: any value outside it, whether passed by option, by variable or read from an agent's environment, is recorded as `other`.
+
+The actor is resolved once, when the CLI starts. The first level that applies wins:
+
+1. **`--actor` / `--agent-name`** — global options accepted by every command, in any position, in the forms `--actor agent` and `--actor=agent`.
+2. **`XRMGHOST_ACTOR` + `XRMGHOST_AGENT_NAME`** — environment variables. `XRMGHOST_ACTOR` takes the same four values as `--actor`.
+3. **Recognised agent environment variables** — `actor` is `agent` and `agent_name` comes from the first variable that matches:
+
+   | Variable | Matches when | `agent_name` |
+   |---|---|---|
+   | `CLAUDECODE` | equals `1` | `claude-code` |
+   | `AI_AGENT` | is set | the variable's value (`other` if not in the list) |
+   | `PI_CODING_AGENT` | equals `true` | `pi` |
+   | `GEMINI_CLI` | equals `1` | `gemini-cli` |
+   | `CODEX_SANDBOX` | is set | `codex` |
+   | `CURSOR_AGENT` | equals `1` | `cursor` |
+   | `CLINE_ACTIVE` | equals `true` | `cline` |
+
+4. **CI variables** — `actor` is `ci` when `CI`, `GITHUB_ACTIONS`, `TF_BUILD`, `GITLAB_CI` or `BUILDKITE` is `1`, `true` or `yes`, or when `JENKINS_URL`, `TEAMCITY_VERSION` or `BUILD_BUILDID` is set. The same variables compute `is_ci` at every level.
+5. **Interactive console** — `actor` is `human`.
+6. Otherwise `actor` is `unknown`. A non-interactive run is not taken as evidence of an agent: it can also be a pipe or a script.
+
+An invalid `--actor` or `XRMGHOST_ACTOR` value is ignored and resolution continues at the next level; it never makes a command fail. A name given alone, without an explicit actor or a recognised agent variable, does not turn the actor into `agent`.
+
+**`XRMGHOST_ACTOR=human` is not a telemetry opt-out.** Because level 2 comes before level 3, setting `XRMGHOST_ACTOR=human` (or passing `--actor human`) overrides automatic agent detection as well as an agent marker set by a skill: it removes only the agent marker, and records still carry `actor=human` and `is_ci`. To send none of these fields, use `XRMGHOST_TELEMETRY=0`, described in section 5.
+
 ### 5. Opting Out of Telemetry
 
 Set the environment variable `XRMGHOST_TELEMETRY=0` before running `xg` to stop the transmission of CLI telemetry:
@@ -3934,6 +4007,7 @@ With the opt-out set, the usage analytics, error reporting, traces and metrics d
 
 - **Only the exact value `0` disables telemetry** (surrounding whitespace is ignored). Any other value (for example `false`, `no` or `off`), or leaving the variable unset, keeps telemetry enabled.
 - **Telemetry already queued stays on disk.** Data queued on this machine before you opted out is neither uploaded nor deleted while `XRMGHOST_TELEMETRY` is `0`; it is left on disk unchanged.
+- **The actor fields go with the rest of telemetry.** With `XRMGHOST_TELEMETRY=0` no `actor`, `agent_name` or `is_ci` is sent. `XRMGHOST_ACTOR=human` is a different setting: it opts out only of the agent marker, and telemetry stays enabled.
 
 The opt-out covers telemetry only. It does **not** disable:
 
@@ -3970,7 +4044,7 @@ To see the notice again, delete `first-run.sentinel`: the notice is shown again 
 
 ## Options
 
-This command has no flags or options.
+This command has no flags or options of its own. Like every `xg` command, it accepts the global `--actor` and `--agent-name` options described in [Actor fields](#actor-fields-who-is-running-the-cli).
 
 ## Example
 
@@ -4016,6 +4090,11 @@ XrmGhost Data Collection & Privacy Information
 4. Usage Analytics & Error Reporting:
    - XrmGhost may collect pseudonymized information about how you use the CLI (e.g., commands run, features used) and details about errors encountered.
    - This data is linked to your Platform ID.
+   - Each telemetry record also carries a release channel ("prod" or "dev"). It is a build constant derived from the XrmGhost CLI version, not personal data, and it is subject to the same opt-out as the rest of this section.
+   - Each telemetry record also carries who is running the CLI: actor (human, agent, ci, unknown), agent_name (present only when actor is agent; one of claude-code, codex, copilot-cli, opencode, pi, gemini-cli, cursor, cline, mcp, other) and is_ci (true or false, always computed from the CI environment variables, independently of actor).
+   - These fields are used only to measure who runs the CLI (a person, an AI agent or a CI pipeline); they never change how the product behaves.
+   - Setting XRMGHOST_ACTOR=human (or passing --actor human) removes only the agent marker: records still carry actor=human and is_ci.
+   - XRMGHOST_TELEMETRY=0 remains the only way to send none of these fields, as described in section 5.
    - Purpose: To identify popular features, areas for improvement, and to diagnose and fix bugs more effectively.
 
 5. Opting Out of Telemetry:
@@ -4041,7 +4120,6 @@ For more detailed information, please visit our online privacy policy at: https:
 - [CLI Reference](/cli/reference/) — landing page for all CLI reference pages
 - [CLI Overview](/cli/) — introduction to the `xg` CLI and command groups
 - [Privacy Policy](https://www.xrmghost.tech/legal/privacy-policy) — full online privacy policy
-
 
 ---
 
