@@ -6,16 +6,18 @@
 - [Overview](https://docs.xrmghost.tech/overview/): what XrmGhost is, who it's for, and why teams adopt it.
 - [How It Works](https://docs.xrmghost.tech/how-it-works/): the local-first execution model and the main moving parts.
 - [Editions](https://docs.xrmghost.tech/editions/): the Standard and Pro editions and what each includes.
-- [Getting Started](https://docs.xrmghost.tech/getting-started/): install and run the CLI for the first time.
+- [Getting Started](https://docs.xrmghost.tech/getting-started/): install the CLI, prepare the machine with `xg init`, and run it for the first time.
 
 ## Reference
 - [CLI reference](https://docs.xrmghost.tech/cli/): command groups and the full CLI command reference.
+- [xg init](https://docs.xrmghost.tech/cli/reference/init/): the first setup step after installing — checks the machine and installs or repairs the managed host; `xg init --no-interactive` in CI. Exit code `0` when the host is healthy or repaired, `1` when it cannot be repaired.
+- [xg doctor](https://docs.xrmghost.tech/cli/reference/doctor/): read-only health checks; `--fix` installs or repairs only the managed host, never the bundled host in `bin\`.
 - [Attributes reference](https://docs.xrmghost.tech/attributes/): declarative attributes for Dataverse plugin registration.
 - [Skills](https://docs.xrmghost.tech/skills/): agent skills for running and debugging plugins locally.
 
 ## Elsewhere
 - [Install with winget](https://docs.xrmghost.tech/getting-started/#install-with-winget): the recommended install on a development machine — `winget install XrmGhost.Cli` installs the signed `xg.exe` with the host in `bin\`.
-- [XrmGhost.Cli on NuGet](https://www.nuget.org/packages/XrmGhost.Cli/): the .NET global tool package, for CI pipelines and automation only; it does not carry the host, which the CLI downloads on first use or `xg setup host` installs.
+- [XrmGhost.Cli on NuGet](https://www.nuget.org/packages/XrmGhost.Cli/): the .NET global tool package, for CI pipelines and automation only; it does not carry the host, which `xg init --no-interactive` installs; `xg run --no-interactive` never downloads it.
 - [XrmGhost releases](https://github.com/xrmghost/xrmghost/releases): the last option, for machines without winget — the signed win-x64 ZIP `xrmghost-cli-<version>-full.zip`, with `xg.exe` and the signed host in `bin\`.
 - [XrmGhost.Attributes on NuGet](https://www.nuget.org/packages/XrmGhost.Attributes/): add the Attributes library to your plugin project as a package reference.
 - [www.xrmghost.tech](https://www.xrmghost.tech): product overview, positioning, and editions.

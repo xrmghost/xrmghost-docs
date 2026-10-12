@@ -23,6 +23,8 @@ The command has two required arguments — the assembly path and the fully-quali
 
 **Verbosity flags** (`-n`, `-v`, `-d`) are mutually exclusive in practice: use the lowest level that gives you the information you need. The default (no verbosity flag) shows only plugin traces, which keeps the output clean in CI.
 
+**Framework Host resolution.** Before executing, `run` resolves the host in this order and uses the first one found: the host bundled in the `bin\` folder next to `xg.exe` (winget and ZIP installs), then the managed install root `%LOCALAPPDATA%\xrmghost\framework-host\current\`, then legacy locations beside the CLI. A path passed with `--framework-host-path` replaces the search. If no usable host is found, the first setup step was skipped: run [`xg init`](/cli/reference/init/). In an interactive session `run` installs a missing host into the managed root before executing; with `--no-interactive` it never downloads, exits with a non-zero code and tells you to run `xg init --no-interactive`.
+
 **Data-source routing** (`--data-source`) controls where the plugin's reads are answered inside the simulated `IOrganizationService`: `Retrieve`, `RetrieveMultiple`, and `Execute(RetrieveMultipleRequest)` — which is handed to `RetrieveMultiple` and follows exactly the same routing. `QueryByAttribute` is a multiple-record retrieval like any other query: sent to Dataverse as it is when the read goes live, and evaluated by the mock query engine when it does not. `auto` is the default. The full contract is in [Data-source routing](#data-source-routing) below.
 
 **Impersonation** (`IOrganizationServiceFactory.CreateOrganizationService`) gives the plugin a service bound to the caller it asked for. See [Caller identity](#caller-identity) below.
@@ -55,23 +57,46 @@ What a plugin gets from `IOrganizationServiceFactory.CreateOrganizationService(u
 | `-a`, `--assembly-path` | `string` | *(required)* | Path to the plugin assembly DLL. The file must exist at the time the command is invoked. |
 | `-t`, `--plugin-type` | `string` | *(required)* | Fully-qualified name of the plugin type to execute (e.g., `MyPlugins.MyPluginClass`). |
 | `-s`, `--scenario` | `string` | — | Path to a JSON scenario file. When provided, the file is deserialised into a `ScenarioDefinition` that supplies the execution context, input parameters, entity images, mock data, and expected outcomes. See [Scenario Files](/cli/scenarios/) for the document's full anatomy. |
-| `-f`, `--framework-host-path` | `string` | — | Explicit path to `XrmGhost.Framework.Host.exe`. When omitted, the CLI uses the host bundled in the `bin\` folder next to `xg.exe` (winget and ZIP installs), then its managed application-data install root (where the host is downloaded for the .NET global tool), then legacy beside-the-CLI locations. |
+| `-f`, `--framework-host-path` | `string` | — | Explicit path to `XrmGhost.Framework.Host.exe`. When omitted, the CLI uses the host bundled in the `bin\` folder next to `xg.exe` (winget and ZIP installs), then its managed install root (where `xg init` installs the host for the .NET global tool), then legacy beside-the-CLI locations. |
+| `--no-interactive` | `bool` | `false` | Run without prompts, for CI. If the Framework Host is not installed, the command exits with a non-zero code instead of downloading it, and points to `xg init --no-interactive`. |
 | `-w`, `--debug-plugin-wait` | `bool` | `false` | Instructs FrameworkHost to pause before executing the plugin and wait for a debugger to attach. The CLI prints the host process ID and step-by-step attach instructions. |
 | `-c`, `--continue-on-unlicensed` | `bool` | `false` | When a Pro-tier feature is encountered without a valid license, execution continues with a mocked result and a warning instead of terminating with a non-zero exit code. |
 | `-n`, `--normal` | `bool` | `false` | Show plugin traces plus critical framework messages (errors and warnings). Expands the default output without the noise of full verbose mode. |
 | `-v`, `--verbose` | `bool` | `false` | Show plugin traces and all framework traces, ordered chronologically. |
 | `-d`, `--debug` | `bool` | `false` | Show all traces including timing analysis and performance metrics. Most detailed output level. |
 | `--debug-mode` | `bool` | `false` | Enable detailed debug output for CLI-level operations (version info, scenario loading steps, license state, entitlement emission, entity extraction diagnostics). Distinct from `-d`/`--debug`, which controls plugin trace verbosity. |
-| `--unsecure-config` | `string` | — | Unsecure configuration string passed to the plugin as `IPluginExecutionContext.UnsecureConfig`. |
-| `--secure-config` | `string` | — | Secure configuration string passed to the plugin as `IPluginExecutionContext.SecureConfig`. |
+| `--unsecure-config` | `string` | `""` | Unsecure configuration string passed to the plugin's constructor. When omitted, the plugin receives an empty string, never `null`. See [Plugin configuration](#plugin-configuration). |
+| `--secure-config` | `string` | `""` | Secure configuration string passed to the plugin's `(string unsecureConfig, string secureConfig)` constructor. When omitted, the plugin receives an empty string, never `null`. Not delivered to a plugin that only has a `(string unsecureConfig)` constructor. See [Plugin configuration](#plugin-configuration). |
 | `--data-source` | `string` | `auto` | Controls where `Retrieve`, `RetrieveMultiple` and `RetrieveMultipleRequest` (including `QueryByAttribute`) are answered inside the simulated `IOrganizationService`. Accepted values: `mock` (scenario mocks only, Dataverse never contacted), `live` (Dataverse only, no fallback to mocks), `auto` (live first for `Retrieve` with a mock fallback for a missing record or unavailable live; live for queries only with Pro and an active environment, otherwise mocks). See [Data-source routing](#data-source-routing). |
+
+## Plugin configuration
+
+As in Dataverse, configuration reaches the plugin through its constructor, not through `IPluginExecutionContext`. FrameworkHost considers only public constructors whose parameters are exactly `(string, string)`, `(string)`, or none; constructors with any other signature, and non-public constructors, are not used. It picks the most specific supported shape the plugin type declares, in this order:
+
+1. `(string unsecureConfig, string secureConfig)` — receives both `--unsecure-config` and `--secure-config`.
+2. `(string unsecureConfig)` — receives only `--unsecure-config`. Secure configuration is intentionally not delivered to this constructor.
+3. Parameterless — receives no configuration.
+
+The shape is selected by what the plugin declares, regardless of whether the flags are present: a plugin with a `(string, string)` constructor is always activated through it, even when you pass neither flag. An omitted flag is delivered as an empty string, not `null`.
+
+When a plugin whose most specific constructor is `(string unsecureConfig)` receives `--secure-config`, the secure value is not delivered, and FrameworkHost records the fact only as a framework trace. The CLI does not show a warning in the default output: the notice appears among the framework traces, visible with `--verbose` or `--debug`, and it never contains the secure value, which is masked.
+
+If the plugin type exposes none of the three shapes, `xg run` fails before `Execute` is called, with an error naming the three accepted shapes.
+
+**Warning:** a `config == null` check behaves differently from Dataverse for unconfigured runs, because `xg run` delivers an empty string where Dataverse may pass `null`. Use `string.IsNullOrEmpty(config)` instead.
 
 ## Exit Codes
 
 | Code | Meaning |
 |---|---|
 | `0` | Plugin executed successfully — either it completed without throwing, or it threw the exception the scenario declared in `expectedException` and that expectation was satisfied. |
-| `1` | Plugin execution failed, scenario file not found, assembly not found, FrameworkHost failed to start or become healthy, or an unexpected error occurred. |
+| `1` | Plugin execution failed, scenario file not found, the scenario's root-level `entities` seed is malformed, assembly not found, FrameworkHost missing (with `--no-interactive`) or failed to start or become healthy, or an unexpected error occurred. |
+
+A malformed `entities` seed — a value that cannot be parsed, or a record or attribute value that
+cannot be converted — fails the run before the plugin executes: the plugin is never run against a
+partially seeded store, the run is reported as not successful, and `xg run` exits `1`. An
+`expectedException` in the scenario does not change that outcome. The seed's format is documented in
+[Scenario Files](/cli/scenarios/#retrievemultiple--the-root-level-entities-key).
 
 A scenario that declares `expectedException` inverts what "successfully" means for that run: the
 exception is the expected result, so a satisfied expectation exits `0` and the run summary shows
@@ -113,7 +138,7 @@ Generate a scenario first, then execute with debugger attach support, a secure c
 ```shell
 # Generate the scenario template (run once)
 xg generate-scenario \
-  -a ./bin/Debug/MyPlugins.dll \
+  -p ./bin/Debug/MyPlugins.dll \
   -t MyPlugins.AccountPreCreate \
   -o ./scenarios/account-create.json
 
@@ -129,6 +154,18 @@ xg run \
 ```
 
 After the command prints the FrameworkHost PID and attach instructions, attach your debugger to `XrmGhost.Framework.Host.exe`, set breakpoints in your plugin code, and then resume execution.
+
+### Run in CI
+
+Prepare the host first, then run without prompts:
+
+```shell
+xg init --no-interactive
+xg run --no-interactive \
+  -a ./bin/Release/MyPlugins.dll \
+  -t MyPlugins.AccountPreCreate \
+  -s ./scenarios/account-create.json
+```
 
 ### Run with verbose output and unlicensed-Pro continuation
 
@@ -147,5 +184,6 @@ With `-c`, any Pro-tier feature encountered (such as Final Entity States) return
 
 - [Scenario Files](/cli/scenarios/) — The canonical reference for the scenario JSON document, including `expectedException`
 - [`xg generate-scenario`](/cli/reference/generate-scenario/) — Generate a scenario JSON template for a plugin assembly and type
+- [`xg init`](/cli/reference/init/) — Prepare the machine and resolve or install the Framework Host
 - [`xg doctor`](/cli/reference/doctor/) — Diagnose CLI configuration, FrameworkHost connectivity, and license validity
 - [CLI Overview](/cli/) — Introduction to the XrmGhost CLI and how this documentation is organised
