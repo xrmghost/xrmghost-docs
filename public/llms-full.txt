@@ -200,7 +200,7 @@ Pro includes everything in Standard, and adds live integration with real Dataver
 
 - **Read-only access to live Dataverse environments.** This is the defining Pro capability, and it is strictly **read-only**: XrmGhost reads from the environment only to satisfy the queries your code makes during a local run, and never writes anything back. Your live data is never modified.
 - **Environment and connection library.** Register, organize, and switch between multiple Dataverse environments and connections, so you can point a run at whichever environment you need.
-- **Live data instead of mocks.** You design your scenario, pass the real id of the specific record or user you care about, and run your code locally — but every read query (`Retrieve` / `RetrieveMultiple`) resolves *live* against the environment. You no longer have to mock the data the code reads; XrmGhost fetches it from the real environment as the run executes.
+- **Live data instead of mocks.** You design your scenario, pass the real id of the specific record or user you care about, and run your code locally — but the plugin's reads (`Retrieve` / `RetrieveMultiple`) are answered by the environment, as the [`--data-source`](/cli/reference/run/#data-source-routing) you choose dictates: `auto` (the default) reads live first, `live` reads only live. You no longer have to mock the data the code reads; XrmGhost fetches it from the real environment as the run executes.
 
 This is the `auto` / `live` data source described in [Using the Skills](/skills/using-skills/): on Standard a run reads only mocked scenario data; on Pro it can read live, read-only data from a configured environment.
 
@@ -1400,17 +1400,19 @@ Auto mode iterates toward a passing run on its own. It is useful but stays inspe
 
 ## Choosing a data source
 
-The `--data-source` flag governs how `RetrieveMultiple` queries resolve at run time:
+The `--data-source` flag governs how the plugin's reads — `Retrieve`, `RetrieveMultiple` and `RetrieveMultipleRequest`, `QueryByAttribute` included — resolve at run time:
 
-- **`mock`** (default): only mocked data; every record a query needs must be present in the scenario.
-- **`auto`**: mocked data first, falling back to a live environment for anything not mocked.
-- **`live`**: always query the live environment, ignoring mocks.
+- **`auto`** (default): **live first**, not mock-first. A `Retrieve` falls back to the mocks only when the record does not exist in Dataverse or live is unavailable; a query (`RetrieveMultiple`) goes live only with a Pro license and an active environment, otherwise the mocks answer — and a live query that fails returns an empty result with a warning, **without** falling back to the mocks. Dataverse faults reach the plugin in both cases.
+- **`mock`**: only mocked data, Dataverse is never contacted; every record the plugin reads must be present in the scenario.
+- **`live`**: only the live environment, never the mocks — no fallback of any kind.
+
+The full contract, including which identity reads when the plugin calls `CreateOrganizationService(null)` or passes a user ID, is in the [`xg run` reference](/cli/reference/run/#data-source-routing).
 
 ```bash
 xg run --assembly-path <dll> --plugin-type <type> --scenario <json> --data-source auto
 ```
 
-`auto` and `live` query a real Dataverse environment in **read-only** mode and are **not available by default**: they require a **Pro** license and a configured environment (see [Editions](/editions/) and the [`xg env`](/cli/reference/) command group). On the default setup, `mock` is the only data source. The data source also changes *what to mock* — under `live`/`auto`, data that will come from the real environment should not be mocked, so decide the data source before authoring backing data.
+`auto` and `live` query a real Dataverse environment in **read-only** mode and are **not available by default**: they require a **Pro** license and a configured environment (see [Editions](/editions/) and the [`xg env`](/cli/reference/) command group). Without them, `auto` reads only the mocked scenario data. The data source also changes *what to mock* — under `live`/`auto`, data that will come from the real environment should not be mocked, so decide the data source before authoring backing data.
 
 ## Command cheat sheet
 
@@ -1418,7 +1420,7 @@ xg run --assembly-path <dll> --plugin-type <type> --scenario <json> --data-sourc
 |------|---------|
 | Run a scenario | `xg run --assembly-path <dll> --plugin-type <type> --scenario <json>` |
 | Run and attach a debugger | add `--debug-plugin-wait` |
-| Resolve RetrieveMultiple against live data (Pro) | add `--data-source auto\|live` |
+| Resolve reads (`Retrieve`, `RetrieveMultiple`) against live data (Pro) | `--data-source auto` (default) or `--data-source live` |
 | Check licensing when results look wrong | `xg license status` |
 
 For the full, always-current flag reference of every command, see the [CLI Reference](/cli/reference/).
@@ -1868,6 +1870,8 @@ This page maps each `xrmghost` CLI command group to its purpose, known sub-comma
 **Group type:** Top-level command (no sub-commands).
 
 **Known flags (from source — not authoritative):** `-a`/`--assembly-path`, `-t`/`--plugin-type`, `-s`/`--scenario`, `-f`/`--framework-host-path`, `--data-source`, `-n`/`--normal`, `-v`/`--verbose`, `-d`/`--debug`, `--debug-mode`, `-w`/`--debug-plugin-wait`, `-c`/`--continue-on-unlicensed`, `--unsecure-config`, `--secure-config`, `--no-interactive`.
+
+**Data-source routing and caller identity:** `--data-source` (`auto` by default) routes `Retrieve`, `RetrieveMultiple` and `RetrieveMultipleRequest`, not only `RetrieveMultiple`; `auto` is live-first, not mock-first. The contract — including what `CreateOrganizationService(null)` and an explicit user ID read as — is stated once, in the [`xg run` reference](/cli/reference/run/#data-source-routing).
 
 **Intended reference-page shape:**
 - Path: `docs/cli/reference/run.mdx`
@@ -4146,7 +4150,30 @@ The command has two required arguments — the assembly path and the fully-quali
 
 **Framework Host resolution.** Before executing, `run` resolves the host in this order and uses the first one found: the host bundled in the `bin\` folder next to `xg.exe` (winget and ZIP installs), then the managed install root `%LOCALAPPDATA%\xrmghost\framework-host\current\`, then legacy locations beside the CLI. A path passed with `--framework-host-path` replaces the search. If no usable host is found, the first setup step was skipped: run [`xg init`](/cli/reference/init/). In an interactive session `run` installs a missing host into the managed root before executing; with `--no-interactive` it never downloads, exits with a non-zero code and tells you to run `xg init --no-interactive`.
 
-**Data-source routing** (`--data-source`) controls how `RetrieveMultiple` calls are handled inside the simulated `IOrganizationService`. `auto` (the default) lets the host decide based on the scenario content.
+**Data-source routing** (`--data-source`) controls where the plugin's reads are answered inside the simulated `IOrganizationService`: `Retrieve`, `RetrieveMultiple`, and `Execute(RetrieveMultipleRequest)` — which is handed to `RetrieveMultiple` and follows exactly the same routing. `QueryByAttribute` is a multiple-record retrieval like any other query: sent to Dataverse as it is when the read goes live, and evaluated by the mock query engine when it does not. `auto` is the default. The full contract is in [Data-source routing](#data-source-routing) below.
+
+**Impersonation** (`IOrganizationServiceFactory.CreateOrganizationService`) gives the plugin a service bound to the caller it asked for. See [Caller identity](#caller-identity) below.
+
+### Data-source routing
+
+| Value | Mode | `Retrieve` | `RetrieveMultiple` / `RetrieveMultipleRequest` |
+|---|---|---|---|
+| `mock` | MockOnly | Scenario mocks only. Dataverse is never contacted. | Scenario mocks only. Dataverse is never contacted. |
+| `live` | LiveOnly | Dataverse only; the mocks are never read. A Dataverse fault — *record does not exist* included — is raised to the plugin unchanged. Without a Pro license (`ProFeatureNotLicensedException`), without an active environment, or when live cannot answer, the call throws, with a warning. | Dataverse only; the mocks are never read. A Dataverse fault is raised to the plugin unchanged. Without a Pro license or an active environment, or when the live attempt fails, the result is an **empty collection with a warning**. |
+| `auto` *(default)* | Auto | **Live first.** Falls back to the scenario mocks **only** when the record does not exist in Dataverse or live is unavailable (no Pro license, no active environment, or the live call fails), with a warning when live was attempted or expected. Any other Dataverse fault is raised to the plugin. | Live **only** with a Pro license and an active environment; otherwise the mocks answer. A live attempt that fails does **not** fall back to the mocks: the result is an empty collection with a warning stating that it is not mock data. A Dataverse fault is raised to the plugin. |
+
+`auto` is deliberately asymmetric. A `Retrieve` that finds nothing live may still be answered by a record the scenario mocks or the run created; a multiple-record query that was attempted live and failed is never silently replaced with mock rows, because mock rows in place of the live ones would be indistinguishable from an answer. The `Retrieve` fallback does not apply to `RetrieveMultiple`.
+
+### Caller identity
+
+What a plugin gets from `IOrganizationServiceFactory.CreateOrganizationService(userId)` is a new service bound to that caller, in every data-source mode. Services created for different callers share the run — mocks, records created during the run, live connection and cache, warnings — but never each other's caller.
+
+| `userId` | Mock reads | Live reads |
+|---|---|---|
+| `null` (or `Guid.Empty`) | A fixed internal **SYSTEM** identity with no business unit, no teams and no `usersettings`: caller-dependent query operators resolve against SYSTEM, not against the execution context's user. | The identity of the **configured connection**: `CallerId` is cleared, no one is impersonated. This is not Dataverse's true SYSTEM user — it reads with the connection user's privileges. |
+| An explicit user ID | Queries resolve caller-dependent operators as that user. | The request is impersonated as that user (`CallerId`). |
+
+`null` is never the execution context's own user: to read as the user the plugin runs as, pass `context.UserId` explicitly.
 
 ## Options
 
@@ -4165,7 +4192,7 @@ The command has two required arguments — the assembly path and the fully-quali
 | `--debug-mode` | `bool` | `false` | Enable detailed debug output for CLI-level operations (version info, scenario loading steps, license state, entitlement emission, entity extraction diagnostics). Distinct from `-d`/`--debug`, which controls plugin trace verbosity. |
 | `--unsecure-config` | `string` | `""` | Unsecure configuration string passed to the plugin's constructor. When omitted, the plugin receives an empty string, never `null`. See [Plugin configuration](#plugin-configuration). |
 | `--secure-config` | `string` | `""` | Secure configuration string passed to the plugin's `(string unsecureConfig, string secureConfig)` constructor. When omitted, the plugin receives an empty string, never `null`. Not delivered to a plugin that only has a `(string unsecureConfig)` constructor. See [Plugin configuration](#plugin-configuration). |
-| `--data-source` | `string` | `auto` | Controls how `RetrieveMultiple` calls are routed inside the simulated `IOrganizationService`. Accepted values: `mock` (use scenario mock data only), `live` (route to a real Dataverse environment), `auto` (host decides based on scenario content). |
+| `--data-source` | `string` | `auto` | Controls where `Retrieve`, `RetrieveMultiple` and `RetrieveMultipleRequest` (including `QueryByAttribute`) are answered inside the simulated `IOrganizationService`. Accepted values: `mock` (scenario mocks only, Dataverse never contacted), `live` (Dataverse only, no fallback to mocks), `auto` (live first for `Retrieve` with a mock fallback for a missing record or unavailable live; live for queries only with Pro and an active environment, otherwise mocks). See [Data-source routing](#data-source-routing). |
 
 ## Plugin configuration
 
