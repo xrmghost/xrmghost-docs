@@ -78,6 +78,13 @@ The command accepts two JSON shapes:
 
 > **Client secret handling:** The `ClientSecret` field is deliberately excluded from files produced by `xg env export` (it is marked `[JsonIgnore]` during export). If the import file does not contain a `ClientSecret` and the environment uses `ClientSecret` authentication, the command will interactively prompt you to enter it. To automate imports, pre-populate the field in the JSON before running the command in a non-interactive context.
 
+### Tenant (`TenantId`)
+
+The import never reads a `TenantId` field from the file, even when the file was produced by [`xg env export`](/cli/reference/env-export/): any `TenantId` value in the JSON is ignored.
+
+- **New environments** go through the same unauthenticated, best-effort tenant probe used by [`xg env add`](/cli/reference/env-add/) (`{EnvironmentUrl}/api/data/v9.2/WhoAmI`, tenant read from `authorization_uri` in the `WWW-Authenticate` header). The probe needs HTTP reachability but no credentials; if it fails or finds no tenant, the environment is still imported and saved with an empty `TenantId`.
+- **Overwritten environments** (see [Conflict Resolution](#conflict-resolution)) are not probed: the `TenantId` already stored in the local configuration is kept unchanged, even when the imported `EnvironmentUrl` is different. An empty `TenantId` is filled in at the next [`xg env activate`](/cli/reference/env-activate/).
+
 ---
 
 ## Conflict Resolution
@@ -87,7 +94,7 @@ If an environment with the same `FriendlyName` already exists in the local store
 | Choice | Behaviour |
 |---|---|
 | **Skip** | The conflicting environment is left unchanged. The import counter increments `skipped`. |
-| **Overwrite** | The existing configuration is replaced with the imported one. The import counter increments `overwritten`. |
+| **Overwrite** | The existing entry is updated with the imported `EnvironmentUrl`, `AuthenticationMethod`, `ClientId` and `MetadataCacheLifecycle`, and the client secret is replaced. The locally stored `TenantId` is kept as it is and no tenant probe runs. The import counter increments `overwritten`. |
 
 A third option, **Rename**, is currently shown in the prompt but is not yet implemented — selecting it results in a skip.
 

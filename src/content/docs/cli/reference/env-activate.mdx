@@ -47,6 +47,15 @@ The file stores an `ActiveEnvironmentFriendlyName` field that points to the curr
 
 > **Risk note:** If you activate an environment on a machine that stores credentials locally, any process with access to the application data directory can identify which environment is currently selected. Credentials (client secrets) are stored separately in encrypted form under `environments_secure/` in the same base path.
 
+## Tenant Backfill
+
+Before setting the environment as active, the CLI checks whether its `TenantId` is empty — for example because the environment was registered before the field existed, or because tenant resolution did not succeed during [`xg env add`](/cli/reference/env-add/) or [`xg env import`](/cli/reference/env-import/). If it is empty, the CLI runs the same unauthenticated, best-effort probe used by `env add`: a request to `{EnvironmentUrl}/api/data/v9.2/WhoAmI`, reading the tenant from `authorization_uri` in the `WWW-Authenticate` header.
+
+- When a tenant is found, it is saved as `TenantId` in `d365_environments.json`.
+- When no tenant is found (the URL is unreachable, or the header does not yield one), nothing is saved, `TenantId` stays empty, and activation **continues** normally. A later activation tries again.
+
+The probe requires HTTP reachability but no credentials. It runs **also with `--no-cache`**: that flag only skips the authenticated metadata cache fetch described below, not the tenant backfill. An environment whose `TenantId` is already set is not probed again.
+
 ## Metadata Cache
 
 Unless `--no-cache` is passed, `env activate` connects to Dataverse using the stored Client ID and Client Secret and fetches full entity metadata (entities, attributes, relationships, and privileges) via a `RetrieveAllEntities` request. The result is serialised to:
