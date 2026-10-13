@@ -36,6 +36,16 @@ The wizard prompts you for the following details in sequence:
 
 After the wizard completes, the environment configuration is saved and the client secret is stored securely in the platform credential store (Windows Credential Manager on Windows, or an equivalent secure store on other platforms).
 
+### Tenant resolution (`TenantId`)
+
+`TenantId` is **not** a wizard prompt. When the environment is registered, the CLI resolves the Microsoft Entra tenant on its own:
+
+1. it sends an **unauthenticated** request to `{EnvironmentUrl}/api/data/v9.2/WhoAmI`;
+2. it reads the `authorization_uri` parameter from the `WWW-Authenticate` header of the challenge that Dataverse returns, and extracts the tenant from that URI;
+3. when a tenant is found, it is saved as `TenantId` in the environment entry of `d365_environments.json`.
+
+The resolution needs the environment URL to be reachable over HTTP, but it does **not** use your credentials. It is **best-effort**: if the request fails or the header does not yield a tenant, the environment is registered anyway, with an empty `TenantId`, and the command does not fail because of it. An empty `TenantId` is filled in later, when you run [`xg env activate`](/cli/reference/env-activate/) on that environment.
+
 > **License requirement:** `xg env add` requires a **Pro** license tier. Running it without a valid Pro subscription will produce an error before the wizard starts.
 
 ### Interactive-only mode
