@@ -188,7 +188,7 @@ Both editions share the same core workflow — author a scenario, run it locally
 Standard covers the full local development loop for Dataverse server-side code.
 
 - **Run plugins and Custom APIs locally.** Execute your server-side C# on your own machine, in a runtime shaped to match the Dataverse plugin pipeline. (Support for custom workflow activities — CWA — is on the roadmap.)
-- **Headless execution.** Run a scenario and read the result straight away — ideal for a fast write-run-fix loop, for automation, and for CI.
+- **Headless execution.** Run a scenario and read the result straight away — ideal for a fast write-run-fix loop and for local automation, including an AI agent driving `xg` without a console attached.
 - **Line-by-line debugging.** Attach a debugger to your own code as it runs locally — in Visual Studio, *Debug → Attach to Process* onto the XrmGhost host — and step through your plugin exactly as you would any local program. No deploy, no remote profiler.
 - **Scenario-driven data.** The data a run reads is supplied by the scenario itself (mocked data), so a run is fully self-contained and reproducible.
 
@@ -200,6 +200,7 @@ Pro includes everything in Standard, and adds live integration with real Dataver
 
 - **Read-only access to live Dataverse environments.** This is the defining Pro capability, and it is strictly **read-only**: XrmGhost reads from the environment only to satisfy the queries your code makes during a local run, and never writes anything back. Your live data is never modified.
 - **Environment and connection library.** Register, organize, and switch between multiple Dataverse environments and connections, so you can point a run at whichever environment you need.
+- **Use in a CI pipeline.** Running `xg` as part of a CI pipeline (as opposed to local, interactive or agent-driven automation) requires Pro.
 - **Live data instead of mocks.** You design your scenario, pass the real id of the specific record or user you care about, and run your code locally — but the plugin's reads (`Retrieve` / `RetrieveMultiple`) are answered by the environment, as the [`--data-source`](/cli/reference/run/#data-source-routing) you choose dictates: `auto` (the default) reads live first, `live` reads only live. You no longer have to mock the data the code reads; XrmGhost fetches it from the real environment as the run executes.
 
 This is the `auto` / `live` data source described in [Using the Skills](/skills/using-skills/): on Standard a run reads only mocked scenario data; on Pro it can read live, read-only data from a configured environment.
@@ -216,10 +217,19 @@ Use Pro when you want to reproduce and debug real, live cases locally without ha
 | --- | --- |
 | Run and debug plugins / Custom APIs locally with data you define | Standard |
 | Read live, read-only data from real Dataverse environments during a run, and manage multiple environments | Pro |
+| Run `xg` as part of a CI pipeline | Pro |
 
-Pro is a superset of Standard: everything you can do in Standard, you can do in Pro.
+Pro is a superset of Standard: everything you can do in Standard, you can do in Pro. Compare plans and prices on the [XrmGhost pricing page](https://www.xrmghost.tech/#pricing).
 
-XrmGhost is distributed for evaluation, so you can install it and try the local workflow before activating a Standard or Pro license — see [Getting Started](/getting-started/).
+XrmGhost is distributed for evaluation, so you can install it and try the local workflow before activating a Standard or Pro license — see [Getting Started](/getting-started/) to install, then [Activating an edition](#activating-an-edition) when you are ready to license it.
+
+## Activating an edition
+
+1. **Choose a plan.** Pick Standard or Pro on the [pricing page](https://www.xrmghost.tech/#pricing). If you are already signed in to your XrmGhost account, **Browse Plans** offers the same choice from inside the account.
+2. **Create an API key.** In your account, open **API Keys** and select **Create API Key**.
+3. **Copy the key.** The **API Key Created** dialog shows the new API key; copy it.
+4. **Activate the machine.** Run [`xg license activate`](/cli/reference/license-activate/) with the API key. The API key you copy from *API Key Created* is the argument you pass to `xg license activate`, shown as `<ACTIVATION_KEY>` in the command reference.
+5. **Check the license.** Run [`xg license status`](/cli/reference/license-status/) to see the license status and tier now active on the machine.
 
 ## Related pages
 
@@ -3425,7 +3435,7 @@ xg generate-scenario -p <PLUGIN_ASSEMBLY_PATH> -t <PLUGIN_TYPE_NAME> [options]
 | `--debug-mode` | `-d` | `bool` | `false` | Emits detailed verbose output, including FrameworkHost startup information, gRPC health-check status, and per-field scaffold decisions. |
 | `--no-default-user-settings` | — | `bool` | `false` | Suppresses the automatic insertion of a default `usersettings` mock (Retrieve response) for the calling user context. |
 | `--no-default-owner` | — | `bool` | `false` | Suppresses the automatic insertion of a default `ownerid` (EntityReference to `systemuser`) in the generated `Target` entity. |
-| `--online` | — | `bool` | `false` | Enables online mode, which activates live Dataverse metadata integration. Requires an active **Pro** license. |
+| `--online` | — | `bool` | `false` | Requires an active **Pro** license: the command verifies the license tier and exits with code `1` if it is not Pro. Scenario generation is otherwise unchanged. |
 | `--no-interactive` | — | `bool` | `false` | Exits immediately if FrameworkHost is not installed instead of downloading it automatically. Useful in CI pipelines. |
 
 ---
@@ -3460,7 +3470,7 @@ This warning does not prevent the file from being written. It flags that you nee
 
 ### Online mode
 
-With `--online` the command can integrate live Dataverse metadata (entity definitions, option sets). This feature requires an active **Pro** license; the command validates the license tier before proceeding and returns exit code `1` if the check fails.
+`--online` requires an active **Pro** license. The command verifies the license tier before proceeding and exits with code `1` if the tier is not Pro. Otherwise, the scenario is generated exactly as it is without `--online`.
 
 ---
 
