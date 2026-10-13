@@ -57,8 +57,10 @@ The file follows the [scenario format](/cli/scenarios/) and contains these top-l
 - `organizationServiceMock.retrieveResponses` — the default `usersettings` response, matched on
   `entityName` and `id` and written without a `columnSet`; the list is empty with
   `--no-default-user-settings`.
-- `expectedTraceLog` — a placeholder line. It is not an assertion; see
-  [Scenario Files](/cli/scenarios/#expecting-the-outcome).
+- `expectedTraceLog` — an empty list `[]`: present for discoverability, asserts nothing. Add
+  substrings of the plugin's traces to turn it into an assertion; the semantics, and the migration of
+  scenarios that still carry the old placeholder line, are in
+  [Scenario Files](/cli/scenarios/#expecting-traces).
 
 A trimmed example (generated ids are random GUIDs; the remaining context fields and most `usersettings`
 attributes are omitted):
@@ -107,7 +109,7 @@ attributes are omitted):
       }
     ]
   },
-  "expectedTraceLog": ["Trace log for Create (expected)"]
+  "expectedTraceLog": []
 }
 ```
 
