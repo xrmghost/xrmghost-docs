@@ -19,7 +19,7 @@ xg license status [OPTIONS]
 
 When a license is found the command prints:
 
-- **Status** — `License Active` (green) or `No Active License Found` (red).
+- **Status** — `License Active` (green), `License in Grace Period` (yellow) or `No Active License Found` (red).
 - **Tier** — the highest active subscription tier: `Standard` or `Pro`.
 - **Expires** — the UTC expiration timestamp of the license (`yyyy-MM-dd HH:mm:ss K` format).
 - **Expiration warning** — an amber warning if the license expires within 30 days; a red warning if it expires within 7 days.
@@ -27,11 +27,25 @@ When a license is found the command prints:
 
 When no valid license is found the command prints `Status: Unlicensed` with the `Standard Unlicensed` tier and shows the activation hint.
 
+### License in Grace Period
+
+When AKMS reports the license in the **Grace** status, the license is still valid: the subscription has expired, but the tier is kept for a limited time. Instead of `License Active` and `Expires:`, the command prints:
+
+- **Status** — `License in Grace Period` (yellow).
+- **Tier** — the tier retained by the server, for example `Pro`. Pro features remain available for the whole Grace period.
+- **Grace ends** — the end of the Grace period in the same `yyyy-MM-dd HH:mm:ss K` format, followed by the days remaining, for example `Grace ends: 2026-11-05 00:00:00 +00:00 (14 days left)`.
+- **Renewal link** — `Renew your subscription: https://admin.xrmghost.tech/subscriptions`. The same address is shown regardless of the AKMS environment the CLI targets.
+
+Subscription claims describe *active* subscriptions, so during Grace the `Subscription Claims` block may contain no active subscription. When no claims are present, the block prints `Your subscription has expired; the tier is kept until the grace period ends.` instead of `No subscription claims found`. This does not affect the license: the tier retained by the server and the Pro gates stay valid until Grace ends.
+
+When the Grace period ends without a renewal, the license is no longer valid and the command reports the existing **Unlicensed** result (`No Active License Found`, `Status: Unlicensed`).
+
 ### License states
 
 | State | Condition | Tier shown |
 |---|---|---|
 | **Active** | API key present, AKMS validation succeeds, expiration date in the future | Resolved from subscription claims (`Standard`, `Pro`) |
+| **Grace** | API key present, AKMS validation succeeds and reports the Grace status with a Grace end date | Tier retained by the server (`Standard`, `Pro`), with `Grace ends:` and days remaining; Pro access is kept until Grace ends |
 | **Unlicensed** | No API key stored, or AKMS validation fails | `Standard Unlicensed` |
 | **Expiring soon** | Active license expires within 30 days | Same as Active, with amber warning |
 | **Expiring critically** | Active license expires within 7 days | Same as Active, with red warning |
@@ -135,6 +149,24 @@ Active Subscriptions (1)
     Status: Active
     Expires: 2026-05-25 00:00:00 +00:00
     ⚠️  Expires in 18 days
+```
+
+### License in Grace Period
+
+```
+$ xg license status
+
+XrmGhost License Status
+
+Retrieving license information...
+License in Grace Period
+  Tier: Pro
+  Grace ends: 2026-11-05 00:00:00 +00:00 (14 days left)
+
+Renew your subscription: https://admin.xrmghost.tech/subscriptions
+
+Subscription Claims
+  Your subscription has expired; the tier is kept until the grace period ends.
 ```
 
 ## See Also
