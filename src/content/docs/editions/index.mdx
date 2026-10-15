@@ -45,9 +45,17 @@ Use Pro when you want to reproduce and debug real, live cases locally without ha
 | Read live, read-only data from real Dataverse environments during a run, and manage multiple environments | Pro |
 | Run `xg` as part of a CI pipeline | Pro |
 
-Pro is a superset of Standard: everything you can do in Standard, you can do in Pro.
+Pro is a superset of Standard: everything you can do in Standard, you can do in Pro. Compare plans and prices on the [XrmGhost pricing page](https://www.xrmghost.tech/#pricing).
 
-XrmGhost is distributed for evaluation, so you can install it and try the local workflow before activating a Standard or Pro license — see [Getting Started](/getting-started/).
+XrmGhost is distributed for evaluation, so you can install it and try the local workflow before activating a Standard or Pro license — see [Getting Started](/getting-started/) to install, then [Activating an edition](#activating-an-edition) when you are ready to license it.
+
+## Activating an edition
+
+1. **Choose a plan.** Pick Standard or Pro on the [pricing page](https://www.xrmghost.tech/#pricing). If you are already signed in to your XrmGhost account, **Browse Plans** offers the same choice from inside the account.
+2. **Create an API key.** In your account, open **API Keys** and select **Create API Key**.
+3. **Copy the key.** The **API Key Created** dialog shows the new API key; copy it.
+4. **Activate the machine.** Run [`xg license activate`](/cli/reference/license-activate/) with the API key. The API key you copy from *API Key Created* is the argument you pass to `xg license activate`, shown as `<ACTIVATION_KEY>` in the command reference.
+5. **Check the license.** Run [`xg license status`](/cli/reference/license-status/) to see the license status and tier now active on the machine.
 
 ## Related pages
 
