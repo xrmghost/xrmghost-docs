@@ -13,7 +13,7 @@ xg privacy
 
 ## Description
 
-`xg privacy` prints a structured summary of every category of data that XrmGhost collects, stores, or transmits. The command exits immediately after printing; it does not open a browser or make network requests.
+`xg privacy` prints a structured summary of every category of data that XrmGhost collects, stores, or transmits. The command only prints this summary and does not open a browser. Like every `xg` invocation, it still registers the machine with XrmGhost servers at startup (see section 3) and, unless telemetry is disabled with `XRMGHOST_TELEMETRY=0`, records pseudonymised usage telemetry for the run (see sections 4 and 5).
 
 The output covers five distinct areas:
 
