@@ -25,7 +25,7 @@ xg generate-scenario -p <PLUGIN_ASSEMBLY_PATH> -t <PLUGIN_TYPE_NAME> [options]
 |---|---|---|---|---|
 | `--plugin-assembly-path` | `-p` | `string` | *(required)* | Path to the compiled plugin assembly DLL. The file must exist at the specified path. |
 | `--plugin-type` | `-t` | `string` | *(required)* | Fully-qualified name of the plugin class to introspect (e.g. `MyPlugins.MyPluginClass`). |
-| `--output` | `-o` | `string` | Same directory as the assembly | Path where the generated scenario JSON file is written. If omitted, or if only a filename is given, the file is placed alongside the plugin DLL. When multiple messages are generated, the filename is suffixed with `_<MessageName>_Scenario.json`. |
+| `--output` | `-o` | `string` | Same directory as the assembly | Where the generated scenario JSON is written. If omitted, the file is placed alongside the plugin DLL. A bare file name (no directory part) is written to the current directory, not alongside the DLL. A file path is written exactly there; an existing directory, or a value ending with `/` or `\`, receives the scenarios under their default names. With several messages, a file value is not suffixed: the scenarios take their default names in that file's directory, with a warning. See [Output location](#output-location). |
 | `--framework-host-path` | `-f` | `string` | Auto-resolved | Path to `XrmGhost.Framework.Host.exe`. When not provided the CLI uses the host bundled in the `bin\` folder next to `xg.exe` first (winget and ZIP installs), then its managed application-data install root, then legacy beside-the-CLI locations. |
 | `--debug-mode` | `-d` | `bool` | `false` | Emits detailed verbose output, including FrameworkHost startup information, gRPC health-check status, and per-field scaffold decisions. |
 | `--no-default-user-settings` | — | `bool` | `false` | Suppresses the automatic insertion of a default `usersettings` mock (Retrieve response) for the calling user context. |
@@ -119,9 +119,35 @@ does not emit the `{ "type": "Money", "value": X }` tag; with the current releas
 in the `entities` seed, as explained in
 [Attribute value typing](/cli/scenarios/#attribute-value-typing).
 
+### Output location
+
+`--output` is classified once, as either a file or a directory target, and that classification decides where every scenario is written. The default name of a scenario is `<PluginTypeName>_<MessageName>_Scenario.json`.
+
+| `-o` value | Classified as | One message | Several messages | Warning |
+|---|---|---|---|---|
+| Omitted | — | Default name in the plugin DLL's directory | Default names in the plugin DLL's directory | No |
+| Bare file name, e.g. `account-create.json` | File | Exactly that file, in the current directory | Default names in the current directory | Yes, with several messages |
+| File path, e.g. `./test-scenarios/account-create.json` | File | Exactly that file | Default names in that file's directory | Yes, with several messages |
+| Existing directory, e.g. `./test-scenarios` | Directory | Default name inside the directory | Default names inside the directory | No |
+| Value ending with `/` or `\`, e.g. `./test-scenarios/` | Directory | Default name inside the directory, created if missing | Default names inside the directory, created if missing | No |
+
+A file value without an extension that is not an existing directory stays a file and receives `.json`: `-o account-create` writes `account-create.json` in the current directory.
+
+:::caution
+A directory that already exists is always a directory target, even when its name ends in `.json`: with an existing `./scenarios.json/` folder, `-o ./scenarios.json` writes `./scenarios.json/<PluginTypeName>_<MessageName>_Scenario.json` and not a file called `scenarios.json`. In a directory target, and in the several-messages case of a file value, the default names can overwrite scenario files already present there.
+:::
+
+Directory targets require a CLI release that includes directory-target support for `-o`.
+
 ### Multiple message handlers
 
-When a plugin implements `[HandlesMessage]` for more than one message, the command generates one scenario file per message, each named `<PluginTypeName>_<MessageName>_Scenario.json`.
+When a plugin implements `[HandlesMessage]` for more than one message, the command generates one scenario file per message, each under its default name `<PluginTypeName>_<MessageName>_Scenario.json`. Where those files go depends on `-o`:
+
+- **Omitted** — in the plugin DLL's directory.
+- **File path or bare file name** — in that file's directory (the current directory for a bare name), under the default names. The name you passed is not used, not even as a prefix, and the command prints a warning saying so.
+- **Directory target** (an existing directory, or a value ending with `/` or `\`) — inside that directory, with no warning.
+
+Several `[HandlesMessage]` declarations with the same message name — for example `Create` registered on two stages — produce a single scenario, built from the first declaration. Names are compared case-insensitively.
 
 ### Partial scaffold warning
 
@@ -170,6 +196,8 @@ xg generate-scenario \
   -t MyCompany.Plugins.AccountCreatePlugin \
   -o ./test-scenarios/account-create.json
 ```
+
+The plugin handles one message, so the scenario is written exactly to `./test-scenarios/account-create.json`: the file name you pass is kept. To get the default name inside a folder instead, pass the folder, e.g. `-o ./test-scenarios/`.
 
 ### Generate without the default owner and user-settings mock
 
