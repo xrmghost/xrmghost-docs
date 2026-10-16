@@ -25,12 +25,12 @@ xg generate-scenario -p <PLUGIN_ASSEMBLY_PATH> -t <PLUGIN_TYPE_NAME> [options]
 |---|---|---|---|---|
 | `--plugin-assembly-path` | `-p` | `string` | *(required)* | Path to the compiled plugin assembly DLL. The file must exist at the specified path. |
 | `--plugin-type` | `-t` | `string` | *(required)* | Fully-qualified name of the plugin class to introspect (e.g. `MyPlugins.MyPluginClass`). |
-| `--output` | `-o` | `string` | Same directory as the assembly | Path where the generated scenario JSON file is written. If omitted, or if only a filename is given, the file is placed alongside the plugin DLL. When multiple messages are generated, the filename is suffixed with `_<MessageName>_Scenario.json`. |
+| `--output` | `-o` | `string` | Same directory as the assembly | Path where the generated scenario JSON file is written. If omitted, each file is written alongside the plugin DLL as `<PluginTypeName>_<MessageName>_Scenario.json`. With **one** message, a bare filename (no folder) is written to the current directory, and a path with a folder is written exactly there (`.json` is appended when the path has no extension). With **more than one** message the filename you pass is ignored: every scenario is named `<PluginTypeName>_<MessageName>_Scenario.json` and placed in the folder of the path (the current directory for a bare filename), and a warning is printed when `-o` pointed at a file inside a folder. See [Multiple message handlers](#multiple-message-handlers). |
 | `--framework-host-path` | `-f` | `string` | Auto-resolved | Path to `XrmGhost.Framework.Host.exe`. When not provided the CLI uses the host bundled in the `bin\` folder next to `xg.exe` first (winget and ZIP installs), then its managed application-data install root, then legacy beside-the-CLI locations. |
 | `--debug-mode` | `-d` | `bool` | `false` | Emits detailed verbose output, including FrameworkHost startup information, gRPC health-check status, and per-field scaffold decisions. |
 | `--no-default-user-settings` | — | `bool` | `false` | Suppresses the automatic insertion of a default `usersettings` mock (Retrieve response) for the calling user context. |
 | `--no-default-owner` | — | `bool` | `false` | Suppresses the automatic insertion of a default `ownerid` (EntityReference to `systemuser`) in the generated `Target` entity. |
-| `--online` | — | `bool` | `false` | Enables online mode, which activates live Dataverse metadata integration. Requires an active **Pro** license. |
+| `--online` | — | `bool` | `false` | Requires an active **Pro** license: the command verifies the license tier and exits with code `1` if it is not Pro. Scenario generation is otherwise unchanged. |
 | `--no-interactive` | — | `bool` | `false` | Exits immediately if FrameworkHost is not installed instead of downloading it automatically. Useful in CI pipelines. |
 
 ---
@@ -41,11 +41,82 @@ xg generate-scenario -p <PLUGIN_ASSEMBLY_PATH> -t <PLUGIN_TYPE_NAME> [options]
 
 `generate-scenario` connects to a short-lived FrameworkHost process over gRPC, sends the plugin assembly path and type name, and receives the plugin's inferred metadata. From that metadata the command builds an `ExecutionContextDefinition` that includes:
 
-- **Message name** — taken from `[HandlesMessage]` attributes on the plugin class. If no attributes are present, the scaffold defaults to `Create`.
-- **Primary entity name and ID** — derived from `ExecutionConfig` on the plugin, or left empty when the plugin carries no metadata.
-- **`Target` input parameter** — auto-generated as an `EntityDefinition` with a `name` sample attribute. Skipped for Custom API messages (those whose `MessageName` begins with `custom_`).
-- **`ownerid` attribute** — an `EntityReference` pointing to the context's `UserId` as a `systemuser`. Suppressed by `--no-default-owner`.
+- **Message name** — collected from both the `[HandlesMessage]` attributes and the `Messages` of the `[PluginExecutionConfig]` attributes on the plugin class. The two sources are merged and deduplicated without regard to case (`Update` and `update` count once; the first spelling met is kept). If neither family provides a message, the scaffold defaults to `Create`.
+- **Primary entity name, stage and mode** — derived from `[PluginExecutionConfig]` on the plugin, or left empty (stage `20`, mode `0`) when the plugin carries no metadata. When the class carries several `[PluginExecutionConfig]` attributes, the **first** one supplies the primary entity, stage and mode, while the messages of **all** of them enter the merged message list. No separate scenario is generated per registration: each message gets one scenario built from the first configuration, so check `primaryEntityName` by hand when your registrations target different entities.
+- **`Target` input parameter** — when the plugin declares `[InputParameter("Target", …)]`, the Target comes from that JSON and no `name` sample is generated; see [Target and images from attribute JSON](#target-and-images-from-attribute-json). Otherwise it is auto-generated as an `EntityDefinition` with a `name` sample attribute. In both cases it is skipped for Custom API messages (those whose `MessageName` begins with `custom_`).
+- **`ownerid` attribute** — an `EntityReference` pointing to the context's `UserId` as a `systemuser`, added to the `Target` when it does not already carry an `ownerid`, including a Target taken from `[InputParameter]`. Suppressed by `--no-default-owner`.
 - **Default UserSettings mock** — a Retrieve response that returns a realistic `usersettings` entity for the calling user. Suppressed by `--no-default-user-settings`.
+
+### Target and images from attribute JSON
+
+`[InputParameter("Target", …)]`, `[PreImage]` and `[PostImage]` may carry their entity in the attribute
+JSON format, where the entity name sits under `__entityName` and the attributes are flat keys:
+
+```json
+{
+  "__entityName": "account",
+  "id": "8f2c1a4e-3b6d-4c1e-9a7f-2d5e6b8c9a01",
+  "name": "Contoso",
+  "parentaccountid": {
+    "logicalName": "account",
+    "id": "1b7e9c3d-5a2f-4e8b-b6c4-7d9a0e1f2c34",
+    "name": "Contoso Holding"
+  }
+}
+```
+
+The generator does not copy that shape into the scenario: it converts it into the canonical entity of
+the [scenario format](/cli/scenarios/), so the file you get back is the one `xg run` expects.
+
+- **`logicalName`** is the value of `__entityName`.
+- **`id`** is the `id` key when it holds a GUID; otherwise the `<entity>id` attribute (for example
+  `accountid`) when it holds a GUID; otherwise, for the Target, the context's `primaryEntityId`. The
+  context's `primaryEntityId` is then aligned to the Target `id`, so both point at the same record.
+- **`attributes`** are all the remaining keys, typed the same way as in a scenario file.
+- If `__entityName` differs from the primary entity of `[PluginExecutionConfig]`, a warning is printed
+  and `__entityName` wins: it becomes the scenario's `primaryEntityName`.
+- The default `ownerid` is added to this Target too, unless it already has one or `--no-default-owner`
+  is set.
+
+Pre and post images in the same format follow the same conversion. Their `id` is the `id` key or the
+`<entity>id` attribute when they hold a GUID; otherwise it is the Target `id` when the image describes
+the same entity as the Target, and a new GUID when it describes another entity.
+
+For the example above the scenario contains:
+
+```json
+"Target": {
+  "logicalName": "account",
+  "id": "8f2c1a4e-3b6d-4c1e-9a7f-2d5e6b8c9a01",
+  "attributes": {
+    "name": "Contoso",
+    "parentaccountid": {
+      "logicalName": "account",
+      "id": "1b7e9c3d-5a2f-4e8b-b6c4-7d9a0e1f2c34",
+      "name": "Contoso Holding"
+    },
+    "ownerid": {
+      "logicalName": "systemuser",
+      "id": "00000000-0000-0000-0000-0000000000a1",
+      "name": "Default Owner (System User)"
+    }
+  }
+}
+```
+
+A lookup attribute is written in the canonical form `{ "logicalName": "...", "id": "GUID", "name": "..." }`,
+both in the attribute JSON and in the scenario; `name` is optional:
+
+```json
+"primarycontactid": {
+  "logicalName": "contact",
+  "id": "4a6b8c0d-2e4f-4a6b-8c0d-2e4f6a8b0c1d",
+  "name": "Jane Doe"
+}
+```
+
+The `__entityName` shape is only an input the generator converts; scenario files you write by hand use
+the canonical format.
 
 ### Shape of the generated file
 
@@ -121,7 +192,19 @@ in the `entities` seed, as explained in
 
 ### Multiple message handlers
 
-When a plugin implements `[HandlesMessage]` for more than one message, the command generates one scenario file per message, each named `<PluginTypeName>_<MessageName>_Scenario.json`.
+The command generates one scenario file per message when the merged list of messages — `[HandlesMessage]`
+plus the `Messages` of every `[PluginExecutionConfig]`, deduplicated without regard to case — contains
+more than one message. Each file is named `<PluginTypeName>_<MessageName>_Scenario.json`:
+
+- without `-o`, the files go alongside the plugin DLL;
+- with `-o` and a bare filename, the filename is ignored and the files go to the current directory;
+- with `-o` and a path inside a folder, the filename is ignored and the files go to that folder, keeping
+  the extension of the path (`.json` when it has none); a warning reports that `-o` named a specific file.
+
+Because the configuration messages count, adding a message to `[PluginExecutionConfig]` can turn a
+command that wrote `-o ./test-scenarios/account-create.json` into a fan-out that writes
+`./test-scenarios/<PluginTypeName>_<MessageName>_Scenario.json` files instead. With a single message,
+`-o` keeps writing exactly the file you named.
 
 ### Partial scaffold warning
 
@@ -137,7 +220,7 @@ This warning does not prevent the file from being written. It flags that you nee
 
 ### Online mode
 
-With `--online` the command can integrate live Dataverse metadata (entity definitions, option sets). This feature requires an active **Pro** license; the command validates the license tier before proceeding and returns exit code `1` if the check fails.
+`--online` requires an active **Pro** license. The command verifies the license tier before proceeding and exits with code `1` if the tier is not Pro. Otherwise, the scenario is generated exactly as it is without `--online`.
 
 ---
 
