@@ -1,0 +1,170 @@
+---
+title: What XrmGhost collects
+description: Every piece of data the XrmGhost CLI and Framework Host send, one field per row, with why it is needed, how long it is kept, and how to turn telemetry off.
+---
+
+# What XrmGhost collects, and how to turn it off
+
+XrmGhost runs your Dataverse plugins on your machine. Most of what it does never leaves that machine. This page lists every piece of data that does, one field per row, with why we need it and how long we keep it. If a field is not on this page, we do not collect it; if you find one that is missing, tell us at `legal@xrmghost.tech` and we will treat it as a bug.
+
+This page describes XrmGhost CLI 1.7.7 and Framework Host 1.1.0. When a release changes what is sent, this page changes in the same release.
+
+Two words we use carefully:
+
+- **Pseudonymous** means the data does not carry your name, but it is linked to a stable identifier (your Platform ID). It is still personal data, and we treat it as such.
+- **Anonymous** means it cannot be linked back to you. Very little of what a CLI sends is anonymous, so we do not use the word for product telemetry.
+
+## Quick answers
+
+| Question | Answer |
+|---|---|
+| Can I turn off telemetry? | Yes: `XRMGHOST_TELEMETRY=0`. See [Turning it off](#turning-it-off). |
+| Does XrmGhost read my plugin code or my Dataverse data? | No. Your plugins run locally; no plugin code, no plugin output and no Dataverse records are sent to us. The diagnostics of a run are limited to the fixed list in [Run diagnostics](#3-run-diagnostics-xg-run-only). |
+| Is my username or machine name sent? | Not in clear. A one-way hash of each is sent at registration (see the note on hashing below). |
+| Is my IP address stored? | Not in our tables. Our servers see it on every connection, use it to rate-limit requests, and write it to service logs only when a rate limit triggers. Those logs are kept 30 days. |
+| What changes when an AI agent runs `xg`? | Each telemetry record says whether a person, an agent or a CI pipeline ran the command, and which agent. Nothing else. See [Agents and `XRMGHOST_ACTOR`](#agents-and-xrmghost_actor). |
+| What happens to my account data when I delete my account? | We keep it for audit for 24 months, then anonymise it. See [Account data](#account-data). |
+
+## 1. Machine registration (always on)
+
+Every time `xg` starts (except `xg --version`), it registers the installation with XrmGhost servers. This is what makes licensing work, and it is **not** affected by `XRMGHOST_TELEMETRY=0`.
+
+| Field | Example | Why | Kept for |
+|---|---|---|---|
+| Platform ID | `3fa85f64…` (random GUID, created on first run, stored in `machine_id.dat`) | Identifies the installation; links a license to it | until you ask us to delete it |
+| Machine name (hashed) | SHA-256 of `MachineName:<your machine name>` | Tell installations apart | same |
+| User name (hashed) | SHA-256 of `UserName:<your OS user>` | same | same |
+| User domain (hashed) | SHA-256 of `UserDomainName:<your domain>` | same | same |
+| OS description | `Microsoft Windows 10.0.22631` | Compatibility and support | same |
+| .NET runtime description | `.NET 9.0.0` | Compatibility | same |
+| XrmGhost CLI version | `1.7.7` | Know which versions are in use | same |
+
+Our server adds the time of the first and of the latest registration, so that we know whether an installation is still active. The CLI does not send a timestamp of its own.
+
+**A note on hashing.** The three names are hashed on your machine before they are sent, so we never receive them in clear. The hash has no secret key, which means that someone who already knows your user name could compute the same value and recognise it. That is why we call these fields pseudonymous, not anonymous.
+
+## 2. Usage telemetry (on by default, can be turned off)
+
+After each command, `xg` writes one small record and sends it. The fields are fixed by an allowlist in the code; a field that is not on the list is dropped before the record is written.
+
+| Field | Example | Why | Kept for |
+|---|---|---|---|
+| Event type | `command_usage` | Tell this record from a run diagnostic | 24 months |
+| Timestamp | `2026-10-19T08:12:04Z` | Order records in time | 24 months |
+| Platform ID | `3fa85f64…` | Count installations, not commands | 24 months |
+| Trace ID | random | Group the records of one command | 24 months |
+| Command | `run`, `doctor`, `env add` | Know which commands are used | 24 months |
+| Command type | `Standard`, `Authenticated`, `FeatureGated` | Group commands by whether they need a login or a licensed feature | 24 months |
+| Result and exit code | `success`, `0` | Know what fails | 24 months |
+| Duration | `1834` ms | Find slow commands | 24 months |
+| CLI version | `1.7.7` | Know which versions fail | 24 months |
+| Release channel | `prod` or `dev` | Separate stable builds from prereleases. A build constant, not personal data | 24 months |
+| Surface | `cli.command_usage` | A constant that marks the record as a CLI usage record | 24 months |
+| Setup reason code | `host_missing`, `netfx_missing` | Know why a first run could not set the plugin host up. Only a fixed list of codes is allowed | 24 months |
+| Error type | `TimeoutException` | Diagnose failures of the CLI itself | 24 months |
+| Error message | `Connection to … timed out` | Diagnose failures of the CLI itself. **This is free text produced by the error, and it can contain a file path or your Dataverse environment URL.** | 24 months |
+| Actor | `human`, `agent`, `ci`, `unknown` | Measure who runs the CLI. See [Agents and `XRMGHOST_ACTOR`](#agents-and-xrmghost_actor) | 24 months |
+| Agent name | `claude-code`, `codex`, `other`, … (only when actor is `agent`) | same | 24 months |
+| Is CI | `true` / `false` | same | 24 months |
+
+Records are deleted from our storage 24 months after they are received.
+
+## 3. Run diagnostics (`xg run` only)
+
+When you run a plugin, `xg` also sends a second record set: the timings and outcome of that run, on the CLI side and on the plugin host side, so that we can diagnose failures of the runner itself. Like section 2, it is filtered by an allowlist before it leaves your machine, and it is turned off by the same `XRMGHOST_TELEMETRY=0`.
+
+| Field | Example | Why | Kept for |
+|---|---|---|---|
+| Timestamp, trace ID, span IDs | random | Join the CLI and host side of one run | 24 months |
+| Command, result, exit code, duration, CLI version, release channel, Platform ID | as in section 2 | same as in section 2 | 24 months |
+| License tier at run time | `Pro`, licensed yes/no | Know which tiers use which features | 24 months |
+| Gating decision | `allow` / `degrade` / `deny`, reason code, who decided (`host`), mode (`strict` / `compat`) | Diagnose license and feature checks | 24 months |
+| Surface | `cli.run` on the CLI side, `Pro.FrameworkHost.PluginExecution` on the host side | Know which licensed feature was checked | 24 months |
+| Correlation ID | GUID from your scenario file, or random | Join the CLI and host side of one run | 24 months |
+| Entitlement hand-off | whether the license context was handed to the host, why not, and a hash of it; whether the trace header was sent | Diagnose license checks between CLI and host | 24 months |
+| Host span name, kind and status | `plugin.execute`, `Server`, `Ok` / `Error` | Find which step of the run failed | 24 months |
+| gRPC method and status code | `/PluginRunner/ExecutePlugin`, `OK` | Find transport failures between CLI and host | 24 months |
+| Plugin timing and outcome | `plugin.duration_ms=212`, `plugin.outcome=success` | Find slow or failing runs | 24 months |
+| Whether the host verified the license | `true` / `false` | Diagnose license checks | 24 months |
+| Error type (CLI side only) | `RpcException` | Diagnose failures of the runner | 24 months |
+
+**What is never sent.** The allowlist leaves out everything that identifies your code or your data: the plugin type name, the assembly file name and its hash, the scenario name, your plugin's trace output (`ITracingService`), the host's framework traces, the exception type and message raised by your plugin, internal error details and stack frames, the unsecure or secure configuration, file paths, the gRPC peer address, and any Dataverse record. The host's own flags for CI and interactive sessions stay on your machine too.
+
+Some of these fields are written to the local telemetry file on your machine (section 4), so that you can read them when a run fails; they are filtered out before anything is sent.
+
+## 4. On your machine only
+
+These files are written locally and are not sent to us, except as described above.
+
+| File | Location | What | How long |
+|---|---|---|---|
+| `machine_id.dat` | `%LOCALAPPDATA%\XrmGhost\XrmGhostCli\` | Platform ID | until you delete it |
+| `first-run.sentinel` | same | when the privacy notice was shown, and by which CLI version | until you delete it |
+| `telemetry\telemetry-YYYY-MM-DD.json` | same | the full local trace of each command and run, including the fields of section 3 that are never sent; readable by you | 20 days |
+| `telemetry\outbox\` | same | records waiting to be sent (sections 2 and 3, already filtered) | until sent; after 8 failed attempts an item moves to `outbox\dead-letter\`, capped at 200 items |
+| `akms_api.key`, `bootstrap.lic` | same | your API key and the bootstrap key used to activate it | until it expires or you delete it |
+| `d365_environments.json`, `environments_secure\` | same | your environment URLs and client secrets | until you remove the environment |
+
+The key and secret files are encrypted with your Windows account (DPAPI, current user): another user on the same machine cannot read them.
+
+To compute a local encryption key, `xg` reads your network adapters' MAC addresses, OS description, processor count and user name. That value stays in memory and is never sent.
+
+## Turning it off
+
+To turn telemetry off for good, set the variable for your user account:
+
+```powershell
+setx XRMGHOST_TELEMETRY 0
+```
+
+`setx` writes the value to your user environment; it applies to every new terminal you open from then on (the terminal you ran it in keeps its old environment until you open a new one). If you only want to turn telemetry off for the session you are in, `$env:XRMGHOST_TELEMETRY = "0"` (PowerShell) or `set XRMGHOST_TELEMETRY=0` (Command Prompt) does that, and the setting is gone when you close the window.
+
+**For IT administrators.** To turn telemetry off on every machine you manage, deploy `XRMGHOST_TELEMETRY` with the value `0` as a *system* environment variable through Group Policy or Intune. `xg` and the plugin host read it like any other environment variable, so no extra configuration of XrmGhost is needed, and users cannot miss it by opening a different shell.
+
+| | With `XRMGHOST_TELEMETRY=0` |
+|---|---|
+| Usage telemetry (section 2) | not collected, not queued, not sent |
+| Run diagnostics (section 3) | not collected, not sent, on the CLI side and on the host side |
+| Local telemetry files (section 4) | no new files; files already on disk stay there, unsent, until you delete them |
+| Machine registration (section 1) | **still on**: licensing depends on it |
+| License and API-key checks | **still on** |
+
+- Only the exact value `0` turns telemetry off. `false`, `no`, `off` or an empty value leave it on.
+- Records queued before you opted out are not sent while the variable is set. If you remove the variable later, they may be sent. To discard them, delete the `telemetry` folder.
+- `xg privacy` prints a summary of this page and your current Platform ID. It is an ordinary command: it registers the installation at startup like every other command and, unless you have opted out, produces one usage record of its own.
+
+## Account data
+
+If you create an account on the portal, we hold the data you give us there (name, email, billing details) and the record of your licences and payments. When you delete your account, that data is not removed at once: we keep it for audit purposes for 24 months from your last sign-in or from the deletion of your account, whichever comes later, so that we can answer questions about past licences, invoices and payments. When that period ends, the record is anonymised: name and email are blanked, and what stays is a licence and payment history that cannot be linked back to you. Invoices themselves are kept for as long as tax law requires, by Stripe and by us.
+
+## Agents and `XRMGHOST_ACTOR`
+
+The first-run privacy notice is shown only on an interactive terminal, so an agent never sees it. If you install XrmGhost for an agent, this page is the notice: point the agent's instructions at it, or set `XRMGHOST_TELEMETRY` in the agent's environment.
+
+Each telemetry record carries three fields that say who drove the command, and nothing else about the agent:
+
+| Field | Values | How it is decided |
+|---|---|---|
+| `actor` | `human`, `agent`, `ci`, `unknown` | `--actor` option, then `XRMGHOST_ACTOR`, then a known agent variable in the environment, then CI variables, then an interactive console (`human`); a plain pipe or script is `unknown`, not `agent` |
+| `agent_name` | `claude-code`, `codex`, `copilot-cli`, `opencode`, `pi`, `gemini-cli`, `cursor`, `cline`, `mcp`, `other` | only when `actor` is `agent`; any name outside the list becomes `other` |
+| `is_ci` | `true` / `false` | from `CI`, `GITHUB_ACTIONS`, `TF_BUILD`, `GITLAB_CI`, `BUILDKITE`, `JENKINS_URL`, `TEAMCITY_VERSION`, `BUILD_BUILDID` |
+
+The agent is recognised from variables that agents set themselves (`CLAUDECODE`, `AI_AGENT`, `PI_CODING_AGENT`, `GEMINI_CLI`, `CODEX_SANDBOX`, `CURSOR_AGENT`, `CLINE_ACTIVE`). We read whether they are set, not their contents, and we never send their values. The fields are counted, nothing more: no command behaves differently because of them.
+
+`XRMGHOST_ACTOR=human` removes the agent marker and nothing else: records still carry `actor=human` and `is_ci`. To send none of these fields, use `XRMGHOST_TELEMETRY=0`.
+
+## Services we use
+
+| Service | For | Data it receives |
+|---|---|---|
+| Microsoft Azure (West Europe) | hosting of the licensing service, telemetry storage, service logs (30 days) | everything in sections 1–3; IP addresses in rate-limit logs |
+| Microsoft Dataverse | customer accounts, subscriptions | account and billing data |
+| Microsoft Entra / Microsoft account | sign-in to the portal | your Microsoft sign-in identity |
+| Microsoft 365 / Exchange Online | transactional email (password reset, renewal notices) | your email and name |
+| GitHub | sign-in to the portal; hosting of the documentation; download of the plugin host by `xg` | your GitHub identity; IP address on download and page visits |
+| Stripe | payments and invoices | name, email, billing address, tax ID, payment method |
+| Pirsch (Germany) | cookieless statistics on `www.xrmghost.tech` and `docs.xrmghost.tech` | page visits without cookies or persistent identifiers |
+
+## This page and the Privacy Policy
+
+This page is the technical notice: what `xg` sends, why, for how long, and how to turn it off. The [Privacy Policy](https://www.xrmghost.tech/legal/privacy-policy) is the legal document: who is responsible for your data, on what legal basis it is processed, your rights, and where it is transferred. The two agree with each other, and where they say the same thing in different words, the Privacy Policy prevails.
