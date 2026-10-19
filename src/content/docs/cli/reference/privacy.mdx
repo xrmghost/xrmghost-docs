@@ -110,13 +110,15 @@ An invalid `--actor` or `XRMGHOST_ACTOR` value is ignored and resolution continu
 
 ### 5. Opting Out of Telemetry
 
-Set the environment variable `XRMGHOST_TELEMETRY=0` before running `xg` to stop the transmission of CLI telemetry:
+Set the environment variable `XRMGHOST_TELEMETRY` to `0` to stop the transmission of CLI telemetry. To make the opt-out persistent for your Windows user account, use `setx`:
 
 ```shell
-# Linux / macOS
-export XRMGHOST_TELEMETRY=0
+setx XRMGHOST_TELEMETRY 0
+```
 
-# Windows (PowerShell)
+`setx` takes effect in terminals opened **after** you run it; the terminal where you ran it keeps the old value. To opt out only for the current PowerShell session, set it in the session instead (it is lost when the session closes):
+
+```shell
 $env:XRMGHOST_TELEMETRY = "0"
 ```
 
@@ -145,13 +147,9 @@ A run shows the notice only when **both** of these are true:
 
 When the notice is shown, the CLI records that fact by writing a file named `first-run.sentinel`. Redirected or piped runs and prerelease runs **neither show the notice nor write the sentinel**, so the notice still appears on your first interactive run of a stable version, even if the CLI has already run many times in CI or as a prerelease.
 
-The sentinel lives in the same directory as the Platform ID file `machine_id.dat` (see the storage path table in [`xg license get-platform-id`](/cli/reference/license-get-platform-id/)):
+The sentinel lives in the same directory as the Platform ID file `machine_id.dat` (see [`xg license get-platform-id`](/cli/reference/license-get-platform-id/)).
 
-| Platform | Sentinel path |
-|---|---|
-| Windows | `%LOCALAPPDATA%\XrmGhost\XrmGhostCli\first-run.sentinel` |
-| Linux | `$XDG_DATA_HOME/xrmghost/xrmghostcli/first-run.sentinel` (falls back to `~/.local/share/xrmghost/xrmghostcli/first-run.sentinel`) |
-| macOS | `~/Library/Application Support/xrmghost/xrmghostcli/first-run.sentinel` |
+On Windows the sentinel is `%LOCALAPPDATA%\XrmGhost\XrmGhostCli\first-run.sentinel`.
 
 To see the notice again, delete `first-run.sentinel`: the notice is shown again on the next interactive run of a stable version. Delete only that file — deleting `machine_id.dat` from the same directory generates a new Platform ID and invalidates licenses bound to the old one.
 
