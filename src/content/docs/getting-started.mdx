@@ -65,7 +65,7 @@ xg init --no-interactive
 xg run --no-interactive -a .\bin\Release\MyPlugins.dll -t MyPlugins.AccountPreCreate -s .\scenarios\account-create.json
 ```
 
-None of these commands prompts or opens an interactive sign-in. `xg init --no-interactive` installs the host from the public release page into `%LOCALAPPDATA%\xrmghost\framework-host\` when the agent has none — that is what it is for. `xg run --no-interactive` never downloads the host: if no usable host is found, it stops with a non-zero exit code and points to `xg init --no-interactive`. `init` reports the channel as `dotnet tool` and warns that the running `xg` is a tool shim: on a build agent that is expected. The agent must be Windows, because the host is a .NET Framework 4.7.2 process.
+None of these commands prompts or opens an interactive sign-in. `xg init --no-interactive` installs the host from the public release page into `%LOCALAPPDATA%\xrmghost\framework-host\` when the agent has none — that is what it is for. `xg run --no-interactive` never downloads the host: if no usable host is found, it stops with a non-zero exit code and points to `xg init --no-interactive`. `init` reports the channel as `dotnet tool`: the global tool is the supported channel for CI, and `init` does not warn about it. The agent must be Windows, because the host is a .NET Framework 4.7.2 process.
 
 The host is installed once and cached in that folder: later runs on the same agent reuse it. On an ephemeral agent the folder is empty at every run, so each `xg init --no-interactive` installs the latest stable host. To pin the host version between runs, cache `%LOCALAPPDATA%\xrmghost\framework-host\` in your pipeline (for example with your CI's cache step).
 

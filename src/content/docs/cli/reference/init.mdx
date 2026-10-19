@@ -17,7 +17,7 @@ xg init [--no-interactive]
 
 `xg init` does four things, in order, and stops at the first one that fails:
 
-1. **Reports the running CLI** — the path of the `xg` that is running and its channel (`ZIP self-contained` or `dotnet tool`). If it is a .NET global tool shim, or a shim is also installed under `%USERPROFILE%\.dotnet\tools` and may shadow the signed `xg.exe` on `PATH`, it prints a warning. A winget install is the same self-contained bundle as the ZIP and is reported as `ZIP self-contained`. The warning never stops the command.
+1. **Reports the running CLI** — the path of the `xg` that is running and its channel: `self-contained (winget)` when `xg.exe` runs from the winget install folder, `self-contained (winget or ZIP)` for any other self-contained `xg.exe`, `dotnet tool` when the .NET global tool is running. Running from the global tool is a supported channel, not a warning. The only warning is a PATH conflict: when a self-contained `xg.exe` is running and a separate .NET global tool shim is also installed under `%USERPROFILE%\.dotnet\tools`, whichever of the two comes first on `PATH` is the one `xg` runs, so `init` warns that the two may answer with different versions. The warning never stops the command.
 2. **Checks the prerequisites** — the machine must be Windows, and **.NET Framework 4.7.2** or later must be installed: the Framework Host is a .NET Framework 4.7.2 process.
 3. **Resolves and repairs the Framework Host** — it looks for the host in this order and uses the first one found:
    1. the host bundled in the `bin\` folder next to `xg.exe` (winget and ZIP installs);
@@ -60,7 +60,7 @@ Example output on a ZIP install with no license activated yet:
 XrmGhost Init
 
   Running xg: C:\Tools\XrmGhost\xg.exe
-  Channel: ZIP self-contained
+  Channel: self-contained (winget or ZIP)
   .NET Framework: 4.7.2 or later
   Framework Host: C:\Tools\XrmGhost\bin\...\XrmGhost.Framework.Host.exe (Bundled, <version>)
 
@@ -83,7 +83,7 @@ xg run --no-interactive -a ./bin/Release/MyPlugins.dll -t MyPlugins.AccountPreCr
 | `.NET Framework 4.7.2 or later is required by the Framework Host.` | Install .NET Framework 4.7.2 or later from [dotnet.microsoft.com](https://dotnet.microsoft.com/download/dotnet-framework) and rerun `xg init`. |
 | `The Framework Host bundled with the CLI is invalid` | Re-extract the ZIP, making sure `xg.exe` and the `bin\` folder come from the same ZIP. |
 | `Automatic installation of the Framework Host failed` | Check that `api.github.com` and `github.com` are reachable and that `%LOCALAPPDATA%\xrmghost\` is writable, then rerun. `xg doctor --verbose` shows the resolved host. |
-| `Warning: this xg is a dotnet tool shim.` | Use the `xg.exe` from the extracted ZIP; remove the shim with `dotnet tool uninstall --global XrmGhost.Cli`. |
+| `Warning: a dotnet tool shim of xrmghost-cli is also installed` | A separate .NET global tool shim may shadow the self-contained `xg.exe` on `PATH`. Remove the shim with `dotnet tool uninstall --global XrmGhost.Cli`, or put the winget or ZIP folder before `%USERPROFILE%\.dotnet\tools` in `PATH`. |
 
 ## See Also
 

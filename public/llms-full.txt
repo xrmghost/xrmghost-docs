@@ -1,6 +1,6 @@
 # XrmGhost Documentation — Full Text
 
-> Local-first development for Microsoft Dataverse and Dynamics 365. XrmGhost runs your plugins and tests on your machine, so the deploy-test loop closes in seconds instead of minutes. This file concatenates the product documentation (Overview, How It Works, Editions, Getting Started, CLI, Attributes, Skills) as a single markdown document for LLM and coding-agent ingestion. Canonical HTML lives at https://docs.xrmghost.tech/. The structured index is at https://docs.xrmghost.tech/llms.txt.
+> XrmGhost runs your Power Platform plugins locally — your AI agent writes them, and they work before they ship. Built for Microsoft Dataverse and Dynamics 365 plugin teams, it closes the deploy-test loop in seconds instead of minutes. This file concatenates the product documentation (Overview, How It Works, Editions, Getting Started, CLI, Attributes, Skills) as a single markdown document for LLM and coding-agent ingestion. Canonical HTML lives at https://docs.xrmghost.tech/. The structured index is at https://docs.xrmghost.tech/llms.txt.
 
 
 
@@ -33,7 +33,7 @@
   />
 </p>
 
-**Local-first development for Microsoft Dataverse and Dynamics 365.**
+**XrmGhost runs your Power Platform plugins locally — your AI agent writes them, and they work before they ship.**
 
 The Dynamics development loop is broken. You write code, you deploy, you wait, you test against the cloud, you find the bug, you do it again. XrmGhost runs your plugins and your tests on your machine, so the loop closes in seconds instead of minutes.
 
@@ -81,7 +81,7 @@ Need to report a problem, request a capability, or discuss an idea? → **[Commu
 
 # Overview
 
-XrmGhost is a local-first development toolchain for Microsoft Dataverse and Dynamics 365 plugin teams. It helps you run plugin logic on your own machine, reproduce scenarios quickly, and shorten the feedback loop between a code change and a verified result.
+XrmGhost runs your Power Platform plugins locally — your AI agent writes them, and they work before they ship. It is built for Microsoft Dataverse and Dynamics 365 plugin teams: it helps you reproduce scenarios quickly and shorten the feedback loop between a code change and a verified result.
 
 ## What XrmGhost is
 
@@ -188,7 +188,7 @@ Both editions share the same core workflow — author a scenario, run it locally
 Standard covers the full local development loop for Dataverse server-side code.
 
 - **Run plugins and Custom APIs locally.** Execute your server-side C# on your own machine, in a runtime shaped to match the Dataverse plugin pipeline. (Support for custom workflow activities — CWA — is on the roadmap.)
-- **Headless execution.** Run a scenario and read the result straight away — ideal for a fast write-run-fix loop, for automation, and for CI.
+- **Headless execution.** Run a scenario and read the result straight away — ideal for a fast write-run-fix loop and for local automation, including an AI agent driving `xg` without a console attached.
 - **Line-by-line debugging.** Attach a debugger to your own code as it runs locally — in Visual Studio, *Debug → Attach to Process* onto the XrmGhost host — and step through your plugin exactly as you would any local program. No deploy, no remote profiler.
 - **Scenario-driven data.** The data a run reads is supplied by the scenario itself (mocked data), so a run is fully self-contained and reproducible.
 
@@ -200,6 +200,7 @@ Pro includes everything in Standard, and adds live integration with real Dataver
 
 - **Read-only access to live Dataverse environments.** This is the defining Pro capability, and it is strictly **read-only**: XrmGhost reads from the environment only to satisfy the queries your code makes during a local run, and never writes anything back. Your live data is never modified.
 - **Environment and connection library.** Register, organize, and switch between multiple Dataverse environments and connections, so you can point a run at whichever environment you need.
+- **Use in a CI pipeline.** Running `xg` as part of a CI pipeline (as opposed to local, interactive or agent-driven automation) requires Pro.
 - **Live data instead of mocks.** You design your scenario, pass the real id of the specific record or user you care about, and run your code locally — but the plugin's reads (`Retrieve` / `RetrieveMultiple`) are answered by the environment, as the [`--data-source`](/cli/reference/run/#data-source-routing) you choose dictates: `auto` (the default) reads live first, `live` reads only live. You no longer have to mock the data the code reads; XrmGhost fetches it from the real environment as the run executes.
 
 This is the `auto` / `live` data source described in [Using the Skills](/skills/using-skills/): on Standard a run reads only mocked scenario data; on Pro it can read live, read-only data from a configured environment.
@@ -216,10 +217,19 @@ Use Pro when you want to reproduce and debug real, live cases locally without ha
 | --- | --- |
 | Run and debug plugins / Custom APIs locally with data you define | Standard |
 | Read live, read-only data from real Dataverse environments during a run, and manage multiple environments | Pro |
+| Run `xg` as part of a CI pipeline | Pro |
 
-Pro is a superset of Standard: everything you can do in Standard, you can do in Pro.
+Pro is a superset of Standard: everything you can do in Standard, you can do in Pro. Compare plans and prices on the [XrmGhost pricing page](https://www.xrmghost.tech/#pricing).
 
-XrmGhost is distributed for evaluation, so you can install it and try the local workflow before activating a Standard or Pro license — see [Getting Started](/getting-started/).
+XrmGhost is distributed for evaluation, so you can install it and try the local workflow before activating a Standard or Pro license — see [Getting Started](/getting-started/) to install, then [Activating an edition](#activating-an-edition) when you are ready to license it.
+
+## Activating an edition
+
+1. **Choose a plan.** Pick Standard or Pro on the [pricing page](https://www.xrmghost.tech/#pricing). If you are already signed in to your XrmGhost account, **Browse Plans** offers the same choice from inside the account.
+2. **Create an API key.** In your account, open **API Keys** and select **Create API Key**.
+3. **Copy the key.** The **API Key Created** dialog shows the new API key; copy it.
+4. **Activate the machine.** Run [`xg license activate`](/cli/reference/license-activate/) with the API key. The API key you copy from *API Key Created* is the argument you pass to `xg license activate`, shown as `<ACTIVATION_KEY>` in the command reference.
+5. **Check the license.** Run [`xg license status`](/cli/reference/license-status/) to see the license status and tier now active on the machine.
 
 ## Related pages
 
@@ -298,7 +308,7 @@ xg init --no-interactive
 xg run --no-interactive -a .\bin\Release\MyPlugins.dll -t MyPlugins.AccountPreCreate -s .\scenarios\account-create.json
 ```
 
-None of these commands prompts or opens an interactive sign-in. `xg init --no-interactive` installs the host from the public release page into `%LOCALAPPDATA%\xrmghost\framework-host\` when the agent has none — that is what it is for. `xg run --no-interactive` never downloads the host: if no usable host is found, it stops with a non-zero exit code and points to `xg init --no-interactive`. `init` reports the channel as `dotnet tool` and warns that the running `xg` is a tool shim: on a build agent that is expected. The agent must be Windows, because the host is a .NET Framework 4.7.2 process.
+None of these commands prompts or opens an interactive sign-in. `xg init --no-interactive` installs the host from the public release page into `%LOCALAPPDATA%\xrmghost\framework-host\` when the agent has none — that is what it is for. `xg run --no-interactive` never downloads the host: if no usable host is found, it stops with a non-zero exit code and points to `xg init --no-interactive`. `init` reports the channel as `dotnet tool`: the global tool is the supported channel for CI, and `init` does not warn about it. The agent must be Windows, because the host is a .NET Framework 4.7.2 process.
 
 The host is installed once and cached in that folder: later runs on the same agent reuse it. On an ephemeral agent the folder is empty at every run, so each `xg init --no-interactive` installs the latest stable host. To pin the host version between runs, cache `%LOCALAPPDATA%\xrmghost\framework-host\` in your pipeline (for example with your CI's cache step).
 
@@ -496,7 +506,7 @@ Once the binary is in place, verify it responds:
 xg --version
 ```
 
-You should see a version header showing the CLI version and the bundled Core version. If the command is not found, make sure the folder that contains `xg.exe` is on your `PATH` and that you opened a new shell after changing it.
+You should see a version header showing the CLI version and the version of the bundled Framework Host. If the command is not found, make sure the folder that contains `xg.exe` is on your `PATH` and that you opened a new shell after changing it.
 
 ## Discover available commands
 
@@ -3425,7 +3435,7 @@ xg generate-scenario -p <PLUGIN_ASSEMBLY_PATH> -t <PLUGIN_TYPE_NAME> [options]
 | `--debug-mode` | `-d` | `bool` | `false` | Emits detailed verbose output, including FrameworkHost startup information, gRPC health-check status, and per-field scaffold decisions. |
 | `--no-default-user-settings` | — | `bool` | `false` | Suppresses the automatic insertion of a default `usersettings` mock (Retrieve response) for the calling user context. |
 | `--no-default-owner` | — | `bool` | `false` | Suppresses the automatic insertion of a default `ownerid` (EntityReference to `systemuser`) in the generated `Target` entity. |
-| `--online` | — | `bool` | `false` | Enables online mode, which activates live Dataverse metadata integration. Requires an active **Pro** license. |
+| `--online` | — | `bool` | `false` | Requires an active **Pro** license: the command verifies the license tier and exits with code `1` if it is not Pro. Scenario generation is otherwise unchanged. |
 | `--no-interactive` | — | `bool` | `false` | Exits immediately if FrameworkHost is not installed instead of downloading it automatically. Useful in CI pipelines. |
 
 ---
@@ -3460,7 +3470,7 @@ This warning does not prevent the file from being written. It flags that you nee
 
 ### Online mode
 
-With `--online` the command can integrate live Dataverse metadata (entity definitions, option sets). This feature requires an active **Pro** license; the command validates the license tier before proceeding and returns exit code `1` if the check fails.
+`--online` requires an active **Pro** license. The command verifies the license tier before proceeding and exits with code `1` if the tier is not Pro. Otherwise, the scenario is generated exactly as it is without `--online`.
 
 ---
 
@@ -3553,7 +3563,7 @@ xg init [--no-interactive]
 
 `xg init` does four things, in order, and stops at the first one that fails:
 
-1. **Reports the running CLI** — the path of the `xg` that is running and its channel (`ZIP self-contained` or `dotnet tool`). If it is a .NET global tool shim, or a shim is also installed under `%USERPROFILE%\.dotnet\tools` and may shadow the signed `xg.exe` on `PATH`, it prints a warning. A winget install is the same self-contained bundle as the ZIP and is reported as `ZIP self-contained`. The warning never stops the command.
+1. **Reports the running CLI** — the path of the `xg` that is running and its channel: `self-contained (winget)` when `xg.exe` runs from the winget install folder, `self-contained (winget or ZIP)` for any other self-contained `xg.exe`, `dotnet tool` when the .NET global tool is running. Running from the global tool is a supported channel, not a warning. The only warning is a PATH conflict: when a self-contained `xg.exe` is running and a separate .NET global tool shim is also installed under `%USERPROFILE%\.dotnet\tools`, whichever of the two comes first on `PATH` is the one `xg` runs, so `init` warns that the two may answer with different versions. The warning never stops the command.
 2. **Checks the prerequisites** — the machine must be Windows, and **.NET Framework 4.7.2** or later must be installed: the Framework Host is a .NET Framework 4.7.2 process.
 3. **Resolves and repairs the Framework Host** — it looks for the host in this order and uses the first one found:
    1. the host bundled in the `bin\` folder next to `xg.exe` (winget and ZIP installs);
@@ -3596,7 +3606,7 @@ Example output on a ZIP install with no license activated yet:
 XrmGhost Init
 
   Running xg: C:\Tools\XrmGhost\xg.exe
-  Channel: ZIP self-contained
+  Channel: self-contained (winget or ZIP)
   .NET Framework: 4.7.2 or later
   Framework Host: C:\Tools\XrmGhost\bin\...\XrmGhost.Framework.Host.exe (Bundled, <version>)
 
@@ -3619,7 +3629,7 @@ xg run --no-interactive -a ./bin/Release/MyPlugins.dll -t MyPlugins.AccountPreCr
 | `.NET Framework 4.7.2 or later is required by the Framework Host.` | Install .NET Framework 4.7.2 or later from [dotnet.microsoft.com](https://dotnet.microsoft.com/download/dotnet-framework) and rerun `xg init`. |
 | `The Framework Host bundled with the CLI is invalid` | Re-extract the ZIP, making sure `xg.exe` and the `bin\` folder come from the same ZIP. |
 | `Automatic installation of the Framework Host failed` | Check that `api.github.com` and `github.com` are reachable and that `%LOCALAPPDATA%\xrmghost\` is writable, then rerun. `xg doctor --verbose` shows the resolved host. |
-| `Warning: this xg is a dotnet tool shim.` | Use the `xg.exe` from the extracted ZIP; remove the shim with `dotnet tool uninstall --global XrmGhost.Cli`. |
+| `Warning: a dotnet tool shim of xrmghost-cli is also installed` | A separate .NET global tool shim may shadow the self-contained `xg.exe` on `PATH`. Remove the shim with `dotnet tool uninstall --global XrmGhost.Cli`, or put the winget or ZIP folder before `%USERPROFILE%\.dotnet\tools` in `PATH`. |
 
 ## See Also
 
@@ -3945,7 +3955,7 @@ xg privacy
 
 ## Description
 
-`xg privacy` prints a structured summary of every category of data that XrmGhost collects, stores, or transmits. The command exits immediately after printing; it does not open a browser or make network requests.
+`xg privacy` prints a structured summary of every category of data that XrmGhost collects, stores, or transmits. The command only prints this summary and does not open a browser. Like every `xg` invocation, it still registers the machine with XrmGhost servers at startup (see section 3) and, unless telemetry is disabled with `XRMGHOST_TELEMETRY=0`, records pseudonymised usage telemetry for the run (see sections 4 and 5).
 
 The output covers five distinct areas:
 

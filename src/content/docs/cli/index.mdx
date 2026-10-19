@@ -32,6 +32,55 @@ The CLI is aimed at developers who:
 
 For the full flag-level detail of every command and sub-command, see the [CLI Reference](/cli/reference/) section.
 
+## Output in CI and AI Agents
+
+`xg` adapts its output to where stdout goes. In an interactive terminal (TTY) you get colours, clickable links, and output sized to the terminal window. When stdout is redirected — piped into another command, written to a file, captured by a CI runner or read by an AI agent — `xg` switches to a plain-text policy so that logs stay clean and parseable.
+
+### What changes when stdout is redirected
+
+- **No ANSI escape sequences.** Colour is disabled unless you force it (see below), so log files and agent transcripts contain no `\e[...m` codes.
+- **No OSC 8 hyperlinks.** Links are printed as plain text, never wrapped in terminal hyperlink sequences. This holds even when colour is forced.
+- **Predictable width.** Output is laid out to the value of `COLUMNS` when it is an integer between 1 and 1000; if `COLUMNS` is unset, not an integer, or out of that range, the width is 240.
+
+On a TTY, the width always follows the real terminal size: `COLUMNS` has no effect there.
+
+### Environment variables
+
+| Variable | Effect |
+|---|---|
+| `NO_COLOR` | When set to any non-empty value, disables colour everywhere — redirected output **and** TTY. It always wins over `XRMGHOST_COLOR` and `FORCE_COLOR`. |
+| `XRMGHOST_COLOR` | When set to `1`, forces ANSI colour in redirected output. |
+| `FORCE_COLOR` | When set to a non-empty value other than `0`, forces ANSI colour in redirected output. |
+| `COLUMNS` | In redirected output only, sets the width when it is an integer from 1 to 1000; otherwise the width is 240. |
+
+`XRMGHOST_COLOR` and `FORCE_COLOR` re-enable ANSI colour only: they never re-enable OSC 8 links in redirected output.
+
+### Examples
+
+Clean, uncoloured logs in CI or for an agent — the default, nothing to set:
+
+```sh
+xg doctor > doctor.log
+```
+
+Narrower output for a tool that reads fixed-width text:
+
+```sh
+COLUMNS=120 xg env list | tee env.txt
+```
+
+Coloured output in a CI log viewer that renders ANSI (links stay plain text):
+
+```sh
+XRMGHOST_COLOR=1 xg run --help | cat
+```
+
+Guaranteed plain text, even if the runner sets `FORCE_COLOR` for you:
+
+```sh
+NO_COLOR=1 FORCE_COLOR=1 xg doctor | cat   # NO_COLOR wins: no colour
+```
+
 ## How This Documentation Slice Is Organised
 
 | Page | What you will find |
