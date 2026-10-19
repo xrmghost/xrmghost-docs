@@ -208,7 +208,7 @@ A file value without an extension that is not an existing directory stays a file
 A directory that already exists is always a directory target, even when its name ends in `.json`: with an existing `./scenarios.json/` folder, `-o ./scenarios.json` writes `./scenarios.json/<PluginTypeName>_<MessageName>_Scenario.json` and not a file called `scenarios.json`. In a directory target, and in the several-messages case of a file value, the default names can overwrite scenario files already present there.
 :::
 
-Directory targets require a CLI release that includes directory-target support for `-o`.
+Directory targets are available from `xg` **1.7.6** onwards.
 
 ### Multiple message handlers
 
