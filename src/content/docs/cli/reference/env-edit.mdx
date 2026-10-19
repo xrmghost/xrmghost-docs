@@ -33,6 +33,10 @@ The wizard walks you through the following fields in order:
 4. **Client Secret** — the Azure AD application secret. Leave blank to keep the existing secret without changing it.
 5. **Metadata cache lifecycle** — how long the Dataverse metadata cache is considered fresh before an automatic refresh is triggered. Select from a preset list or enter a custom duration.
 
+:::note Changing the Environment URL invalidates the stored TenantId
+The `TenantId` stored for the environment is derived from its Environment URL, so `env edit` invalidates it (saves it as empty) only when the URL really changes. Differences of only a trailing slash or of letter case do not count as a change and keep the stored `TenantId`. `env edit` does not probe the new URL: the next run of [`xg env activate <FRIENDLY_NAME>`](https://docs.xrmghost.tech/cli/reference/env-activate/) makes a best-effort attempt to recalculate it, even if the edited environment is already the active one.
+:::
+
 ### Secret handling
 
 The Client Secret is stored separately from the environment configuration file. When editing:

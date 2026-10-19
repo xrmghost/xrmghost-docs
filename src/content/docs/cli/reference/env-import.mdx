@@ -83,7 +83,8 @@ The command accepts two JSON shapes:
 The import never reads a `TenantId` field from the file, even when the file was produced by [`xg env export`](/cli/reference/env-export/): any `TenantId` value in the JSON is ignored.
 
 - **New environments** go through the same unauthenticated, best-effort tenant probe used by [`xg env add`](/cli/reference/env-add/) (`{EnvironmentUrl}/api/data/v9.2/WhoAmI`, tenant read from `authorization_uri` in the `WWW-Authenticate` header). The probe needs HTTP reachability but no credentials; if it fails or finds no tenant, the environment is still imported and saved with an empty `TenantId`.
-- **Overwritten environments** (see [Conflict Resolution](#conflict-resolution)) are not probed: the `TenantId` already stored in the local configuration is kept unchanged, even when the imported `EnvironmentUrl` is different. An empty `TenantId` is filled in at the next [`xg env activate`](/cli/reference/env-activate/).
+- **Overwritten environments** (see [Conflict Resolution](#conflict-resolution)) are not probed, and the `TenantId` from the file is ignored here too: the value stays the one already in the local store, or is invalidated (saved as empty) when the imported `EnvironmentUrl` really differs from the stored one. Differences of only a trailing slash or of letter case do not count as a change and keep the stored `TenantId`. The next run of [`xg env activate <FRIENDLY_NAME>`](https://docs.xrmghost.tech/cli/reference/env-activate/) makes a best-effort attempt to recalculate an invalidated `TenantId`, even if the overwritten environment is already the active one.
+- **Skipped environments** are left unchanged, `TenantId` included.
 
 ---
 
@@ -94,7 +95,7 @@ If an environment with the same `FriendlyName` already exists in the local store
 | Choice | Behaviour |
 |---|---|
 | **Skip** | The conflicting environment is left unchanged. The import counter increments `skipped`. |
-| **Overwrite** | The existing entry is updated with the imported `EnvironmentUrl`, `AuthenticationMethod`, `ClientId` and `MetadataCacheLifecycle`, and the client secret is replaced. The locally stored `TenantId` is kept as it is and no tenant probe runs. The import counter increments `overwritten`. |
+| **Overwrite** | The existing entry is updated with the imported `EnvironmentUrl`, `AuthenticationMethod`, `ClientId` and `MetadataCacheLifecycle`, and the client secret is replaced. The `TenantId` field of the imported file is not read, even when present as in files produced by `xg env export`: the locally stored `TenantId` is kept, or invalidated when the `EnvironmentUrl` really changes (trailing-slash or letter-case differences alone do not count). No tenant probe runs during the import; the next run of [`xg env activate <FRIENDLY_NAME>`](https://docs.xrmghost.tech/cli/reference/env-activate/) makes a best-effort attempt to recalculate it, even if the environment is already active. The import counter increments `overwritten`. |
 
 A third option, **Rename**, is currently shown in the prompt but is not yet implemented — selecting it results in a skip.
 
