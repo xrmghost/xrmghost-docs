@@ -39,6 +39,8 @@ The command has two required arguments — the assembly path and the fully-quali
 
 `auto` is deliberately asymmetric. A `Retrieve` that finds nothing live may still be answered by a record the scenario mocks or the run created; a multiple-record query that was attempted live and failed is never silently replaced with mock rows, because mock rows in place of the live ones would be indistinguishable from an answer. The `Retrieve` fallback does not apply to `RetrieveMultiple`.
 
+`--data-source` routes reads only. Writes never reach Dataverse in any mode: in `auto` and `live` an `Update` or `Delete` of a record only Dataverse knows is checked there with a read-only `Retrieve`, and the change then stays confined to the run. See [Writes to live records (Pro)](/cli/scenarios/#writes-to-live-records-pro).
+
 ### Caller identity
 
 What a plugin gets from `IOrganizationServiceFactory.CreateOrganizationService(userId)` is a new service bound to that caller, in every data-source mode. Services created for different callers share the run — mocks, records created during the run, live connection and cache, warnings — but never each other's caller.

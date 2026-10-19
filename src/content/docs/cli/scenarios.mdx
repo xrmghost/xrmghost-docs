@@ -14,6 +14,12 @@ This page is the canonical reference for that document. A starting template for 
 be produced with [`xg generate-scenario`](/cli/reference/generate-scenario/); everything below is
 what you edit afterwards.
 
+The scenario is **input, and it is never rewritten**. The host reads it when the run starts and
+builds the run's state from it in memory; every record the plugin creates, updates or deletes changes
+that state, for that run only. Nothing is written back to the file, so two runs of the same scenario
+start from the same input, whatever the first one did. What each write does to the run's state is
+described in [What the run does with its writes](#what-the-run-does-with-its-writes).
+
 ## Minimum shape
 
 Four keys are enough to run a plugin:
@@ -172,7 +178,10 @@ Dataverse throws: a `FaultException<OrganizationServiceFault>` with error code `
 
 Writes are visible to later reads within the same run: a `Retrieve` after the plugin's `Update`
 returns the updated values, and a `Retrieve` after a `Delete` of that record throws the same
-not-found fault, even if `retrieveResponses` or the seed still describe it.
+not-found fault, even if `retrieveResponses` or the seed still describe it. This holds for the
+records the scenario mocks and the ones the run creates, and always with `--data-source mock`. It
+does **not** hold for a record that exists in Dataverse when the run reads live (`auto` and `live`
+with a Pro license): see [Writes to live records (Pro)](#writes-to-live-records-pro).
 
 ### `RetrieveMultiple` — the root-level `entities` key
 
@@ -213,6 +222,77 @@ or attribute values cannot be converted, the plugin is not run against a partial
 reported as failed and `xg run` exits with code `1`, whatever `expectedException` declares. Fix the
 seed; a run that silently dropped it
 would not be testing what you wrote.
+
+## What the run does with its writes
+
+Every write the plugin makes through `IOrganizationService` changes the **state of the run** — the
+in-memory copy built from the scenario when the run starts — and nothing else: not the scenario
+file, and not Dataverse. The next run starts again from the scenario as written.
+
+Whether a record exists is decided by the same lookup that answers a `Retrieve` (see
+[How a `Retrieve` is answered](#how-a-retrieve-is-answered)): what the run itself did,
+`retrieveResponses`, the root-level `entities` seed, the rest of the in-memory store. A record that
+none of them knows **does not exist, as in Dataverse**: an `Update` or a `Delete` of it fails, and no
+record is made up to let the write through. If the plugin writes to a record that it did not create
+itself, declare that record in `entities` or in `retrieveResponses`.
+
+| Message | Effect on the run's state | Fault |
+|---|---|---|
+| `Create` | Adds the record. Later `Retrieve` and `RetrieveMultiple` calls in the run see it. Without a declared id, a new one is generated. | `0x80040237` (duplicate key) when the declared id — the entity's `Id` or its `<logicalName>id` attribute — is already known to the run: created earlier in it, or declared in `retrieveResponses` or `entities`. |
+| `Retrieve` | None: it reads. | `0x80040217` (does not exist) when no source has the record, the id is `Guid.Empty`, or the run deleted the record earlier. |
+| `RetrieveMultiple` | None: it evaluates the query against the run's records — the `entities` seed, plus the records the run created or updated, minus the ones it deleted. | — |
+| `Update` | Merges the attributes the plugin sent onto the record as `Retrieve` would return it, whichever source that is. Later reads see the merged record. | `0x80040217` when no source knows the record, the run deleted it earlier, or the id is `Guid.Empty`. |
+| `Delete` | Removes the record for the rest of the run, even if `retrieveResponses` or `entities` still describe it. | `0x80040217` when no source knows the record, the run already deleted it, or the id is `Guid.Empty`. |
+
+**`retrieveResponses` does not feed `RetrieveMultiple`.** A record declared only in
+`retrieveResponses` answers a `Retrieve` by id, but a query does not find it — until the plugin
+updates that record in the run: from then on the merged record is part of the run's state, and
+`RetrieveMultiple` sees it like any other. A record the plugin must find through a query belongs in
+`entities`.
+
+**`Execute` follows the same model.** `Execute` with a `CreateRequest`, `UpdateRequest`,
+`DeleteRequest`, `RetrieveRequest` or `RetrieveMultipleRequest` is handed to `Create`, `Update`,
+`Delete`, `Retrieve` and `RetrieveMultiple` respectively, on every license: same run state, same
+faults. A custom `OrganizationRequest` still throws `NotImplementedException`.
+
+Both faults are the ones Dataverse throws — in C#, `FaultException<OrganizationServiceFault>`, with
+the error code in `Detail.ErrorCode` — so a plugin that catches them sees what it would see in
+Dataverse. That C# notation is **not** the value to write in `typeName`: `expectedException`
+compares the CLR type's full name exactly, and for this fault that name is the one below, to be
+copied as it is:
+
+```json
+"expectedException": {
+  "typeName": "System.ServiceModel.FaultException`1[[Microsoft.Xrm.Sdk.OrganizationServiceFault, Microsoft.Xrm.Sdk, Version=9.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35]]"
+}
+```
+
+The same `typeName` serves both `0x80040217` and `0x80040237`: `expectedException` matches the type
+and, optionally, the message — not the error code.
+
+### Writes to live records (Pro)
+
+:::note[auto and live: writes stay in the run]
+With `--data-source auto` or `live`, a Pro license and an active environment, the run can reach
+records the scenario does not declare. Writes to them still never leave the run:
+
+- **An `Update` or `Delete` of a record no source of the run knows asks Dataverse** whether it
+  exists, with a read-only `Retrieve` (`ColumnSet(false)`, no columns). If it exists, the change is
+  kept in the run's state only: **nothing is written to Dataverse**, in any mode.
+- **If Dataverse answers that the record does not exist**, the plugin gets Dataverse's own fault.
+  Any other failure of that check makes the record count as missing — fault `0x80040217` — with a
+  warning in `auto`.
+- **The run's tombstone wins over live only for writes.** After the run deletes a record, a later
+  `Update` or `Delete` of the same record faults `0x80040217` without asking Dataverse.
+- **Reads are not covered by the run's state for records Dataverse has.** In `auto` and `live` a
+  `Retrieve` goes to Dataverse first, so after an `Update` or a `Delete` of a live record it returns
+  the record as it is in Dataverse — the run's change is not visible to it.
+- **In `live`, `Update` and `Delete` still find the records the scenario declares**, while
+  `Retrieve` does not read them: it answers from Dataverse only.
+
+Without a Pro license or an active environment, and always with `--data-source mock`, Dataverse is
+not asked: a record no source of the run knows faults `0x80040217`.
+:::
 
 ## Pre-images
 
