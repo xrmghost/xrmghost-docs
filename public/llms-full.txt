@@ -2658,6 +2658,10 @@ The wizard walks you through the following fields in order:
 4. **Client Secret** — the Azure AD application secret. Leave blank to keep the existing secret without changing it.
 5. **Metadata cache lifecycle** — how long the Dataverse metadata cache is considered fresh before an automatic refresh is triggered. Select from a preset list or enter a custom duration.
 
+:::note Changing the Environment URL invalidates the stored TenantId
+The `TenantId` stored for the environment is derived from its Environment URL, so `env edit` invalidates it (saves it as empty) only when the URL really changes. Differences of only a trailing slash or of letter case do not count as a change and keep the stored `TenantId`. `env edit` does not probe the new URL: the next run of [`xg env activate <FRIENDLY_NAME>`](https://docs.xrmghost.tech/cli/reference/env-activate/) makes a best-effort attempt to recalculate it, even if the edited environment is already the active one.
+:::
+
 ### Secret handling
 
 The Client Secret is stored separately from the environment configuration file. When editing:
@@ -2942,6 +2946,14 @@ The command accepts two JSON shapes:
 
 > **Client secret handling:** The `ClientSecret` field is deliberately excluded from files produced by `xg env export` (it is marked `[JsonIgnore]` during export). If the import file does not contain a `ClientSecret` and the environment uses `ClientSecret` authentication, the command will interactively prompt you to enter it. To automate imports, pre-populate the field in the JSON before running the command in a non-interactive context.
 
+### Tenant (`TenantId`)
+
+The import never reads a `TenantId` field from the file, even when the file was produced by [`xg env export`](/cli/reference/env-export/): any `TenantId` value in the JSON is ignored.
+
+- **New environments** go through the same unauthenticated, best-effort tenant probe used by [`xg env add`](/cli/reference/env-add/) (`{EnvironmentUrl}/api/data/v9.2/WhoAmI`, tenant read from `authorization_uri` in the `WWW-Authenticate` header). The probe needs HTTP reachability but no credentials; if it fails or finds no tenant, the environment is still imported and saved with an empty `TenantId`.
+- **Overwritten environments** (see [Conflict Resolution](#conflict-resolution)) are not probed, and the `TenantId` from the file is ignored here too: the value stays the one already in the local store, or is invalidated (saved as empty) when the imported `EnvironmentUrl` really differs from the stored one. Differences of only a trailing slash or of letter case do not count as a change and keep the stored `TenantId`. The next run of [`xg env activate <FRIENDLY_NAME>`](https://docs.xrmghost.tech/cli/reference/env-activate/) makes a best-effort attempt to recalculate an invalidated `TenantId`, even if the overwritten environment is already the active one.
+- **Skipped environments** are left unchanged, `TenantId` included.
+
 ---
 
 ## Conflict Resolution
@@ -2951,7 +2963,7 @@ If an environment with the same `FriendlyName` already exists in the local store
 | Choice | Behaviour |
 |---|---|
 | **Skip** | The conflicting environment is left unchanged. The import counter increments `skipped`. |
-| **Overwrite** | The existing configuration is replaced with the imported one. The import counter increments `overwritten`. |
+| **Overwrite** | The existing entry is updated with the imported `EnvironmentUrl`, `AuthenticationMethod`, `ClientId` and `MetadataCacheLifecycle`, and the client secret is replaced. The `TenantId` field of the imported file is not read, even when present as in files produced by `xg env export`: the locally stored `TenantId` is kept, or invalidated when the `EnvironmentUrl` really changes (trailing-slash or letter-case differences alone do not count). No tenant probe runs during the import; the next run of [`xg env activate <FRIENDLY_NAME>`](https://docs.xrmghost.tech/cli/reference/env-activate/) makes a best-effort attempt to recalculate it, even if the environment is already active. The import counter increments `overwritten`. |
 
 A third option, **Rename**, is currently shown in the prompt but is not yet implemented — selecting it results in a skip.
 
