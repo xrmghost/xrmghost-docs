@@ -32,7 +32,7 @@ Every time `xg` starts (except `xg --version`), it registers the installation wi
 | Field | Example | Why | Kept for |
 |---|---|---|---|
 | Platform ID | `3fa85f64…` (random GUID, created on first run, stored in `machine_id.dat`) | Identifies the installation; links a license to it | until you ask us to delete it |
-| Machine name (hashed) | SHA-256 of `MachineName:<your machine name>` | Tell installations apart | same |
+| Machine name (hashed) | SHA-256 of `MachineName:<your machine name>` | Tell installations apart; detect duplicate registrations | same |
 | User name (hashed) | SHA-256 of `UserName:<your OS user>` | same | same |
 | User domain (hashed) | SHA-256 of `UserDomainName:<your domain>` | same | same |
 | OS description | `Microsoft Windows 10.0.22631` | Compatibility and support | same |
@@ -42,6 +42,8 @@ Every time `xg` starts (except `xg --version`), it registers the installation wi
 Our server adds the time of the first and of the latest registration, so that we know whether an installation is still active. The CLI does not send a timestamp of its own.
 
 **A note on hashing.** The three names are hashed on your machine before they are sent, so we never receive them in clear. The hash has no secret key, which means that someone who already knows your user name could compute the same value and recognise it. That is why we call these fields pseudonymous, not anonymous.
+
+**Duplicate installations.** Deleting `machine_id.dat` creates a new Platform ID. To count installations correctly, our servers compute a second hash over the three hashed names above and use it to recognise a reinstall on the same machine. That hash is computed only from fields already listed here; it adds nothing new from your machine.
 
 ## 2. Usage telemetry (on by default, can be turned off)
 
