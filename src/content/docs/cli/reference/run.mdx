@@ -81,12 +81,14 @@ xg run \
 ```
 
 ```
-Schema warning: Uninterpretable scenario shape at $.organizationServiceMock.retrieveResponses[0].request.columnSet[1]: expected a column name. Not validated.
+Schema cache age: 02:15:00 (as of 2026-10-20T10:15:00.0000000+00:00)
 Schema finding: unknown attribute 'nam' on entity 'account' at $.executionContext.inputParameters.Target.nam
 Schema validation rejected the run before plugin execution.
 ```
 
-Each finding's trailing path (e.g. `$.executionContext.inputParameters.Target.nam`) is the source location of the offending value inside the scenario document — a JSON path for scenario findings, or the registration attribute name (e.g. `PluginExecutionConfigAttribute.FilteringAttributes`) for registration findings.
+The `Schema cache age` line is always printed first, when the cache has a timestamp — it is informational and does not affect the pass/fail decision. Each finding's trailing path (e.g. `$.executionContext.inputParameters.Target.nam`) is the source location of the offending value inside the scenario document — a JSON path for scenario findings, or the registration attribute name (e.g. `PluginExecutionConfigAttribute.FilteringAttributes`) for registration findings.
+
+An uninterpretable scenario shape prints as both a `Schema warning` line and, separately, a `Schema finding: uninterpretable scenario shape at <path>` line; by itself it does not reject the run unless `--strict-schema` is set.
 
 ### Runtime schema diagnostics
 
