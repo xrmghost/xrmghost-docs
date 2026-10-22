@@ -25,6 +25,88 @@ The command has two required arguments — the assembly path and the fully-quali
 
 **Data-source routing** (`--data-source`) controls how `RetrieveMultiple` calls are handled inside the simulated `IOrganizationService`. `auto` (the default) lets the host decide based on the scenario content.
 
+## Cached Schema Validation
+
+Before the plugin executes, `xg run` validates the scenario — and, when the host can supply it, the plugin's registration data — against the Dataverse metadata cache of the **active environment**. This runs on every invocation; it reads only the local cache, never Dataverse.
+
+### What always rejects the run
+
+An entity or attribute logical name that the cache does not recognize is an error on every run, independent of `--strict-schema`: the command prints the finding, prints `Schema validation rejected the run before plugin execution.`, and exits non-zero — the plugin is never invoked.
+
+### `--strict-schema`
+
+Without `--strict-schema`, anything short of a known-missing entity or attribute is only a warning: it is printed and the run proceeds. With `--strict-schema`, these cases reject the run as well (non-zero exit, no plugin execution):
+
+- the metadata cache is missing or unreadable (absent, corrupt, or otherwise unusable)
+- the scenario contains a shape the validator cannot interpret
+- the plugin's registration metadata could not be retrieved from the host
+
+`--strict-schema` only turns existing warnings into rejections; it never introduces a new way for a run to fail.
+
+### What gets validated
+
+Scenario values are checked against the cache, by scenario group:
+
+- the primary entity (`executionContext.primaryEntityName`)
+- `Target` and any other entity-shaped value under `inputParameters` and `sharedVariables`
+- the root-level `entities` map used to seed the simulated `IOrganizationService`
+- pre- and post-entity images
+- mocked `Retrieve`/`RetrieveMultiple` responses, including the requested column set
+- FetchXML query filters and conditions on a mocked `RetrieveMultiple` request
+- both the nested (`attributes: {...}`) and the flat-column shape of an entity value
+
+Plugin registration data is checked separately, once the host's registration metadata is available: the primary entity name, the filtering attributes (for `Update` registrations), and the pre-/post-image attribute lists.
+
+### When registration can't be checked
+
+If the connected `XrmGhost.FrameworkHost` is too old to report registration metadata, or retrieving that metadata otherwise fails, registration validation is skipped and a warning is printed — the run is not rejected for this reason alone. Scenario validation is unaffected and still runs.
+
+### The cache belongs to the active environment
+
+The cache validated here is the same cache built by the Pro commands [`xg env activate`](/cli/reference/env-activate/) and [`xg env refresh`](/cli/reference/env-refresh/); see [`xg env refresh`](/cli/reference/env-refresh/) for how it is populated and rebuilt. `xg run` only reads it — **it never refreshes the cache itself**.
+
+If no environment is active, schema validation is skipped and a warning is printed. With `--strict-schema`, a missing active environment causes the run to fail instead.
+
+### Default behavior on a missing or unreadable cache
+
+By default (without `--strict-schema`), a missing, corrupt, or otherwise unusable cache produces a warning, and schema validation is skipped for that run — the plugin still executes. Run [`xg env refresh`](/cli/reference/env-refresh/) to populate or rebuild the cache; `xg run` does not do this automatically.
+
+### Example: a rejected run
+
+```shell
+xg run \
+  -a ./bin/Debug/MyPlugins.dll \
+  -t MyPlugins.AccountPreUpdate \
+  -s ./scenarios/account-update.json
+```
+
+```
+Schema warning: Uninterpretable scenario shape at $.organizationServiceMock.retrieveResponses[0].request.columnSet[1]: expected a column name. Not validated.
+Schema finding: unknown attribute 'nam' on entity 'account' at $.executionContext.inputParameters.Target.nam
+Schema validation rejected the run before plugin execution.
+```
+
+Each finding's trailing path (e.g. `$.executionContext.inputParameters.Target.nam`) is the source location of the offending value inside the scenario document — a JSON path for scenario findings, or the registration attribute name (e.g. `PluginExecutionConfigAttribute.FilteringAttributes`) for registration findings.
+
+### Runtime schema diagnostics
+
+Separately from the pre-execution gate above, if the plugin throws during execution and the connected `FrameworkHost` classifies the fault as a Dataverse schema problem, the failure output includes a structured diagnostic alongside the usual `Error Type`/`Error Message`:
+
+```
+Execution Failed!
+Error Type: System.Exception
+Error Message: Attribute 'new_ghostfield' does not exist on entity 'account'.
+Schema Diagnostic: missing attribute
+   Entity: account
+   Attribute: new_ghostfield
+   Operation: Update
+   Plugin: MyPlugins.AccountPreUpdate
+   Step: Update (stage PostOperation) on 'account'
+   Hint: run 'xg env refresh' to update the cached schema if this was a false positive.
+```
+
+The diagnostic's `Entity`, `Attribute`, `Operation`, `Plugin`, `Step` and `Error Code` lines are each printed only when the host supplied that value. If an older `FrameworkHost` does not supply this diagnostic — or the fault isn't classified as a schema problem — the failure output is unchanged: `Error Type`/`Error Message` print exactly as they always have, with no diagnostic block appended.
+
 ## Options
 
 | Flag | Type | Default | Description |
@@ -42,13 +124,14 @@ The command has two required arguments — the assembly path and the fully-quali
 | `--unsecure-config` | `string` | — | Unsecure configuration string passed to the plugin as `IPluginExecutionContext.UnsecureConfig`. |
 | `--secure-config` | `string` | — | Secure configuration string passed to the plugin as `IPluginExecutionContext.SecureConfig`. |
 | `--data-source` | `string` | `auto` | Controls how `RetrieveMultiple` calls are routed inside the simulated `IOrganizationService`. Accepted values: `mock` (use scenario mock data only), `live` (route to a real Dataverse environment), `auto` (host decides based on scenario content). |
+| `--strict-schema` | `bool` | `false` | Reject the run (exit non-zero, no plugin execution) on any cached-schema-validation warning — a missing or unreadable metadata cache, a failed registration-metadata fetch, or an uninterpretable scenario shape — in addition to the unconditional rejection on a known-missing entity or attribute. Without this flag, those warnings are logged and the run proceeds. See [Cached Schema Validation](#cached-schema-validation). |
 
 ## Exit Codes
 
 | Code | Meaning |
 |---|---|
 | `0` | Plugin executed successfully — either it completed without throwing, or it threw the exception the scenario declared in `expectedException` and that expectation was satisfied. |
-| `1` | Plugin execution failed, scenario file not found, assembly not found, FrameworkHost failed to start or become healthy, or an unexpected error occurred. |
+| `1` | Plugin execution failed, scenario file not found, assembly not found, FrameworkHost failed to start or become healthy, cached schema validation rejected the run before plugin execution (a known-missing entity or attribute, or — with `--strict-schema` — a missing/unreadable cache, a failed registration-metadata fetch, or an uninterpretable scenario shape), or an unexpected error occurred. |
 
 A scenario that declares `expectedException` inverts what "successfully" means for that run: the
 exception is the expected result, so a satisfied expectation exits `0` and the run summary shows
@@ -124,5 +207,7 @@ With `-c`, any Pro-tier feature encountered (such as Final Entity States) return
 
 - [Scenario Files](/cli/scenarios/) — The canonical reference for the scenario JSON document, including `expectedException`
 - [`xg generate-scenario`](/cli/reference/generate-scenario/) — Generate a scenario JSON template for a plugin assembly and type
+- [`xg env refresh`](/cli/reference/env-refresh/) — Refresh the metadata cache that cached schema validation reads
+- [`xg env activate`](/cli/reference/env-activate/) — Activate an environment and build its initial metadata cache
 - [`xg doctor`](/cli/reference/doctor/) — Diagnose CLI configuration, FrameworkHost connectivity, and license validity
 - [CLI Overview](/cli/) — Introduction to the XrmGhost CLI and how this documentation is organised
