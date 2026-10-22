@@ -13,7 +13,7 @@ Both editions share the same core workflow — author a scenario, run it locally
 
 Standard covers the full local development loop for Dataverse server-side code.
 
-- **Run plugins and Custom APIs locally.** Execute your server-side C# on your own machine, in a runtime shaped to match the Dataverse plugin pipeline. (Support for custom workflow activities — CWA — is on the roadmap.)
+- **Run plugins and Custom APIs locally.** Execute your server-side C# on your own machine, in a runtime shaped to match the Dataverse plugin pipeline. (Custom workflow activities — CWA — are not supported yet.)
 - **Headless execution.** Run a scenario and read the result straight away — ideal for a fast write-run-fix loop and for local automation, including an AI agent driving `xg` without a console attached.
 - **Line-by-line debugging.** Attach a debugger to your own code as it runs locally — in Visual Studio, *Debug → Attach to Process* onto the XrmGhost host — and step through your plugin exactly as you would any local program. No deploy, no remote profiler.
 - **Scenario-driven data.** The data a run reads is supplied by the scenario itself (mocked data), so a run is fully self-contained and reproducible.
