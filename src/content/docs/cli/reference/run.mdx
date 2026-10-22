@@ -101,11 +101,11 @@ Schema Diagnostic: missing attribute
    Attribute: new_ghostfield
    Operation: Update
    Plugin: MyPlugins.AccountPreUpdate
-   Step: Update (stage PostOperation) on 'account'
+   Step: Update (stage 40) on 'account'
    Hint: run 'xg env refresh' to update the cached schema if this was a false positive.
 ```
 
-The diagnostic's `Entity`, `Attribute`, `Operation`, `Plugin`, `Step` and `Error Code` lines are each printed only when the host supplied that value. If an older `FrameworkHost` does not supply this diagnostic — or the fault isn't classified as a schema problem — the failure output is unchanged: `Error Type`/`Error Message` print exactly as they always have, with no diagnostic block appended.
+The diagnostic's `Entity`, `Attribute`, `Operation`, `Plugin`, `Step` and `Error Code` lines are each printed only when the host supplied that value. The stage number in the `Step` line is the SDK message processing step's raw stage value (e.g. `10`, `20`, `40`), not a symbolic name. If an older `FrameworkHost` does not supply this diagnostic — or the fault isn't classified as a schema problem — the failure output is unchanged: `Error Type`/`Error Message` print exactly as they always have, with no diagnostic block appended.
 
 ## Options
 
