@@ -34,7 +34,7 @@ export default defineConfig({
 						name: 'XrmGhost Documentation',
 						url: 'https://docs.xrmghost.tech',
 						description:
-							'Official documentation for the XrmGhost framework: local-first development for Microsoft Dataverse and Dynamics 365.',
+							'XrmGhost runs your real, compiled Dataverse plugins locally so you — or your coding agent — can iterate in seconds instead of deploying to read trace logs.',
 						isPartOf: {
 							'@type': 'Organization',
 							name: 'XrmGhost',
