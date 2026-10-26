@@ -75,10 +75,16 @@ export default defineConfig({
 					],
 				},
 				{ label: 'Getting Started', slug: 'getting-started' },
+				{ label: 'FAQ', slug: 'faq' },
 				{
 					label: 'How-to',
 					collapsed: true,
 					items: [{ autogenerate: { directory: 'how-to' } }],
+				},
+				{
+					label: 'Compare',
+					collapsed: true,
+					items: [{ autogenerate: { directory: 'compare' } }],
 				},
 				{
 					label: 'Skills',
