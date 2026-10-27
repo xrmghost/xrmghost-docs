@@ -392,6 +392,12 @@ scenario declares.
 
 ### Expecting traces
 
+:::note[Availability]
+The trace assertion ships with the release after 1.7.7. In 1.7.7 the Framework Host does not
+evaluate `expectedTraceLog`: the key is accepted and ignored, and the run is judged on
+`expectedException` alone. The CLI version is printed in the banner of every `xg` run.
+:::
+
 `expectedTraceLog` is a list of strings the plugin is expected to have written through
 `ITracingService.Trace`. It is an assertion, evaluated once the plugin's `Execute` has finished:
 
