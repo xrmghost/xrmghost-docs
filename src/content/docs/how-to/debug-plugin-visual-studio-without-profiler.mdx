@@ -1,0 +1,86 @@
+---
+title: "Debug a Dataverse plugin in Visual Studio without the Plugin Profiler"
+description: "Run a compiled Dataverse plugin locally, attach Visual Studio to the XrmGhost host, and inspect the scenario's Target at a breakpoint."
+sidebar:
+  label: "Debug with Visual Studio"
+---
+
+# Debug a Dataverse plugin in Visual Studio without the Plugin Profiler
+
+Sometimes the trace tells you which branch ran, but not why. You want to stop before a condition, inspect the record, and step through the code yourself. You do not need a captured online execution to do that locally.
+
+XrmGhost runs your compiled plugin in a separate host process. Start it with `-w`, attach Visual Studio, and the plugin executes against the context in your scenario file. No Plugin Profiler capture or deployment is part of this loop.
+
+The distinction matters: **this is not a replay of a Dataverse execution**. You supply the message and data. If the scenario leaves something out, the debugger cannot recover it from an environment.
+
+## 1. Prepare one reproducible case
+
+You need Windows, XrmGhost installed, Visual Studio with .NET Framework debugging support, and a plugin project that builds. Follow [Getting Started](/getting-started/) if the local host is not ready. Open Visual Studio before starting the waiting run, so you can attach promptly.
+
+For a self-contained example, create a folder named `VatValidation` and save these files directly inside it, preserving their names:
+
+- [Contoso.HowTo.csproj](/howto-examples/vat-validation/Contoso.HowTo.csproj)
+- [VatRequiredPlugin.cs](/howto-examples/vat-validation/VatRequiredPlugin.cs)
+- [vat-present.json](/howto-examples/vat-validation/vat-present.json)
+
+Open the project in Visual Studio. Open PowerShell in that same folder. The plugin accepts a business account when `new_vatnumber` is present. Its custom `new_accounttype` choice uses `505480000` for Business; those names and values belong to this example, not to every Dataverse organisation.
+
+This is a Create-only presence check, not tax-number verification. The companion [expected-exception how-to](/how-to/assert-expected-exceptions/) explains the rejected case. You can substitute your own assembly and scenario once the attach loop works.
+
+Build with symbols:
+
+```powershell
+dotnet build Contoso.HowTo.csproj -c Debug -p:DebugType=full
+```
+
+The supplied project targets `net462` and names the assembly `Contoso.HowTo`, so its DLL and PDB are under `bin\Debug\net462`. Keep the PDB beside the DLL and open the source from this exact build. The host loads the adjacent symbols when available; an old PDB or a different source copy makes a breakpoint much less useful.
+
+## 2. Set the breakpoint, then start the waiting host
+
+In `VatRequiredPlugin.Execute`, set a breakpoint on:
+
+```csharp
+var accountType = target.GetAttributeValue<OptionSetValue>("new_accounttype");
+```
+
+Set it **before attaching**. The host proceeds when it detects a debugger; attaching does not create an extra pause for you to choose a breakpoint afterwards.
+
+Now run:
+
+```powershell
+xg run -a bin\Debug\net462\Contoso.HowTo.dll -t Contoso.HowTo.VatRequiredPlugin -s vat-present.json --data-source mock -w
+```
+
+`-a` selects the assembly, `-t` selects the fully qualified plugin type, and `-s` supplies the scenario. `--data-source mock` keeps service reads on scenario data. `-w` is short for `--debug-plugin-wait`; it is not the diagnostic-output flag `--debug`.
+
+The CLI prints the host's process identifier and attach instructions. Use that identifier rather than choosing an arbitrary process with the same name.
+
+{/* TODO-MULETTO: capture the real waiting-run terminal, including the host PID and attach instructions; remove unrelated windows and identifiers. */}
+
+## 3. Attach Visual Studio to the host
+
+Choose **Debug → Attach to Process**. Find `XrmGhost.Framework.Host.exe` with the identifier printed by this run. Attach using the managed **.NET Framework** debugger, not the .NET/Core debugger and not the CLI's `xg.exe` process. Exact dialog labels can differ between Visual Studio versions.
+
+Attach promptly: the CLI's host-health polling has a finite budget of 120 attempts at 500 ms intervals. The host waits before starting its server. If that startup budget expires while you are arranging windows, start a fresh run and use its new identifier.
+
+{/* TODO-MULETTO: capture Attach to Process with the matching host PID and managed .NET Framework code type; record the actual dialog wording. */}
+
+Once attached, execution should reach the breakpoint. A breakpoint can remain pending until the assembly loads. If it stays unbound, check that the selected DLL, adjacent PDB and open source match. Rebuild and start another run after correcting them.
+
+## 4. Inspect the scenario, then continue
+
+At the breakpoint, inspect `context.MessageName`, `context.Stage`, `target.LogicalName` and `target.Attributes`. They should describe `Create`, stage `20`, an `account`, and the attributes in `vat-present.json`.
+
+Step over the account-type read. `accountType.Value` should be `505480000`; the subsequent VAT read should return `IT12345678901`. These are expectations from the supplied input, not a screenshot of an observed session.
+
+{/* TODO-MULETTO: capture the stopped source line and Locals/Watch with Target attributes, accountType.Value and vatNumber. */}
+
+Continue with F5 when you are done inspecting. The terminal receives the plugin trace and outcome. After the run, the CLI terminates its host; another run means another process and another attach.
+
+{/* TODO-MULETTO: insert actual completed-run output, with the plugin trace and exit code; do not manufacture timings. */}
+
+## What to keep after debugging
+
+Keep the scenario alongside the code. Change its data, rebuild when code changes, and repeat the same run to investigate another branch. Add [exception and trace assertions](/how-to/assert-expected-exceptions/) when you know the intended outcome, so the next check does not require a debugger.
+
+The host is not the full Dataverse pipeline. A local breakpoint proves what this assembly does with this context; it does not prove registration, security, or interactions in your target environment. Validate those there. The [`xg run` reference](/cli/reference/run/) covers the command; this page covers the human part of the loop.
