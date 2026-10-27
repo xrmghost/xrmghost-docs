@@ -55,7 +55,24 @@ xg run -a bin\Debug\net462\Contoso.HowTo.dll -t Contoso.HowTo.VatRequiredPlugin 
 
 The CLI prints the host's process identifier and attach instructions. Use that identifier rather than choosing an arbitrary process with the same name.
 
-{/* TODO-MULETTO: capture the real waiting-run terminal, including the host PID and attach instructions; remove unrelated windows and identifiers. */}
+Captured on Windows with CLI 1.7.7 and Core 1.1.0:
+
+```text
+XrmGhost
+CLI v1.7.7  |  Core v1.1.0
+
+Executing Plugin: Contoso.HowTo.VatRequiredPlugin
+Assembly Path: bin\Debug\net462\Contoso.HowTo.dll
+Scenario Loaded: Business account with VAT must be accepted
+---------------------------------------------------------------------
+DEBUG MODE: FrameworkHost (PID: 5464) started and is waiting for debugger.
+1. Attach your debugger to XrmGhost.Framework.Host.exe process.
+2. Set breakpoints in your plugin code.
+3. Resume execution in the debugger (e.g., press F5).
+---------------------------------------------------------------------
+
+- Waiting for FrameworkHost (PID: 5464) to become healthy. Timeout in 60s...
+```
 
 ## 3. Attach Visual Studio to the host
 
@@ -63,24 +80,77 @@ Choose **Debug → Attach to Process**. Find `XrmGhost.Framework.Host.exe` with 
 
 Attach promptly: the CLI's host-health polling has a finite budget of 120 attempts at 500 ms intervals. The host waits before starting its server. If that startup budget expires while you are arranging windows, start a fresh run and use its new identifier.
 
-{/* TODO-MULETTO: capture Attach to Process with the matching host PID and managed .NET Framework code type; record the actual dialog wording. */}
+The attach capture is from a subsequent run, whose terminal printed PID `17332`:
+
+```text
+XrmGhost
+CLI v1.7.7  |  Core v1.1.0
+
+Executing Plugin: Contoso.HowTo.VatRequiredPlugin
+Assembly Path: bin\Debug\net462\Contoso.HowTo.dll
+Scenario Loaded: Business account with VAT must be accepted
+---------------------------------------------------------------------
+DEBUG MODE: FrameworkHost (PID: 17332) started and is waiting for debugger.
+1. Attach your debugger to XrmGhost.Framework.Host.exe process.
+2. Set breakpoints in your plugin code.
+3. Resume execution in the debugger (e.g., press F5).
+---------------------------------------------------------------------
+
+| Executing plugin in FrameworkHost...
+```
+
+The dialog shows `XrmGhost.Framework.Host.exe (17332)` and code type **Automatic: Managed (.NET Framework 4.x) code**.
+
+![Visual Studio Attach to Process selecting XrmGhost.Framework.Host.exe with PID 17332 and the managed .NET Framework 4.x code type.](/assets/how-to/vat-validation/03-attach.png)
 
 Once attached, execution should reach the breakpoint. A breakpoint can remain pending until the assembly loads. If it stays unbound, check that the selected DLL, adjacent PDB and open source match. Rebuild and start another run after correcting them.
 
 ## 4. Inspect the scenario, then continue
 
-At the breakpoint, inspect `context.MessageName`, `context.Stage`, `target.LogicalName` and `target.Attributes`. They should describe `Create`, stage `20`, an `account`, and the attributes in `vat-present.json`.
+Execution stopped at the account-type read on line 20. Step over that read, then hover over `accountType.Value`: the captured data tip shows `505480000`.
 
-Step over the account-type read. `accountType.Value` should be `505480000`; the subsequent VAT read should return `IT12345678901`. These are expectations from the supplied input, not a screenshot of an observed session.
+Step over the VAT read on line 24, then hover over `vatNumber`. The capture below shows both data tips: `accountType.Value = 505480000` and `vatNumber = "IT12345678901"`, with execution paused at line 25. These values match `vat-present.json`; this is hover inspection, not a Locals-window capture.
 
-{/* TODO-MULETTO: capture the stopped source line and Locals/Watch with Target attributes, accountType.Value and vatNumber. */}
+![Visual Studio stopped at the account-type read on line 20 of VatRequiredPlugin.Execute.](/assets/how-to/vat-validation/04a-breakpoint-riga20.png)
+
+![Visual Studio paused at line 25, with data tips showing accountType.Value as 505480000 and vatNumber as IT12345678901.](/assets/how-to/vat-validation/04c-datatip-vatnumber.png)
 
 Continue with F5 when you are done inspecting. The terminal receives the plugin trace and outcome. After the run, the CLI terminates its host; another run means another process and another attach.
 
-{/* TODO-MULETTO: insert actual completed-run output, with the plugin trace and exit code; do not manufacture timings. */}
+The completed debugger run printed the following. Its exit code was not captured.
+
+```text
+DEBUG MODE: FrameworkHost (PID: 17332) started and is waiting for debugger.
+1. Attach your debugger to XrmGhost.Framework.Host.exe process.
+2. Set breakpoints in your plugin code.
+3. Resume execution in the debugger (e.g., press F5).
+---------------------------------------------------------------------
+--- Plugin Execution Result ---
+Entity Operations Summary:
+Total Operations: 0
+Successful: 0
+
+Trace Log:
+   PLUGIN             | 1943ms   | Business account with a VAT number; allowing save.
+
+Performance:
+[PERFORMANCE] Total: 1963ms, Traces: 41 [Framework: 25, OperationTracker: 9, AssemblyResolver: 4, Pl
+ugin: 1, Diagnostic: 2]
+
+Final Entity States: [PRO FEATURE - UPGRADE TO UNLOCK]
+   View final entity data, plugin modifications, and newly created records.
+   Get detailed insights into what your plugins actually changed.
+   $ Upgrade to Pro: https://www.xrmghost.tech/#pricing
+
+Execution Succeeded!
+Output Parameters: {}
+PS C:\src\contoso-demo\howto\vat-validation>
+```
+
+{/* TODO-MULETTO-EXIT: capture immediate $LASTEXITCODE for the debugger run. */}
 
 ## What to keep after debugging
 
-Keep the scenario alongside the code. Change its data, rebuild when code changes, and repeat the same run to investigate another branch. Add [exception and trace assertions](/how-to/assert-expected-exceptions/) when you know the intended outcome, so the next check does not require a debugger.
+Keep the scenario alongside the code. Change its data, rebuild when code changes, and repeat the same run to investigate another branch. Add [expected-exception assertions](/how-to/assert-expected-exceptions/) when you know the intended outcome, so the next check does not require a debugger.
 
 The host is not the full Dataverse pipeline. A local breakpoint proves what this assembly does with this context; it does not prove registration, security, or interactions in your target environment. Validate those there. The [`xg run` reference](/cli/reference/run/) covers the command; this page covers the human part of the loop.

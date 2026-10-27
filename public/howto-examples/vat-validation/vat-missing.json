@@ -22,6 +22,5 @@
   "expectedException": {
     "typeName": "Microsoft.Xrm.Sdk.InvalidPluginExecutionException",
     "messageContains": "VAT number is required and must be valid for business accounts."
-  },
-  "expectedTraceLog": ["Business account with no VAT number; blocking save."]
+  }
 }

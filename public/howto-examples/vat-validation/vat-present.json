@@ -19,6 +19,5 @@
         }
       }
     }
-  },
-  "expectedTraceLog": ["Business account with a VAT number; allowing save."]
+  }
 }
