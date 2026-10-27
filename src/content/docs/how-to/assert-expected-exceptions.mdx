@@ -1,0 +1,174 @@
+---
+title: "Assert expected exceptions in a Dataverse plugin scenario"
+description: "Keep a rejected account and an accepted account as repeatable local checks, using expectedException with xg run."
+sidebar:
+  label: "Assert expected exceptions"
+---
+
+# Assert expected exceptions in a Dataverse plugin scenario
+
+A validation plugin is supposed to throw for some inputs. A red terminal alone does not tell you whether it rejected the record correctly or crashed for an unrelated reason. Declare the rejection you expect, then keep an accepted case beside it.
+
+This how-to uses a business account without a VAT number. Success means the plugin raises the intended `InvalidPluginExecutionException`. With a VAT number present, success means it returns normally. The terminal also displays the plugin's trace messages; these are not assertions. Each case is one scenario and one `xg run` invocation.
+
+## 1. Use a small validation plugin
+
+You need Windows, a working [XrmGhost installation](/getting-started/), and a .NET SDK that can build the example. Create a `VatValidation` folder and save these four files directly inside it:
+
+- [Contoso.HowTo.csproj](/howto-examples/vat-validation/Contoso.HowTo.csproj)
+- [VatRequiredPlugin.cs](/howto-examples/vat-validation/VatRequiredPlugin.cs)
+- [vat-missing.json](/howto-examples/vat-validation/vat-missing.json)
+- [vat-present.json](/howto-examples/vat-validation/vat-present.json)
+
+The project targets `net462`, references the Dataverse SDK, and builds `Contoso.HowTo.dll`. The plugin's relevant branch is:
+
+```csharp
+var accountType = target.GetAttributeValue<OptionSetValue>("new_accounttype");
+if (accountType == null || accountType.Value != 505480000)
+    return;
+
+var vatNumber = target.GetAttributeValue<string>("new_vatnumber");
+if (string.IsNullOrWhiteSpace(vatNumber))
+{
+    tracing.Trace("Business account with no VAT number; blocking save.");
+    throw new InvalidPluginExecutionException(
+        "VAT number is required and must be valid for business accounts.");
+}
+
+tracing.Trace("Business account with a VAT number; allowing save.");
+```
+
+The full source also guards the message, Target and entity name. It handles `Create` only. `new_accounttype`, `new_vatnumber` and Business value `505480000` follow the Contoso demo convention; substitute your own schema in real code.
+
+This deliberately narrow example checks presence, not VAT format, registration numbers or tax-authority records. Despite the shared business-facing exception wording, a non-empty but malformed VAT value is outside its coverage. It is not a replacement for a complete production validator.
+
+In PowerShell, from that folder:
+
+```powershell
+dotnet build Contoso.HowTo.csproj -c Debug -p:DebugType=full
+```
+
+## 2. Describe the rejected account
+
+The supplied `vat-missing.json` is a complete scenario, not an output transcript:
+
+```json
+{
+  "scenarioName": "Business account without VAT must be rejected",
+  "pluginAssemblyName": "Contoso.HowTo.dll",
+  "pluginTypeName": "Contoso.HowTo.VatRequiredPlugin",
+  "executionContext": {
+    "messageName": "Create",
+    "primaryEntityName": "account",
+    "primaryEntityId": "00000000-0000-0000-0000-000000000001",
+    "stage": 20,
+    "mode": 0,
+    "inputParameters": {
+      "Target": {
+        "logicalName": "account",
+        "id": "00000000-0000-0000-0000-000000000001",
+        "attributes": {
+          "name": "Contoso Ltd",
+          "new_accounttype": { "value": 505480000 }
+        }
+      }
+    }
+  },
+  "expectedException": {
+    "typeName": "Microsoft.Xrm.Sdk.InvalidPluginExecutionException",
+    "messageContains": "VAT number is required and must be valid for business accounts."
+  }
+}
+```
+
+The option-set value is an object with a `value` key, not a bare integer. The VAT attribute is absent. Stage `20` and mode `0` describe a synchronous pre-operation context. The assembly and type entries document the scenario; the command's `-a` and `-t` select what actually executes.
+
+`expectedException.typeName` must be the exact fully qualified name. The matcher walks the exception chain and requires the type and optional, case-sensitive `messageContains` substring to match on the **same exception**. A different exception, or no exception, fails the case. An empty type name matches nothing.
+
+## 3. Run the negative case
+
+```powershell
+xg run -a bin\Debug\net462\Contoso.HowTo.dll -t Contoso.HowTo.VatRequiredPlugin -s vat-missing.json --data-source mock
+$LASTEXITCODE
+```
+
+The captured run below reports `Execution Succeeded!` and `Expected Exception Matched:`: the rejection is the declared behaviour, not a failed check. Captured on Windows with CLI 1.7.7 and Core 1.1.0. The exit code was not captured.
+
+```text
+Executing Plugin: Contoso.HowTo.VatRequiredPlugin
+Assembly Path: bin\Debug\net462\Contoso.HowTo.dll
+Scenario Loaded: Business account without VAT must be rejected
+--- Plugin Execution Result ---
+Entity Operations Summary:
+Total Operations: 0
+Successful: 0
+
+Trace Log:
+   PLUGIN             | 1ms      | Business account with no VAT number; blocking save.
+
+Performance:
+[PERFORMANCE] Total: 1ms, Traces: 41 [Framework: 25, OperationTracker: 9, AssemblyResolver: 4, Plugi
+n: 1, Diagnostic: 2]
+
+Final Entity States: [PRO FEATURE - UPGRADE TO UNLOCK]
+   View final entity data, plugin modifications, and newly created records.
+   Get detailed insights into what your plugins actually changed.
+   $ Upgrade to Pro: https://www.xrmghost.tech/#pricing
+
+Execution Succeeded!
+Expected Exception Matched: Microsoft.Xrm.Sdk.InvalidPluginExecutionException (message contains: VAT
+number is required and must be valid for business accounts.)
+Output Parameters: {}
+PS C:\src\contoso-demo\howto\vat-validation>
+```
+
+{/* TODO-MULETTO-EXIT: capture immediate $LASTEXITCODE for vat-missing.json. */}
+
+## 4. Keep the accepted case too
+
+In `vat-present.json`, the context is the same, with one extra Target attribute:
+
+```json
+"new_vatnumber": "IT12345678901"
+```
+
+There is **no** `expectedException` key.
+
+Run it separately:
+
+```powershell
+xg run -a bin\Debug\net462\Contoso.HowTo.dll -t Contoso.HowTo.VatRequiredPlugin -s vat-present.json --data-source mock
+$LASTEXITCODE
+```
+
+The captured run completes normally. Its exit code was not captured. A plugin that rejects every account would pass the negative case but fail this one. Keeping both checks protects both sides of the rule.
+
+```text
+Executing Plugin: Contoso.HowTo.VatRequiredPlugin
+Assembly Path: bin\Debug\net462\Contoso.HowTo.dll
+Scenario Loaded: Business account with VAT must be accepted
+--- Plugin Execution Result ---
+Entity Operations Summary:
+Total Operations: 0
+Successful: 0
+
+Trace Log:
+   PLUGIN             | 2ms      | Business account with a VAT number; allowing save.
+
+Performance:
+[PERFORMANCE] Total: 2ms, Traces: 41 [Framework: 25, OperationTracker: 9, AssemblyResolver: 4, Plugi
+n: 1, Diagnostic: 2]
+
+Final Entity States: [PRO FEATURE - UPGRADE TO UNLOCK]
+   View final entity data, plugin modifications, and newly created records.
+   Get detailed insights into what your plugins actually changed.
+   $ Upgrade to Pro: https://www.xrmghost.tech/#pricing
+
+Execution Succeeded!
+Output Parameters: {}
+PS C:\src\contoso-demo\howto\vat-validation>
+```
+
+{/* TODO-MULETTO-EXIT: capture immediate $LASTEXITCODE for vat-present.json. */}
+
+These files are repeatable local checks, not a test-suite runner or a full Dataverse simulation. Assembly-loading failures remain failures; an expected exception cannot excuse broken setup. Keep your existing unit tests and validate the deployed behaviour in the target environment. The [scenario reference](/cli/scenarios/#expecting-the-outcome) covers matching details; [Visual Studio debugging](/how-to/debug-plugin-visual-studio-without-profiler/) helps when the result is not what you intended.
