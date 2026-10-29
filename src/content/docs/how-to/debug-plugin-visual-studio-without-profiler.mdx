@@ -48,7 +48,7 @@ Set it **before attaching**. The host proceeds when it detects a debugger; attac
 Now run:
 
 ```powershell
-xg run -a bin\Debug\net462\Contoso.HowTo.dll -t Contoso.HowTo.VatRequiredPlugin -s vat-present.json --data-source mock -w
+xg run -a bin\Debug\net462\Contoso.HowTo.dll -t Contoso.HowTo.VatRequiredPlugin -s vat-present.json --data-source mock -w; $LASTEXITCODE
 ```
 
 `-a` selects the assembly, `-t` selects the fully qualified plugin type, and `-s` supplies the scenario. `--data-source mock` keeps service reads on scenario data. `-w` is short for `--debug-plugin-wait`; it is not the diagnostic-output flag `--debug`.
@@ -117,10 +117,10 @@ Step over the VAT read on line 24, then hover over `vatNumber`. The capture belo
 
 Continue with F5 when you are done inspecting. The terminal receives the plugin trace and outcome. After the run, the CLI terminates its host; another run means another process and another attach.
 
-The completed debugger run printed the following. Its exit code was not captured.
+A subsequent debugger run, captured on 2026-10-29 with CLI 1.7.7 and Core 1.1.0, printed the following. The final `0` is the exit code printed by `$LASTEXITCODE` after continuing execution.
 
 ```text
-DEBUG MODE: FrameworkHost (PID: 17332) started and is waiting for debugger.
+DEBUG MODE: FrameworkHost (PID: 11952) started and is waiting for debugger.
 1. Attach your debugger to XrmGhost.Framework.Host.exe process.
 2. Set breakpoints in your plugin code.
 3. Resume execution in the debugger (e.g., press F5).
@@ -131,11 +131,11 @@ Total Operations: 0
 Successful: 0
 
 Trace Log:
-   PLUGIN             | 1943ms   | Business account with a VAT number; allowing save.
+   PLUGIN             | 146ms    | Business account with a VAT number; allowing save.
 
 Performance:
-[PERFORMANCE] Total: 1963ms, Traces: 41 [Framework: 25, OperationTracker: 9, AssemblyResolver: 4, Pl
-ugin: 1, Diagnostic: 2]
+[PERFORMANCE] Total: 146ms, Traces: 41 [Framework: 25, OperationTracker: 9, AssemblyResolver: 4, Plu
+gin: 1, Diagnostic: 2]
 
 Final Entity States: [PRO FEATURE - UPGRADE TO UNLOCK]
    View final entity data, plugin modifications, and newly created records.
@@ -144,10 +144,9 @@ Final Entity States: [PRO FEATURE - UPGRADE TO UNLOCK]
 
 Execution Succeeded!
 Output Parameters: {}
+0
 PS C:\src\contoso-demo\howto\vat-validation>
 ```
-
-{/* TODO-MULETTO-EXIT: capture immediate $LASTEXITCODE for the debugger run. */}
 
 ## What to keep after debugging
 
