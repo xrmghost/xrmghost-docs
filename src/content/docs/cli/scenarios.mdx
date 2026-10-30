@@ -238,13 +238,13 @@ itself, declare that record in `entities` or in `retrieveResponses`.
 
 | Message | Effect on the run's state | Fault |
 |---|---|---|
-| `Create` | Adds the record. Later `Retrieve` and `RetrieveMultiple` calls in the run see it. Without a declared id, a new one is generated. | `0x80040237` (duplicate key) when the declared id — the entity's `Id` or its `<logicalName>id` attribute — is already known to the run: created earlier in it, or declared in `retrieveResponses` or `entities`. |
+| `Create` | Adds the record. Later `Retrieve` and `RetrieveMultiple` calls in the run see it, when they are answered from the mock (always with `--data-source mock`; for live reads see [Writes to live records (Pro)](#writes-to-live-records-pro)). Without a declared id, a new one is generated. | `0x80040237` (duplicate key) when the declared id — the entity's `Id` or its `<logicalName>id` attribute — is already known to the run: created earlier in it, or declared in `retrieveResponses` or `entities`. |
 | `Retrieve` | None: it reads. | `0x80040217` (does not exist) when no source has the record, the id is `Guid.Empty`, or the run deleted the record earlier. |
-| `RetrieveMultiple` | None: it evaluates the query against the run's records — the `entities` seed, plus the records the run created or updated, minus the ones it deleted. | — |
+| `RetrieveMultiple` | None: it reads. As a mock read, it evaluates the query against the run's records — the `entities` seed, plus the records the run created or updated, minus the ones it deleted. A live `RetrieveMultiple` does not (see [Writes to live records (Pro)](#writes-to-live-records-pro)). | — |
 | `Update` | Merges the attributes the plugin sent onto the record as `Retrieve` would return it, whichever source that is. Later reads see the merged record. | `0x80040217` when no source knows the record, the run deleted it earlier, or the id is `Guid.Empty`. |
 | `Delete` | Removes the record for the rest of the run, even if `retrieveResponses` or `entities` still describe it. | `0x80040217` when no source knows the record, the run already deleted it, or the id is `Guid.Empty`. |
 
-**`retrieveResponses` does not feed `RetrieveMultiple`.** A record declared only in
+**In mock reads, `retrieveResponses` does not feed `RetrieveMultiple`.** A record declared only in
 `retrieveResponses` answers a `Retrieve` by id, but a query does not find it — until the plugin
 updates that record in the run: from then on the merged record is part of the run's state, and
 `RetrieveMultiple` sees it like any other. A record the plugin must find through a query belongs in
@@ -287,6 +287,12 @@ records the scenario does not declare. Writes to them still never leave the run:
 - **Reads are not covered by the run's state for records Dataverse has.** In `auto` and `live` a
   `Retrieve` goes to Dataverse first, so after an `Update` or a `Delete` of a live record it returns
   the record as it is in Dataverse — the run's change is not visible to it.
+- **`RetrieveMultiple` in live does not see the run's writes.** The same holds in `auto` whenever
+  the live query is attempted: the result does not include the records the run created or updated,
+  and still includes the ones it deleted, whether or not the record exists in Dataverse. A live
+  query that fails does not fall back to the mock. This is a different rule from the per-record
+  fallback of `Retrieve`: `Retrieve` goes to Dataverse first and falls back to the run's sources,
+  `RetrieveMultiple` does not.
 - **In `live`, `Update` and `Delete` still find the records the scenario declares**, while
   `Retrieve` does not read them: it answers from Dataverse only.
 
