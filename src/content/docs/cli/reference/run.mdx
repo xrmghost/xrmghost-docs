@@ -114,6 +114,27 @@ expected exception is captured: an entry that no plugin trace contains turns the
 scenarios that still carry the old generated placeholder, are documented in
 [Scenario Files](/cli/scenarios/#expecting-traces).
 
+### FrameworkHost startup diagnostics
+
+When FrameworkHost does not become healthy during startup, `xg run` exits `1` and keeps the reason code `host_unhealthy` and its existing remediation text unchanged. The CLI now adds a diagnostic block after the error that tells the two failure shapes apart:
+
+| Case | What the block shows |
+|---|---|
+| **Early exit** — the host process ended before it passed the health check | `FrameworkHost (PID: <pid>) exited with code <decimal> / 0x<hex>.` — for example `-532462766 / 0xE0434352` — followed by the captured output tail, when available. |
+| **Timeout with the host still alive** — the health check did not succeed within the startup timeout | `FrameworkHost (PID: <pid>) process still running.` followed by the captured output tail, when available. |
+
+The host's exit code is a diagnostic detail, not a CLI exit code: the CLI itself still exits `1`. An early exit can carry host exit code `0`, so a non-zero host exit code is not a precondition for this diagnosis.
+
+The captured output tail is the combined standard output and standard error of the host, with standard error lines prefixed `[stderr]`. It is bounded as a whole, not per stream: at most the last 20 lines and 4096 characters in total, with each line truncated to 500 characters. It is a tail, not the complete output.
+
+The tail is **not available** when the host's output is not captured:
+
+- with `--debug-mode`, which shows the host window instead of redirecting its output;
+- with `-w`/`--debug-plugin-wait`, so that the host can be attached to with a debugger;
+- when the CLI falls back to starting the host through the shell (`UseShellExecute=true`) after a failed direct start.
+
+In those modes the exit code (early exit) or the PID and `process still running` line (timeout) are still shown. To see the tail, run again without those flags. `-d`/`--debug` is unrelated: it only controls trace verbosity and does not change capture.
+
 ## Examples
 
 ### Basic run
