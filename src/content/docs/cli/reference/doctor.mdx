@@ -24,7 +24,7 @@ xg doctor [-v] [-f <FRAMEWORK_HOST_PATH>] [--fix] [--no-interactive]
 1. **CLI Information** — Reports the installed CLI version, the assembly location, and the unique machine Platform ID.
 2. **Core Library** — Reports the version and location of the bundled `XrmGhost.Core` assembly.
 3. **Platform Information** — Displays OS description, OS architecture, process architecture, .NET runtime version, and framework description.
-4. **.NET SDKs** — Lists all .NET SDK versions found via `dotnet --list-sdks`. Warns if .NET 8 is absent.
+4. **.NET SDKs** — Lists the .NET SDK versions reported by `dotnet --list-sdks`. This probe is informational: if dotnet is absent, fails to start, or returns an error, that is information, not a problem, because the CLI does not require the SDK.
 5. **FrameworkHost** — Resolves the `XrmGhost.Framework.Host.exe` binary (the host bundled in the `bin\` folder next to `xg.exe` first, then the managed install root `%LOCALAPPDATA%\xrmghost\framework-host\current\`, then legacy beside-CLI locations) and reports its path, version and verdict. The verdict is the same one `xg run` acts on, so a host that `run` would stop on cannot pass here. Fails if the host is missing, corrupted or incompatible. With `--fix`, the repair runs first and the check reports the state after it.
 6. **Local Configuration Files** — Verifies that `bootstrap.lic` can be decrypted and that the AKMS API key is present and unexpired. Displays the license tier when the key is valid.
 7. **AKMS Connectivity** — Contacts the AKMS JWKS endpoint to confirm network reachability, then attempts a test JWT issuance if a valid local API key exists.
@@ -119,14 +119,14 @@ The table below maps each check to the condition that makes it fail.
 | CLI Information | Assembly metadata cannot be read or Platform ID cannot be retrieved. |
 | Core Library | `XrmGhost.Core` assembly cannot be located or its metadata is unreadable. |
 | Platform Information | OS or .NET runtime metadata is inaccessible (rare; indicates a severely broken runtime). |
-| .NET SDKs | `dotnet --list-sdks` exits with a non-zero code or the process cannot be started. A warning (not a failure) is printed if .NET 8 is absent. |
+| .NET SDKs | Never — informational. |
 | FrameworkHost | The executable cannot be resolved in the bundled `bin\` folder, the managed install root, legacy beside-CLI locations, or the path given with `--framework-host-path`; or the resolved host is corrupted or incompatible; or, with `--fix`, the install failed. |
 | Local Configuration Files | `bootstrap.lic` is missing or cannot be decrypted **and** the AKMS API key is missing or expired. |
 | AKMS Connectivity | The JWKS endpoint is unreachable or returns no keys, **or** the test JWT issuance fails when a valid API key is present. |
 | Subscription Claims Diagnostics | An unhandled exception occurs while reading or displaying license claims. |
 
 :::note
-A warning on the `.NET 8 SDK` check does not cause an overall failure. The check still returns `true` so that the final status reflects only hard failures.
+The `.NET SDKs` check does not affect the overall result or the exit code. A self-contained ZIP install on a machine without dotnet is healthy. `DotnetSdks` is `false` when the probe is missing or fails, and it does not contribute to `Healthy`.
 :::
 
 ## See Also
