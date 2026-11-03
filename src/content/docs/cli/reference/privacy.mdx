@@ -13,7 +13,9 @@ xg privacy
 
 ## Description
 
-`xg privacy` prints a structured summary of every category of data that XrmGhost collects, stores, or transmits. The command exits immediately after printing; it does not open a browser or make network requests.
+`xg privacy` prints a structured summary of every category of data that XrmGhost collects, stores, or transmits. The command only prints this summary and does not open a browser. Like every `xg` invocation, it still registers the machine with XrmGhost servers at startup (see section 3) and, unless telemetry is disabled with `XRMGHOST_TELEMETRY=0`, records pseudonymised usage telemetry for the run (see sections 4 and 5).
+
+For the complete, field-by-field description of what the CLI and the Framework Host send, how long it is kept, and how to turn telemetry off, see [What XrmGhost collects](/cli/privacy/).
 
 The output covers five distinct areas:
 
@@ -23,9 +25,9 @@ When the XrmGhost CLI is first run, it generates a unique GUID called the **Plat
 
 - stored locally in your user application data directory
 - printed to the console by this command alongside the current value
-- transmitted to XrmGhost servers for **licensing validation** and **anonymised usage analytics**
+- transmitted to XrmGhost servers in clear for **licensing validation** and **pseudonymised usage analytics**
 
-The Platform ID persists across CLI updates. It is the primary key used to associate your machine with an activated license.
+The Platform ID persists across CLI updates. It is the primary key used to associate your machine with an activated license. Because data sent to XrmGhost is linked to it, that data is pseudonymised: it remains linked to your machine.
 
 ### 2. Local Hardware Context
 
@@ -38,33 +40,87 @@ On each startup the CLI computes a **hardware contextual salt** from:
 
 This value is hashed locally and used to harden activated license files against being copied to a different machine. **The salt itself is never transmitted to XrmGhost servers.**
 
-### 3. Other Information Sent Remotely
+### 3. Device Details Sent for Machine Registration and License/API-Key Validation
 
-For licensing, analytics, and error reporting the following additional data may be sent alongside the Platform ID:
+With machine registration and license/API-key validation, the following is sent to XrmGhost servers:
 
-| Field | Example source |
-|---|---|
-| IP address | Inferred at connection time |
-| Machine name | `Environment.MachineName` |
-| OS description | `RuntimeInformation.OSDescription` |
-| .NET runtime description | `RuntimeInformation.FrameworkDescription` |
-| XrmGhost CLI version | Embedded assembly version |
-| Username | `Environment.UserName` |
-| User domain name | `Environment.UserDomainName` |
+| Field | Example source | How it is sent |
+|---|---|---|
+| Machine name | `Environment.MachineName` | Shown locally by `xg privacy`; sent only as a SHA-256 hash |
+| Username | `Environment.UserName` | Shown locally by `xg privacy`; sent only as a SHA-256 hash |
+| User domain name | `Environment.UserDomainName` | Shown locally by `xg privacy`; sent only as a SHA-256 hash |
+| OS description | `RuntimeInformation.OSDescription` | In clear |
+| .NET runtime description | `RuntimeInformation.FrameworkDescription` | In clear |
+| XrmGhost CLI version | Embedded assembly version | In clear |
+| Platform ID | Stored Platform ID (section 1) | In clear |
+
+Machine name, username and user domain name are never sent as shown. Each is sent only as a lowercase hexadecimal SHA-256 hash of the value prefixed with its field name (for example `MachineName:<machine name>`). The hash is **deterministic and unsalted**: no secret or random salt is added, so the same value always produces the same hash. The hash keeps the plain value out of the payload, but it is only pseudonymisation: anyone who can guess a candidate value (a common username or machine name, for example) can compute the same hash and confirm the match.
+
+Like any network service, XrmGhost servers receive the IP address of the connection, but the CLI does not include it in the data it sends.
 
 ### 4. Usage Analytics and Error Reporting
 
-XrmGhost may collect anonymised information about commands run, features used, and errors encountered. All telemetry is linked to your Platform ID. The purpose is to identify popular workflows, prioritise improvements, and diagnose bugs.
+XrmGhost may collect pseudonymised information about commands run, features used, and errors encountered. All telemetry is linked to your Platform ID. The purpose is to identify popular workflows, prioritise improvements, and diagnose bugs.
+
+Each telemetry record also carries a **release channel** field, `channel`, emitted as `prod` or `dev` to identify the release channel of the CLI build that produced it:
+
+- **`prod`** — a **stable** version of the XrmGhost CLI: a released, non-prerelease version.
+- **`dev`** — a **prerelease** version (for example one with an `-alpha` suffix), or a local build without a recognisable version.
+
+The value depends only on the XrmGhost CLI version, not on how the CLI was installed (winget, NuGet or ZIP). `channel` is a build/release constant, **not personal data**, and it is subject to the same opt-out as the rest of this section.
+
+#### Actor fields: who is running the CLI
+
+Each telemetry record also carries three **actor** fields. They identify the **execution context** of the run — a person at a terminal, an AI agent, or a CI pipeline — and nothing else: they are not a feature switch, and no command behaves differently because of them. `xg privacy` prints them in section 4 with this text:
+
+> - Each telemetry record also carries who is running the CLI: actor (human, agent, ci, unknown), agent_name (present only when actor is agent; one of claude-code, codex, copilot-cli, opencode, pi, gemini-cli, cursor, cline, mcp, other) and is_ci (true or false, always computed from the CI environment variables, independently of actor).
+> - These fields are used only to measure who runs the CLI (a person, an AI agent or a CI pipeline); they never change how the product behaves.
+> - Setting XRMGHOST_ACTOR=human (or passing --actor human) removes only the agent marker: records still carry actor=human and is_ci.
+> - XRMGHOST_TELEMETRY=0 remains the only way to send none of these fields, as described in section 5.
+
+| Field | Values | When it is present |
+|---|---|---|
+| `actor` | `human`, `agent`, `ci`, `unknown` | Always |
+| `agent_name` | `claude-code`, `codex`, `copilot-cli`, `opencode`, `pi`, `gemini-cli`, `cursor`, `cline`, `mcp`, `other` | **Only when `actor` is `agent`**; omitted for `human`, `ci` and `unknown` |
+| `is_ci` | `true` or `false` | Always — computed from the CI environment variables, independently of `actor` (an agent can run inside a CI pipeline) |
+
+`agent_name` is a closed list: any value outside it, whether passed by option, by variable or read from an agent's environment, is recorded as `other`.
+
+The actor is resolved once, when the CLI starts. The first level that applies wins:
+
+1. **`--actor` / `--agent-name`** — global options accepted by every command, in any position, in the forms `--actor agent` and `--actor=agent`.
+2. **`XRMGHOST_ACTOR` + `XRMGHOST_AGENT_NAME`** — environment variables. `XRMGHOST_ACTOR` takes the same four values as `--actor`.
+3. **Recognised agent environment variables** — `actor` is `agent` and `agent_name` comes from the first variable that matches:
+
+   | Variable | Matches when | `agent_name` |
+   |---|---|---|
+   | `CLAUDECODE` | equals `1` | `claude-code` |
+   | `AI_AGENT` | is set | the variable's value (`other` if not in the list) |
+   | `PI_CODING_AGENT` | equals `true` | `pi` |
+   | `GEMINI_CLI` | equals `1` | `gemini-cli` |
+   | `CODEX_SANDBOX` | is set | `codex` |
+   | `CURSOR_AGENT` | equals `1` | `cursor` |
+   | `CLINE_ACTIVE` | equals `true` | `cline` |
+
+4. **CI variables** — `actor` is `ci` when `CI`, `GITHUB_ACTIONS`, `TF_BUILD`, `GITLAB_CI` or `BUILDKITE` is `1`, `true` or `yes`, or when `JENKINS_URL`, `TEAMCITY_VERSION` or `BUILD_BUILDID` is set. The same variables compute `is_ci` at every level.
+5. **Interactive console** — `actor` is `human`.
+6. Otherwise `actor` is `unknown`. A non-interactive run is not taken as evidence of an agent: it can also be a pipe or a script.
+
+An invalid `--actor` or `XRMGHOST_ACTOR` value is ignored and resolution continues at the next level; it never makes a command fail. A name given alone, without an explicit actor or a recognised agent variable, does not turn the actor into `agent`.
+
+**`XRMGHOST_ACTOR=human` is not a telemetry opt-out.** Because level 2 comes before level 3, setting `XRMGHOST_ACTOR=human` (or passing `--actor human`) overrides automatic agent detection as well as an agent marker set by a skill: it removes only the agent marker, and records still carry `actor=human` and `is_ci`. To send none of these fields, use `XRMGHOST_TELEMETRY=0`, described in section 5.
 
 ### 5. Opting Out of Telemetry
 
-Set the environment variable `XRMGHOST_TELEMETRY=0` before running `xg` to stop the transmission of CLI telemetry:
+Set the environment variable `XRMGHOST_TELEMETRY` to `0` to stop the transmission of CLI telemetry. To make the opt-out persistent for your Windows user account, use `setx`:
 
 ```shell
-# Linux / macOS
-export XRMGHOST_TELEMETRY=0
+setx XRMGHOST_TELEMETRY 0
+```
 
-# Windows (PowerShell)
+`setx` takes effect in terminals opened **after** you run it; the terminal where you ran it keeps the old value. To opt out only for the current PowerShell session, set it in the session instead (it is lost when the session closes):
+
+```shell
 $env:XRMGHOST_TELEMETRY = "0"
 ```
 
@@ -72,11 +128,12 @@ With the opt-out set, the usage analytics, error reporting, traces and metrics d
 
 - **Only the exact value `0` disables telemetry** (surrounding whitespace is ignored). Any other value (for example `false`, `no` or `off`), or leaving the variable unset, keeps telemetry enabled.
 - **Telemetry already queued stays on disk.** Data queued on this machine before you opted out is neither uploaded nor deleted while `XRMGHOST_TELEMETRY` is `0`; it is left on disk unchanged.
+- **The actor fields go with the rest of telemetry.** With `XRMGHOST_TELEMETRY=0` no `actor`, `agent_name` or `is_ci` is sent. `XRMGHOST_ACTOR=human` is a different setting: it opts out only of the agent marker, and telemetry stays enabled.
 
 The opt-out covers telemetry only. It does **not** disable:
 
 - **license validation** — license and API-key validation keep contacting XrmGhost servers;
-- **machine registration** — your Platform ID and the device details listed in section 3 are still sent to XrmGhost servers to register the machine;
+- **machine registration** — your Platform ID and the device details listed in section 3 are still sent to XrmGhost servers to register the machine; machine name, username and user domain name are sent only as deterministic, unsalted SHA-256 hashes, as described in section 3;
 - **local hardware context handling** — the hardware contextual salt described in section 2 is still computed locally on each startup to protect your activated license.
 
 For the full privacy policy visit: **https://www.xrmghost.tech/legal/privacy-policy**
@@ -92,13 +149,9 @@ A run shows the notice only when **both** of these are true:
 
 When the notice is shown, the CLI records that fact by writing a file named `first-run.sentinel`. Redirected or piped runs and prerelease runs **neither show the notice nor write the sentinel**, so the notice still appears on your first interactive run of a stable version, even if the CLI has already run many times in CI or as a prerelease.
 
-The sentinel lives in the same directory as the Platform ID file `machine_id.dat` (see the storage path table in [`xg license get-platform-id`](/cli/reference/license-get-platform-id/)):
+The sentinel lives in the same directory as the Platform ID file `machine_id.dat` (see [`xg license get-platform-id`](/cli/reference/license-get-platform-id/)).
 
-| Platform | Sentinel path |
-|---|---|
-| Windows | `%LOCALAPPDATA%\XrmGhost\XrmGhostCli\first-run.sentinel` |
-| Linux | `$XDG_DATA_HOME/xrmghost/xrmghostcli/first-run.sentinel` (falls back to `~/.local/share/xrmghost/xrmghostcli/first-run.sentinel`) |
-| macOS | `~/Library/Application Support/xrmghost/xrmghostcli/first-run.sentinel` |
+On Windows the sentinel is `%LOCALAPPDATA%\XrmGhost\XrmGhostCli\first-run.sentinel`.
 
 To see the notice again, delete `first-run.sentinel`: the notice is shown again on the next interactive run of a stable version. Delete only that file — deleting `machine_id.dat` from the same directory generates a new Platform ID and invalidates licenses bound to the old one.
 
@@ -108,7 +161,7 @@ To see the notice again, delete `first-run.sentinel`: the notice is shown again 
 
 ## Options
 
-This command has no flags or options.
+This command has no flags or options of its own. Like every `xg` command, it accepts the global `--actor` and `--agent-name` options described in [Actor fields](#actor-fields-who-is-running-the-cli).
 
 ## Example
 
@@ -125,24 +178,48 @@ XrmGhost Data Collection & Privacy Information
    - A unique identifier (GUID) is generated when XrmGhost CLI is first run. This is your Platform ID.
    - This Platform ID is stored locally on your machine in your user application data directory.
    - Your current Platform ID: 3fa85f64-5717-4562-b3fc-2c963f66afa6
-   - Purpose: This Platform ID is used to associate your machine with any activated licenses and for collecting anonymized usage analytics and error reports to help improve XrmGhost.
+   - Purpose: This Platform ID is used to associate your machine with any activated licenses and for collecting pseudonymized usage analytics and error reports to help improve XrmGhost.
    - Sent Remotely: Yes, this Platform ID is sent to XrmGhost servers for licensing and analytics.
 
 2. Local Hardware Context (`HardwareContextualSalt`):
-   ...
+   - On each startup, XrmGhost generates a local 'fingerprint' based on:
+     - Your primary network adapter's MAC address.
+     - Operating System description.
+     - Processor count.
+     - Current username.
+   - This fingerprint is hashed and used as a 'salt'.
+   - Purpose: This salt is used locally to help secure your activated license information on your machine. It makes it harder for license files to be copied between different machine contexts without re-validation.
    - Sent Remotely: No, this hardware salt itself is NOT sent to XrmGhost servers.
 
-3. Other Information Sent Remotely (with your Platform ID):
-   ...
+3. Device Details Sent for Machine Registration and License/API-Key Validation (with your Platform ID):
+   - With machine registration and license/API-key validation, the following is sent:
+     - Machine Name (shown locally): DESKTOP-4F7K2QX
+     - Username (shown locally): jdoe
+     - User Domain Name (shown locally): CONTOSO
+     - Machine name, username and user domain name are never sent as shown: each is sent only as a deterministic, unsalted SHA-256 hash of the value prefixed with a fixed field-name prefix (for example `MachineName:`).
+     - OS Description (sent in clear): Microsoft Windows 10.0.22631
+     - .NET Runtime Description (sent in clear): .NET 9.0.0
+     - XrmGhost CLI Version (sent in clear).
+     - Platform ID (sent in clear).
+   - Like any network service, XrmGhost servers receive the IP address of the connection, but the CLI does not include it in the data it sends.
+   - Purpose: To register your machine and associate it with your activated licenses, and to validate your license or API key.
 
 4. Usage Analytics & Error Reporting:
-   ...
+   - XrmGhost may collect pseudonymized information about how you use the CLI (e.g., commands run, features used) and details about errors encountered.
+   - This data is linked to your Platform ID.
+   - Each telemetry record also carries a release channel ("prod" or "dev"). It is a build constant derived from the XrmGhost CLI version, not personal data, and it is subject to the same opt-out as the rest of this section.
+   - Each telemetry record also carries who is running the CLI: actor (human, agent, ci, unknown), agent_name (present only when actor is agent; one of claude-code, codex, copilot-cli, opencode, pi, gemini-cli, cursor, cline, mcp, other) and is_ci (true or false, always computed from the CI environment variables, independently of actor).
+   - These fields are used only to measure who runs the CLI (a person, an AI agent or a CI pipeline); they never change how the product behaves.
+   - Setting XRMGHOST_ACTOR=human (or passing --actor human) removes only the agent marker: records still carry actor=human and is_ci.
+   - XRMGHOST_TELEMETRY=0 remains the only way to send none of these fields, as described in section 5.
+   - Purpose: To identify popular features, areas for improvement, and to diagnose and fix bugs more effectively.
 
 5. Opting Out of Telemetry:
    - To opt out, set the environment variable XRMGHOST_TELEMETRY=0 before running XrmGhost.
    - This stops the usage analytics, error reporting, traces and metrics described in section 4: nothing of it is collected, queued or uploaded.
    - Telemetry already queued on this machine before opting out is not uploaded while the opt-out is set; it is left on disk unchanged.
    - Even with XRMGHOST_TELEMETRY=0, your Platform ID and the device details in section 3 (machine name, OS description, .NET runtime description, XrmGhost CLI version, username and user domain name) are still sent to XrmGhost servers for machine registration and license/API-key validation.
+   - Machine name, username and user domain name are sent only as hashes, as described in section 3.
    - Machine registration and licensing remain active and cannot be disabled by this setting.
 
 For more detailed information, please visit our online privacy policy at: https://www.xrmghost.tech/legal/privacy-policy
@@ -159,4 +236,5 @@ For more detailed information, please visit our online privacy policy at: https:
 - [`xg license status`](/cli/reference/license-status/) — view your current license tier and the Platform ID used for activation
 - [CLI Reference](/cli/reference/) — landing page for all CLI reference pages
 - [CLI Overview](/cli/) — introduction to the `xg` CLI and command groups
+- [What XrmGhost collects](/cli/privacy/) — field-by-field description of the data the CLI and host send
 - [Privacy Policy](https://www.xrmghost.tech/legal/privacy-policy) — full online privacy policy

@@ -1,0 +1,64 @@
+---
+title: "xg.exe blocked by Smart App Control on Windows 11: what to do"
+description: "Why Smart App Control can block an XrmGhost binary, which releases are code-signed, how to verify the signature, and what to send us if a signed release is still blocked."
+sidebar:
+  label: "Smart App Control"
+---
+
+# `xg.exe` blocked by Smart App Control on Windows 11: what to do
+
+Smart App Control (SAC) is a Windows 11 feature that refuses to run executables that are neither signed by a known publisher nor already known to Microsoft as reputable. On a new Windows 11 machine it is often on by default. This page explains what it checks, which XrmGhost releases pass it, and what to do if one does not.
+
+## The symptom
+
+Running `xg` does nothing, or Windows shows a popup saying that Smart App Control has blocked part of the app. Microsoft does not publish the full wording of the popup; its page [Smart App Control has blocked part of this app](https://support.microsoft.com/en-us/topic/smart-app-control-has-blocked-part-of-this-app-0729fff1-48bf-4b25-aa97-632fe55ccca2) says to select **Learn more** to see which file caused the block. If the popup closes first, open *Windows Security → Virus & threat protection → Protection history* and look for a **Smart App Controls** or **Blocked app** entry.
+
+Windows also logs the block in Event Viewer under *Microsoft → Windows → CodeIntegrity → Operational*: event **3077** ([the main block event for enforced policies](https://learn.microsoft.com/en-us/windows/security/application-security/application-control/app-control-for-business/operations/event-id-explanations)), whose details include the path of the refused file. If that file is `xg.exe` or `XrmGhost.Framework.Host.exe`, you are on the right page.
+
+## Why it happens
+
+SAC decides per file. An executable without an Authenticode signature is blocked unless Microsoft's reputation service already knows it as safe. The first builds of XrmGhost had neither, so they were blocked on a default Windows 11 installation. That was our problem, not yours, and it is what the signed releases fix.
+
+SAC cannot be turned back on once it is turned off, short of reinstalling Windows. Turning it off to run XrmGhost is not something we suggest, and with a signed release you do not need to.
+
+## Signed releases
+
+Stable releases of the CLI from **1.7.2** and of the Framework Host from **1.0.1** are Authenticode-signed. The full install matrix on a Windows 11 machine with SAC on was tested on **CLI 1.7.5 with host 1.0.2**: every executable in the release ZIP carries a valid signature, and the host executes an ordinary, unsigned plugin assembly without any CodeIntegrity event.
+
+That last point matters: **your plugin DLL does not need to be signed.** The host reads the assembly bytes and loads them in memory, the same way Dataverse loads a plugin from the database, so SAC does not evaluate your freshly built DLL as a file. Only `xg.exe` and the host need a signature, and those are ours to sign.
+
+The signature's publisher is the legal entity that holds the certificate, not the brand name: [Trust and WDAC](/cli/trust-and-wdac/) explains the three names you will meet and which one to check, and why to verify the publisher rather than a thumbprint.
+
+Alpha builds are not signed. If you installed a prerelease to pick up a fix early, expect SAC to block it until the fix reaches a stable release.
+
+## Which channel to use
+
+- **On a desktop**, install the signed ZIP from [GitHub Releases](https://github.com/xrmghost/xrmghost/releases), asset `xrmghost-cli-<version>-full.zip` (it carries `xg.exe` and the signed host in `bin\`), or use `winget install XrmGhost.Cli` once the listing is live. [Getting Started](/getting-started/) walks through extraction and `PATH`.
+- **In CI and automation**, `dotnet tool install -g XrmGhost.Cli` from NuGet is the right channel and stays supported. A global tool runs through a small `xg` launcher that the SDK generates on your machine, which we cannot sign: irrelevant on a build agent, and the reason we point desktops to the ZIP.
+
+If you had the global tool before and now extract the ZIP, keep only one `xg` on your `PATH`; the [migration note](/getting-started/#moving-a-desktop-off-the-global-tool) shows how.
+
+## Verify the signature yourself
+
+From the folder where you extracted the ZIP:
+
+```powershell
+Get-AuthenticodeSignature .\xg.exe, .\bin\XrmGhost.Framework.Host.exe | Format-List Status, SignerCertificate
+```
+
+`Status` must be `Valid` for both files (Explorer shows the same under *Properties → Digital Signatures*). `NotSigned` means the file is not from a signed stable release: check `xg --version` and the asset you downloaded.
+
+## If you have an earlier version
+
+Any CLI below 1.7.2, any host below 1.0.1, and any alpha build is unsigned. Download the current stable `-full.zip` and extract it over the old folder, so `xg.exe` and `bin\` move together. `xg doctor --verbose` prints which host was resolved; it should be the one in `bin\`.
+
+## Still blocked? What to send us
+
+A signed release that SAC still refuses is a bug we want to see. Open an issue through [Report a Bug](/community/report-a-bug/) with:
+
+- the output of `xg --version` and of `Get-AuthenticodeSignature` on the blocked file, as above;
+- the CodeIntegrity event **3077** for that file, exported from Event Viewer (or the text of the dialog, if that is all you have);
+- the SAC mode: *Windows Security → App & browser control → Smart App Control settings*;
+- how you installed: ZIP, winget, or `dotnet tool`.
+
+That is enough to tell a reputation delay on a brand-new release from a real signing problem.

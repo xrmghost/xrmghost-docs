@@ -69,24 +69,39 @@ the single most common source of scenario errors:
 
 - **Plain values** (string, number, bool) are written directly — `"name": "Contoso Ltd"`,
   `"revenue": 1000000`, `"creditonhold": false`.
-- **OptionSet / Picklist** is `{ "value": X }` — never the bare number.
+- **OptionSet / Picklist** is `{ "value": X }` — never the bare number. The tag
+  `"type": "OptionSetValue"` is optional: `{ "type": "OptionSetValue", "value": X }` reads the same.
+- **Money** is `{ "type": "Money", "value": X }`, where `X` may be an integer or a decimal. The
+  `"type": "Money"` tag is what makes it Money: without it, `{ "value": X }` stays an OptionSet.
+  With the current `xg` release the tag is honoured **only in the root-level
+  [`entities`](#retrievemultiple--the-root-level-entities-key) seed**, which the CLI hands to the
+  host as written; see the caution below.
 - **EntityReference / lookup** is `{ "logicalName": "...", "id": "...", "name": "..." }`, where
   `name` is optional.
 - **GUIDs must be valid hexadecimal.** An id containing a non-hex character — an `x`, a `g`, a typo
   — fails to parse inside an `EntityReference` and takes the whole scenario down with it.
 
 ```json
-"attributes": {
-  "name": "Contoso Ltd",
-  "revenue": 1000000,
-  "statuscode": { "value": 2 },
-  "primarycontactid": {
-    "logicalName": "contact",
-    "id": "00000000-0000-0000-0000-0000000000c1",
-    "name": "Alex Taylor"
+{
+  "attributes": {
+    "name": "Contoso Ltd",
+    "revenue": 1000000,
+    "statuscode": { "value": 2 },
+    "primarycontactid": {
+      "logicalName": "contact",
+      "id": "00000000-0000-0000-0000-0000000000c1",
+      "name": "Alex Taylor"
+    }
   }
 }
 ```
+
+:::caution Where the Money tag is recognised
+The CLI reads `Target`, the rest of `inputParameters`, `preEntityImages`, `postEntityImages` and
+`organizationServiceMock` and writes them out again before handing them to the host, and the current
+`xg` release does not carry the `"type": "Money"` tag through that step. Use the tag only on records
+in the root-level `entities` seed; elsewhere, do not rely on it to produce a Money value.
+:::
 
 ## Supplying the data the code reads
 
@@ -97,34 +112,67 @@ expected.
 
 | The plugin calls | You describe it in | Where the attributes go |
 |---|---|---|
-| `Retrieve` (one record, by id) | `organizationServiceMock.retrieveResponses` | **Nested** under an `attributes` object |
+| `Retrieve` (one record, by id) | `organizationServiceMock.retrieveResponses` — or a record of the root-level `entities` seed with that id | **Nested** under an `attributes` object in `retrieveResponses`; **directly on the entity object** in `entities` |
 | `RetrieveMultiple` (a query) | a **root-level** `entities` key, sibling of `executionContext` | **Directly on the entity object** |
 
 ### `Retrieve` — `organizationServiceMock.retrieveResponses`
 
-Each entry pairs the call to match (`request`) with the record to hand back (`response`):
+Each entry pairs the call to match (`request`) with the record to hand back (`response`). An entry
+matches on `entityName` **and** `id`; `request.columnSet` does not take part in the match, and can be
+omitted:
 
 ```json
-"organizationServiceMock": {
-  "retrieveResponses": [
-    {
-      "request": {
-        "entityName": "contact",
-        "id": "00000000-0000-0000-0000-0000000000c1",
-        "columnSet": ["fullname", "emailaddress1"]
-      },
-      "response": {
-        "logicalName": "contact",
-        "id": "00000000-0000-0000-0000-0000000000c1",
-        "attributes": {
-          "fullname": "Alex Taylor",
-          "emailaddress1": "alex.taylor@example.com"
+{
+  "organizationServiceMock": {
+    "retrieveResponses": [
+      {
+        "request": {
+          "entityName": "contact",
+          "id": "00000000-0000-0000-0000-0000000000c1",
+          "columnSet": ["fullname", "emailaddress1"]
+        },
+        "response": {
+          "logicalName": "contact",
+          "id": "00000000-0000-0000-0000-0000000000c1",
+          "attributes": {
+            "fullname": "Alex Taylor",
+            "emailaddress1": "alex.taylor@example.com"
+          }
         }
       }
-    }
-  ]
+    ]
+  }
 }
 ```
+
+#### How a `Retrieve` is answered
+
+When the scenario answers a `Retrieve`, the host looks for the record in this order and stops at the
+first source that has it:
+
+1. **What the run itself did** — records the plugin created or updated during this run.
+2. **`organizationServiceMock.retrieveResponses`** — the explicit responses above.
+3. **The root-level `entities` seed** — see [the next section](#retrievemultiple--the-root-level-entities-key).
+4. **The rest of the in-memory store.**
+
+So **an explicit `retrieveResponses` entry wins over a seed record with the same `entityName` and
+`id`**: declare a record in one place, or expect the response to be the one you see.
+
+Whichever source answers, the record is **projected on the `ColumnSet` the plugin passes** — not on
+the `columnSet` written in the scenario:
+
+- columns the plugin did not ask for are not returned;
+- the primary key (`<logicalName>id`) is always present;
+- `new ColumnSet(true)` (all columns) returns every attribute the record has;
+- an empty `ColumnSet` returns only the primary key.
+
+A record that no source holds — or an id that is `Guid.Empty` — makes `Retrieve` throw the fault
+Dataverse throws: a `FaultException<OrganizationServiceFault>` with error code `0x80040217`
+(the record does not exist). A plugin that catches that fault sees what it would see in Dataverse.
+
+Writes are visible to later reads within the same run: a `Retrieve` after the plugin's `Update`
+returns the updated values, and a `Retrieve` after a `Delete` of that record throws the same
+not-found fault, even if `retrieveResponses` or the seed still describe it.
 
 ### `RetrieveMultiple` — the root-level `entities` key
 
@@ -133,19 +181,22 @@ Each entry pairs the call to match (`request`) with the record to hand back (`re
 on the object** — the opposite of `retrieveResponses`:
 
 ```json
-"entities": {
-  "contact": [
-    {
-      "id": "00000000-0000-0000-0000-0000000000c1",
-      "fullname": "Alex Taylor",
-      "emailaddress1": "alex.taylor@example.com",
-      "statuscode": { "value": 1 },
-      "parentcustomerid": {
-        "logicalName": "account",
-        "id": "00000000-0000-0000-0000-000000000001"
+{
+  "entities": {
+    "contact": [
+      {
+        "id": "00000000-0000-0000-0000-0000000000c1",
+        "fullname": "Alex Taylor",
+        "emailaddress1": "alex.taylor@example.com",
+        "statuscode": { "value": 1 },
+        "creditlimit": { "type": "Money", "value": 5000.50 },
+        "parentcustomerid": {
+          "logicalName": "account",
+          "id": "00000000-0000-0000-0000-000000000001"
+        }
       }
-    }
-  ]
+    ]
+  }
 }
 ```
 
@@ -154,19 +205,30 @@ only the records that match. So **every field the query's filter or order refere
 on the record**, or it is filtered out and your plugin sees an empty result it will not explain to
 you.
 
+The same records also answer a `Retrieve` by id, after any matching `retrieveResponses` entry (see
+[How a `Retrieve` is answered](#how-a-retrieve-is-answered)).
+
+**A malformed seed fails the run.** If the `entities` value cannot be parsed, or one of its records
+or attribute values cannot be converted, the plugin is not run against a partial store: the run is
+reported as failed and `xg run` exits with code `1`, whatever `expectedException` declares. Fix the
+seed; a run that silently dropped it
+would not be testing what you wrote.
+
 ## Pre-images
 
 A pre-image is supplied through a root-level `preEntityImages` key, whose name must match the image
 registered on the step — the same name the code reads:
 
 ```json
-"preEntityImages": {
-  "PreImage": {
-    "logicalName": "account",
-    "id": "00000000-0000-0000-0000-000000000001",
-    "attributes": {
-      "name": "Contoso Ltd",
-      "revenue": 900000
+{
+  "preEntityImages": {
+    "PreImage": {
+      "logicalName": "account",
+      "id": "00000000-0000-0000-0000-000000000001",
+      "attributes": {
+        "name": "Contoso Ltd",
+        "revenue": 900000
+      }
     }
   }
 }
@@ -328,6 +390,51 @@ The expectation covers the **plugin's own execution and nothing wider**. A failu
 assembly or to construct the plugin type is the harness being broken, and stays red whatever the
 scenario declares.
 
+### Expecting traces
+
+:::note[Availability]
+The trace assertion ships with the release after 1.7.7. In 1.7.7 the Framework Host does not
+evaluate `expectedTraceLog`: the key is accepted and ignored, and the run is judged on
+`expectedException` alone. The CLI version is printed in the banner of every `xg` run.
+:::
+
+`expectedTraceLog` is a list of strings the plugin is expected to have written through
+`ITracingService.Trace`. It is an assertion, evaluated once the plugin's `Execute` has finished:
+
+```json
+"expectedTraceLog": [
+  "Credit limit applied",
+  "revenue=1000000"
+]
+```
+
+These rules govern how the list is evaluated:
+
+- **Each entry is an ordinal, case-sensitive substring.** An entry is satisfied when the message of
+  **at least one** trace emitted by the plugin contains it. `"credit limit"` does not match a trace
+  that reads `Credit limit applied`.
+- **Only traces with source `Plugin` count.** Lines written by the framework and the host are not
+  searched, and neither is the rendered `TraceLog` you read with `-v` or `-d`: its prefixes and
+  timestamps are presentation, not the corpus. A host line that merely quotes your expected text
+  never satisfies the entry on the plugin's behalf.
+- **Order is not checked, and entries are independent.** The entries can appear in any order, and a
+  single trace can satisfy several entries at once.
+- **An absent list, or `[]`, asserts nothing.** The run is judged on `expectedException` alone.
+- **An empty or whitespace-only entry makes the run red.** Every message contains the empty
+  string, so such an entry is not a wildcard: it is reported as invalid, with its position in the
+  list.
+- **`expectedException` and `expectedTraceLog` combine with AND.** Both must hold for the run to
+  pass, and the traces are evaluated also when the plugin throws the expected exception and that
+  exception is captured. When the expected exception never arrives, the run is already red and keeps
+  the `expectedException` diagnostic.
+
+A missing trace fails the run like any other failed expectation. The summary reports
+`Execution Failed!`, then `Error Type: XrmGhost.ExpectedTraceLogAssertion` — not a CLR type: nothing
+was thrown, the name tells a missing trace apart from an exception the plugin raised — and an
+`Error Message:` listing the entries no plugin trace contained (and the positions of any blank
+entries). The traces and the rest of the output are kept, so you can compare what the plugin
+actually traced with what you declared, and `xg run` exits with code `1`.
+
 | What happens | Result |
 |---|---|
 | No `expectedException`, plugin does not throw | Pass — exit code `0` |
@@ -336,12 +443,22 @@ scenario declares.
 | `expectedException` declared, plugin throws a different type or a message that does not contain `messageContains` | Fail — exit code `1` |
 | `expectedException` declared, plugin throws nothing | Fail — exit code `1` |
 | `expectedException` declared with a missing or empty `typeName` | Fail — exit code `1` |
+| `expectedTraceLog` absent or `[]` | No trace assertion — the result follows the rows above |
+| Every `expectedTraceLog` entry found in a `Plugin` trace, and the exception expectation (if any) holds | Pass — exit code `0` |
+| An `expectedTraceLog` entry found in no `Plugin` trace | Fail — exit code `1`, `Error Type: XrmGhost.ExpectedTraceLogAssertion` |
+| An `expectedTraceLog` entry that is empty or whitespace-only | Fail — exit code `1`, `Error Type: XrmGhost.ExpectedTraceLogAssertion` |
+| `expectedException` satisfied, an `expectedTraceLog` entry missing | Fail — exit code `1`, `Error Type: XrmGhost.ExpectedTraceLogAssertion` |
 
-:::caution expectedTraceLog is not an assertion
-`xg generate-scenario` emits an `expectedTraceLog` key and the CLI carries it through, but nothing
-compares it against the traces a run produced. Do not treat it as a check — read the traces with
-`-v` or `-d` instead.
-:::
+### Migrating the legacy placeholder
+
+Scenarios generated by earlier releases of `xg generate-scenario` carry a placeholder entry of the
+form `Trace log for {messageName} (expected)` — for example `"Trace log for Create (expected)"`.
+It used to be ignored; now it is an assertion that no plugin traces, so the run turns red with
+`XrmGhost.ExpectedTraceLogAssertion`. For each saved scenario, pick one of three fixes:
+
+- **remove** the `expectedTraceLog` key;
+- **empty** it to `"expectedTraceLog": []`;
+- **replace** the placeholder with a substring of a trace the plugin really emits.
 
 ## See Also
 

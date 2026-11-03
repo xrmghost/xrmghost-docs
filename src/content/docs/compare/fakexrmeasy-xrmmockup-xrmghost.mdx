@@ -1,0 +1,87 @@
+---
+title: "FakeXrmEasy vs XrmMockup vs XrmGhost: which loop are you buying?"
+description: "Three ways to run Dataverse plugin code without deploying: in-process unit tests, a local instance simulation, or an out-of-process run driven by your coding agent. When to use which — and when to use them together."
+sidebar:
+  label: "FakeXrmEasy, XrmMockup, XrmGhost"
+head:
+  - tag: script
+    attrs:
+      type: application/ld+json
+    content: |
+      {"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"Is XrmGhost an alternative to FakeXrmEasy?","acceptedAnswer":{"@type":"Answer","text":"Not for what FakeXrmEasy is best at. If you want a unit test suite for your plugins, use FakeXrmEasy. XrmGhost is a way to run the compiled plugin against one scenario, locally, out of process, with an agent or a debugger driving it. Many teams will want both."}},{"@type":"Question","name":"Can I keep my existing tests?","acceptedAnswer":{"@type":"Answer","text":"Yes. XrmGhost does not touch your test project. It runs the built assembly."}},{"@type":"Question","name":"Which one should my coding agent use?","acceptedAnswer":{"@type":"Answer","text":"For the write-run-fix loop, XrmGhost, through the skills. For the tests it leaves behind, whichever framework your team already uses."}}]}
+---
+
+# FakeXrmEasy vs XrmMockup vs XrmGhost: which loop are you buying?
+
+The slow part of writing Dataverse plugins is finding out whether they work: build, deploy, trigger the message, wait, read the trace log, repeat. Every tool on this page shortens that loop, in three different ways and at three different costs. "Which one?" mostly depends on who is iterating, and how often.
+
+This page is written by the XrmGhost team. We describe the other two tools the way their own documentation does; where we are unsure, we say so. Corrections are welcome in [GitHub Discussions](/community/start-a-discussion/).
+
+## Three approaches, one problem
+
+| | **FakeXrmEasy** | **XrmMockup** | **XrmGhost** |
+|---|---|---|---|
+| **What it is** | A test automation framework: an in-memory fake of the Dataverse SDK (`IOrganizationService`, execution context) that your unit tests call directly. | A simulation of *your* Dataverse instance, built from an exported copy of its metadata, that executes plugins, workflows and security roles inside your tests. | A CLI (`xg`) plus a separate .NET Framework host that runs your compiled plugin assembly out of process, against a scenario file that defines the message, context and data. |
+| **What executes** | Your real plugin class, instantiated in the test process, against a faked context and pipeline simulation. | Your real plugin class, triggered automatically by the simulated request pipeline, with your instance's metadata and security model applied. | Your real compiled assembly, loaded by the host, in a runtime shaped to match the Dataverse server-side plugin model. |
+| **Where it runs** | In the test runner (xUnit, NUnit, MSTest). | In the test runner. | In a host process started by the CLI, on Windows (.NET Framework 4.7.2). |
+| **Who drives it** | A developer writing C# tests. | A developer writing C# tests, after running the metadata generator against an instance. | A developer at the terminal, or a coding agent through the [XrmGhost skills](/skills/). |
+| **Data the code reads** | What the test puts in the in-memory context. | What the test creates through the simulated service, on your real metadata. | What the scenario mocks. On Pro, read-only queries can resolve against a live environment. |
+| **One iteration** | Milliseconds: it is a unit test. | Seconds: it is a unit test with a full instance simulation behind it. | Seconds: build, then `xg run` with a scenario file. |
+| **Setup** | NuGet packages, then tests. | NuGet packages, metadata export from a target instance, then tests. | `winget install XrmGhost.Cli`, then `xg generate-scenario`. |
+| **Licence** | Triple-licensed: RPL 1.5, a modified Polyform Noncommercial licence, or a paid per-developer commercial licence. | MIT. | Two editions, Standard and Pro; see [Editions](/editions/) and [pricing](https://www.xrmghost.tech/#pricing). |
+| **Maturity** | Since the 1.x days; the current line is 3.x, still releasing in 2026. | Around 1,000 commits and regular releases in 2026. | First public release in 2026. |
+
+What the table cannot show: FakeXrmEasy and XrmMockup are *test frameworks*, and a growing suite that runs in CI on every commit is their whole point. XrmGhost is not a test framework. It is an execution loop: one scenario in, one result out, in a separate process, with a debugger attachable to it. Different tools for different moments of the same day.
+
+## When FakeXrmEasy is the right choice
+
+Use it when you want a permanent unit test suite for your plugins, and you want it fast. Tests run in-process in milliseconds, hundreds of them per CI job, with no extra process and no Windows-specific host. Its pipeline simulation covers stages, images, depth and registration validation. It has years of documentation and third-party tutorials, and it is what most Dataverse teams already know. For regression coverage it is the mature choice, and nothing on this page replaces it.
+
+The cost: the test author describes the world by hand, every record the plugin reads, every response the fake returns. For a human writing a handful of focused tests, that is a feature. For an agent iterating twenty times on one bug, it is the slow part.
+
+## When XrmMockup is the right choice
+
+Use it when the bug lives in the *interaction* between your plugin and everything else in the instance: other plugins on the same message, workflows, security roles, business units. XrmMockup reads an exported copy of your instance's metadata and executes "most of the standard requests" with your customisations applied, so a test can create an account through the simulated service and watch the whole chain fire. Neither of the other two tools claims that.
+
+The cost is the export step: the metadata matches the instance only as of when you fetched it, so you re-run the generator after each change, and the generator needs credentials for a real instance.
+
+## When XrmGhost is the right choice
+
+Use it when the thing iterating is a coding agent, or a developer who wants to run the compiled plugin *now*, against one concrete scenario, without writing a test first. The loop is `xg generate-scenario` (the host inspects the assembly and scaffolds the context from its attributes), edit the JSON, `xg run`. The result comes back as traces and an outcome; `-w` makes the host wait for a debugger. On Pro, `--data-source live` lets `Retrieve` and `RetrieveMultiple` resolve read-only against a configured environment, so a production case runs with the record that actually failed instead of a hand-built copy.
+
+The separate process and the scenario file are not there for fidelity's sake. They are there so an agent can write the scenario, run it, read the result and change the code without a human in the loop; the [skills](/skills/) teach it how. That is the loop we built XrmGhost for.
+
+## Using them together
+
+We expect most teams using XrmGhost to keep a FakeXrmEasy or XrmMockup suite. A workable split:
+
+- **Regression coverage in CI**: FakeXrmEasy or XrmMockup. Many cases, every commit, milliseconds each.
+- **Reproducing one failing case**: XrmGhost. One scenario, the real assembly, a debugger if you need one, live data on Pro.
+- **Agent-driven development**: XrmGhost for the write-run-fix loop while the code is taking shape; then the agent writes the FakeXrmEasy or XrmMockup tests that keep it working.
+
+Nothing stops you from running `xg run` in a pipeline, but that is not what it is best at.
+
+## What about XrmFramework (DIMSI)?
+
+XrmFramework is a different kind of tool: a productivity framework (typed models, attribute-based step registration, one-command deployment) whose debugging story is a *remote* debugger. The plugin runs in a real Dataverse environment and the execution context is forwarded to your machine over Azure Relay, so you hit Visual Studio breakpoints on live executions. If your loop is "attach to the cloud and step", that is the tool designed for it. It is not a local execution loop, and it is not something an agent can drive, which is why it is a paragraph here and not a column. (Not to be confused with an older, unrelated project of the same name from Delegate A/S.)
+
+## Our limits
+
+- **Windows only.** The host is a .NET Framework 4.7.2 process. The CLI itself is cross-platform, but a run needs the host.
+- **One scenario per run.** `xg run` takes one scenario file. A suite is a loop of invocations, not a single command.
+- **Fidelity is bounded.** The host mirrors the server-side plugin model; it is not Dataverse. Custom workflow activities are not supported yet.
+- **Live data is Pro, and read-only.** Standard runs on mocked scenario data only.
+- **We are new.** The other two tools have years of users and documentation. We do not.
+
+## Frequently asked
+
+**Is XrmGhost an alternative to FakeXrmEasy?**
+Not for what FakeXrmEasy is best at. If you want a unit test suite for your plugins, use FakeXrmEasy. XrmGhost is a way to run the compiled plugin against one scenario, locally, out of process, with an agent or a debugger driving it. Many teams will want both.
+
+**Can I keep my existing tests?**
+Yes. XrmGhost does not touch your test project. It runs the built assembly.
+
+**Which one should my coding agent use?**
+For the write-run-fix loop, XrmGhost, through the skills. For the tests it leaves behind, whichever framework your team already uses.
+
+Ready to try the loop? Start with the [XrmGhost skills for your coding agent](/skills/) or [Getting Started](/getting-started/).

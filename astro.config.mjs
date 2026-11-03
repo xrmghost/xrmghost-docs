@@ -70,10 +70,22 @@ export default defineConfig({
 					items: [
 						{ label: 'Overview', slug: 'overview' },
 						{ label: 'How It Works', slug: 'how-it-works' },
+						{ label: 'Deploy loop timing', slug: 'how-it-works/deploy-loop-timing' },
 						{ label: 'Editions', slug: 'editions' },
 					],
 				},
 				{ label: 'Getting Started', slug: 'getting-started' },
+				{ label: 'FAQ', slug: 'faq' },
+				{
+					label: 'How-to',
+					collapsed: true,
+					items: [{ autogenerate: { directory: 'how-to' } }],
+				},
+				{
+					label: 'Compare',
+					collapsed: true,
+					items: [{ autogenerate: { directory: 'compare' } }],
+				},
 				{
 					label: 'Skills',
 					collapsed: true,
