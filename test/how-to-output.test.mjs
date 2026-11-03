@@ -55,7 +55,7 @@ after(() => removeFixtures());
 
 test('landing, feed, sitemap e alternate sul build con fixture datate', () => {
   try {
-    writeFixture(NEWEST, '2026-10-19');
+    writeFixture(NEWEST, '2026-10-28');
     writeFixture(OLDEST, '2026-01-01');
     const r = build();
     assert.equal(r.status, 0, `build failed:\n${r.stdout}\n${r.stderr}`);
@@ -82,7 +82,7 @@ test('landing, feed, sitemap e alternate sul build con fixture datate', () => {
       assert.match(item, /<pubDate>[^<]+<\/pubDate>/);
       assert.match(item, new RegExp(`<link>${SITE}/how-to/[^<]+/</link>`));
     }
-    assert.equal(new Date(items[0].match(/<pubDate>([^<]+)</)[1]).toISOString().slice(0, 10), '2026-10-19');
+    assert.equal(new Date(items[0].match(/<pubDate>([^<]+)</)[1]).toISOString().slice(0, 10), '2026-10-28');
     assert.equal(
       new Date(items.at(-1).match(/<pubDate>([^<]+)</)[1]).toISOString().slice(0, 10),
       '2026-01-01',
