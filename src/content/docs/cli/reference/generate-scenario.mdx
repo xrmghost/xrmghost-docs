@@ -244,6 +244,21 @@ This warning does not prevent the file from being written. It flags that you nee
 
 `--online` requires an active **Pro** license. The command verifies the license tier before proceeding and exits with code `1` if the tier is not Pro. Otherwise, the scenario is generated exactly as it is without `--online`.
 
+### FrameworkHost startup diagnostics
+
+When FrameworkHost does not become healthy during startup, `generate-scenario` exits `1` and keeps the reason code `host_unhealthy` and its existing remediation text unchanged. The CLI adds a diagnostic block after the error that tells the two failure shapes apart:
+
+| Case | What the block shows |
+|---|---|
+| **Early exit** — the host process ended before it passed the health check | `FrameworkHost (PID: <pid>) exited with code <decimal> / 0x<hex>.` — for example `-532462766 / 0xE0434352` — followed by the captured output tail, when available. |
+| **Timeout with the host still alive** — the health check did not succeed within the startup timeout | `FrameworkHost (PID: <pid>) process still running.` followed by the captured output tail, when available. |
+
+The host's exit code is a diagnostic detail, not a CLI exit code: the CLI itself still exits `1`. An early exit can carry host exit code `0`, so a non-zero host exit code is not a precondition for this diagnosis.
+
+The captured output tail is the combined standard output and standard error of the host, with standard error lines prefixed `[stderr]`. It is bounded as a whole, not per stream: at most the last 20 lines and 4096 characters in total, with each line truncated to 500 characters. It is a tail, not the complete output.
+
+With `-d`/`--debug-mode` the host window is shown instead of its output being redirected, so the tail is **not available**; the exit code (early exit) or the PID and `process still running` line (timeout) are still shown. To see the tail, run without `--debug-mode`.
+
 ---
 
 ## Exit Codes
@@ -300,6 +315,8 @@ xg generate-scenario \
 ```
 
 ### Enable debug output to diagnose FrameworkHost startup
+
+With `--debug-mode` the host window is shown and its output tail is **not** captured, so a startup failure reports only the host exit code or the PID and `process still running` line. To see the captured tail, run the same command without `--debug-mode`.
 
 ```shell
 xg generate-scenario \
