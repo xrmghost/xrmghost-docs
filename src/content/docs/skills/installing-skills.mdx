@@ -78,7 +78,7 @@ Once `xg` is installed and `xg init` has run, the agent confirms the setup with 
 xg doctor
 ```
 
-The command prints one section per check, in this order:
+The command prints one section per check, in this order. Under the title a line shows who is running the CLI (the actor), which is informational only:
 
 ```text
 XrmGhost Environment Doctor
@@ -93,13 +93,15 @@ AKMS Connectivity:
 Subscription Claims Diagnostics
 ```
 
-Each section lists its findings beneath the heading (versions, locations, the license tier), and any failing check is reported in red under its own section. The run is healthy when the last line reads:
+Each section lists its findings beneath the heading (versions, locations, the license tier), and any failing check is reported in red under its own section. The `Subscription Claims Diagnostics` section is always printed; it shows a short summary of the license claims, with more detail in `--verbose` mode.
+
+The success signal is exit code `0` together with the line:
 
 ```text
 All critical checks passed. Your environment looks good!
 ```
 
-and the exit code is `0`. Exit code `1` means at least one check failed: the agent reads the failing section, fixes it (for a missing or broken host, `xg doctor --fix`), and runs `xg doctor` again. The `.NET SDKs Installed` section is informational and never fails the run. See [`xg doctor`](/cli/reference/doctor/) for what each check verifies.
+Without a license, an invitation to upgrade can follow that line: it is not an error and the exit code stays `0`. Exit code `1` means at least one check failed. The agent reads the failing section, fixes it (for a missing or broken host, `xg doctor --fix`), and runs `xg doctor` again. If `dotnet --list-sdks` cannot run or returns an error, the `.NET SDKs Installed` section reports it and fails the run; a missing .NET 8 SDK is only a yellow warning. See [`xg doctor`](/cli/reference/doctor/) for what each check verifies.
 
 ## The agent marker in `xg` telemetry
 
