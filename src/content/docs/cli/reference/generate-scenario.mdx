@@ -25,7 +25,7 @@ xg generate-scenario -p <PLUGIN_ASSEMBLY_PATH> -t <PLUGIN_TYPE_NAME> [options]
 |---|---|---|---|---|
 | `--plugin-assembly-path` | `-p` | `string` | *(required)* | Path to the compiled plugin assembly DLL. The file must exist at the specified path. |
 | `--plugin-type` | `-t` | `string` | *(required)* | Fully-qualified name of the plugin class to introspect (e.g. `MyPlugins.MyPluginClass`). |
-| `--output` | `-o` | `string` | Same directory as the assembly | Path where the generated scenario JSON file is written. If omitted, each file is written alongside the plugin DLL as `<PluginTypeName>_<MessageName>_Scenario.json`. With **one** message, a bare filename (no folder) is written to the current directory, and a path with a folder is written exactly there (`.json` is appended when the path has no extension). With **more than one** message the filename you pass is ignored: every scenario is named `<PluginTypeName>_<MessageName>_Scenario.json` and placed in the folder of the path (the current directory for a bare filename), and a warning is printed when `-o` pointed at a file inside a folder. A **directory target** — an existing directory, or any value ending with `/` or `\` — always receives the scenarios under their default names, with one message or several and with no warning. See [Output location](#output-location). |
+| `--output` | `-o` | `string` | Same directory as the assembly | Where the generated scenario JSON is written. If omitted, the file is placed alongside the plugin DLL. A bare file name (no directory part) is written to the current directory, not alongside the DLL. A file path is written exactly there; an existing directory, or a value ending with `/` or `\`, receives the scenarios under their default names. With several messages, any value classified as a file — including a bare file name, which resolves to the current directory — ignores the file's base name and extension: the scenarios take their default names (`<PluginTypeName>_<MessageName>_Scenario.json`) in that file's directory, and the command prints a warning. Omitting `-o` or passing a directory target prints no warning. See [Output location](#output-location). |
 | `--framework-host-path` | `-f` | `string` | Auto-resolved | Path to `XrmGhost.Framework.Host.exe`. When not provided the CLI uses the host bundled in the `bin\` folder next to `xg.exe` first (winget and ZIP installs), then its managed application-data install root, then legacy beside-the-CLI locations. |
 | `--debug-mode` | `-d` | `bool` | `false` | Emits detailed verbose output, including FrameworkHost startup information, gRPC health-check status, and per-field scaffold decisions. |
 | `--no-default-user-settings` | — | `bool` | `false` | Suppresses the automatic insertion of a default `usersettings` mock (Retrieve response) for the calling user context. |
@@ -216,12 +216,9 @@ The command generates one scenario file per message when the merged list of mess
 plus the `Messages` of every `[PluginExecutionConfig]`, deduplicated without regard to case — contains
 more than one message. Each file is named `<PluginTypeName>_<MessageName>_Scenario.json`:
 
-- without `-o`, the files go alongside the plugin DLL;
-- with `-o` and a bare filename, the filename is ignored and the files go to the current directory;
-- with `-o` and a path inside a folder, the filename is ignored and the files go to that folder, keeping
-  the extension of the path (`.json` when it has none); a warning reports that `-o` named a specific file;
-- with `-o` and a directory target — an existing directory, or a value ending with `/` or `\` — the files go
-  inside that directory under their default names, with no warning; see [Output location](#output-location).
+- **Omitted** — in the plugin DLL's directory.
+- **File path or bare file name** — in that file's directory (the current directory for a bare name), under the default names. The base name and extension of the file you passed are ignored (not used, not even as a prefix): the files are always `<PluginTypeName>_<MessageName>_Scenario.json`, and this applies to a bare name in the current directory too. The command prints a warning saying so.
+- **Directory target** (an existing directory, or a value ending with `/` or `\`) — inside that directory, with no warning.
 
 Because the configuration messages count, adding a message to `[PluginExecutionConfig]` can turn a
 command that wrote `-o ./test-scenarios/account-create.json` into a fan-out that writes
