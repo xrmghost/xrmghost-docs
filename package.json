@@ -7,10 +7,12 @@
     "start": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
-    "astro": "astro"
+    "astro": "astro",
+    "test": "node --test test/how-to-output.test.mjs"
   },
   "dependencies": {
     "@astrojs/check": "^0.9.9",
+    "@astrojs/rss": "^4.0.19",
     "@astrojs/starlight": "^0.39.2",
     "astro": "^6.3.1",
     "sharp": "^0.34.5",

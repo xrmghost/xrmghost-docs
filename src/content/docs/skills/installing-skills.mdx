@@ -22,7 +22,7 @@ The correct path is the manual copy described below. It takes seconds once you k
 
 ## Prerequisites
 
-The skills assume the `xg` CLI is installed and set up. First-time setup — installing `xg` with `winget install XrmGhost.Cli` (the runtime host comes with it, in `bin\`; without winget, the signed `xrmghost-cli-<version>-full.zip` from [GitHub Releases](https://github.com/xrmghost/xrmghost/releases/latest) carries the same bundle), running `xg init`, and activating a license — is covered by [Getting Started](/getting-started/). If `xg run` reports that no Framework Host was found, run `xg init` (`xg init --no-interactive` in CI): the bundled host in `bin\` is used first, then the managed install, then legacy locations. XrmGhost is distributed for evaluation; runs stop working as expected once the evaluation period lapses.
+The skills assume the `xg` CLI is installed and set up. First-time setup — installing `xg` with [Scoop, PowerShell, or the signed ZIP](/getting-started/#1-install-the-cli), running `xg init`, and activating a license — is covered by [Getting Started](/getting-started/). If `xg run` reports that no Framework Host was found, run `xg init` (`xg init --no-interactive` in CI): the bundled host in `bin\` is used first, then the managed install, then legacy locations. XrmGhost is distributed for evaluation; runs stop working as expected once the evaluation period lapses.
 
 ## Where each agent looks for skills
 
@@ -57,6 +57,51 @@ For another agent, swap the destination for the matching row in the table above 
 ## Verifying the install
 
 Start (or restart) your agent and confirm it can see the skills — in Claude Code, the skills appear in the available-skills list, and the agent will engage them when a task matches their triggers (writing a scenario, running a plugin locally, interpreting an `xg` result). A quick check is to ask the agent to run a plugin scenario locally and watch whether it reaches for `xg run` with the right flags.
+
+### Paste this to your agent
+
+To have your agent do the whole setup, paste this into its chat:
+
+```text
+Set up XrmGhost for me.
+1. Install the latest release following https://www.xrmghost.tech/quickstart
+2. Then run: xg init
+3. Install the skills debugging-dataverse-plugins-locally and authoring-dataverse-plugin-scenarios from https://github.com/xrmghost/xrmghost-skills into your agent skills folder, following https://docs.xrmghost.tech/skills/installing-skills/
+4. Read https://www.xrmghost.tech/llms-full.txt for product context.
+```
+
+### Check the environment with `xg doctor`
+
+Once `xg` is installed and `xg init` has run, the agent confirms the setup with [`xg doctor`](/cli/reference/doctor/):
+
+```shell
+xg doctor
+```
+
+The command prints one section per check, in this order. Under the title a line shows who is running the CLI (the actor), which is informational only:
+
+```text
+XrmGhost Environment Doctor
+
+CLI Information:
+Core Library (XrmGhost.Core) Information:
+Platform Information:
+.NET SDKs Installed:
+XrmGhost.Framework.Host.exe Status:
+Local Configuration Files:
+AKMS Connectivity:
+Subscription Claims Diagnostics
+```
+
+Each section lists its findings beneath the heading (versions, locations, the license tier), and any failing check is reported in red under its own section. The `Subscription Claims Diagnostics` section is always printed; it shows a short summary of the license claims, with more detail in `--verbose` mode.
+
+The success signal is exit code `0` together with the line:
+
+```text
+All critical checks passed. Your environment looks good!
+```
+
+Without a license, an invitation to upgrade can follow that line: it is not an error and the exit code stays `0`. Exit code `1` means at least one check failed. The agent reads the failing section, fixes it (for a missing or broken host, `xg doctor --fix`), and runs `xg doctor` again. If `dotnet --list-sdks` cannot run or returns an error, the `.NET SDKs Installed` section reports it and fails the run; a missing .NET 8 SDK is only a yellow warning. See [`xg doctor`](/cli/reference/doctor/) for what each check verifies.
 
 ## The agent marker in `xg` telemetry
 

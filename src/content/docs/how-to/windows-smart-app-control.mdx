@@ -1,6 +1,7 @@
 ---
 title: "xg.exe blocked by Smart App Control on Windows 11: what to do"
 description: "Why Smart App Control can block an XrmGhost binary, which releases are code-signed, how to verify the signature, and what to send us if a signed release is still blocked."
+date: 2026-10-08
 sidebar:
   label: "Smart App Control"
 ---
@@ -33,10 +34,10 @@ Alpha builds are not signed. If you installed a prerelease to pick up a fix earl
 
 ## Which channel to use
 
-- **On a desktop**, install the signed ZIP from [GitHub Releases](https://github.com/xrmghost/xrmghost/releases), asset `xrmghost-cli-<version>-full.zip` (it carries `xg.exe` and the signed host in `bin\`), or use `winget install XrmGhost.Cli` once the listing is live. [Getting Started](/getting-started/) walks through extraction and `PATH`.
-- **In CI and automation**, `dotnet tool install -g XrmGhost.Cli` from NuGet is the right channel and stays supported. A global tool runs through a small `xg` launcher that the SDK generates on your machine, which we cannot sign: irrelevant on a build agent, and the reason we point desktops to the ZIP.
+- **On a desktop**, use [Scoop, PowerShell, or the signed ZIP](/getting-started/#1-install-the-cli). All three install the same signed win-x64 ZIP from Agostini Lab Srl, containing `xg.exe` and the host in `bin\`.
+- **In CI and automation**, `dotnet tool install -g XrmGhost.Cli` from NuGet is the right channel and stays supported. A global tool runs through a small `xg` launcher that the SDK generates on your machine, which we cannot sign: irrelevant on a build agent, and the reason we point desktops to the three signed desktop methods.
 
-If you had the global tool before and now extract the ZIP, keep only one `xg` on your `PATH`; the [migration note](/getting-started/#moving-a-desktop-off-the-global-tool) shows how.
+If you had the global tool before and now use a desktop method, keep only one `xg` on your `PATH`; the [migration note](/getting-started/#moving-a-desktop-off-the-global-tool) shows how.
 
 ## Verify the signature yourself
 
@@ -59,6 +60,6 @@ A signed release that SAC still refuses is a bug we want to see. Open an issue t
 - the output of `xg --version` and of `Get-AuthenticodeSignature` on the blocked file, as above;
 - the CodeIntegrity event **3077** for that file, exported from Event Viewer (or the text of the dialog, if that is all you have);
 - the SAC mode: *Windows Security → App & browser control → Smart App Control settings*;
-- how you installed: ZIP, winget, or `dotnet tool`.
+- how you installed: Scoop, PowerShell, ZIP, or `dotnet tool`.
 
 That is enough to tell a reputation delay on a brand-new release from a real signing problem.
