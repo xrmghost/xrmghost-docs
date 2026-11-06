@@ -86,7 +86,7 @@ XrmGhost Environment Doctor
 CLI Information:
 Core Library (XrmGhost.Core) Information:
 Platform Information:
-.NET SDKs Installed:
+.NET SDKs (informational):
 XrmGhost.Framework.Host.exe Status:
 Local Configuration Files:
 AKMS Connectivity:
@@ -101,7 +101,7 @@ The success signal is exit code `0` together with the line:
 All critical checks passed. Your environment looks good!
 ```
 
-Without a license, an invitation to upgrade can follow that line: it is not an error and the exit code stays `0`. Exit code `1` means at least one check failed. The agent reads the failing section, fixes it (for a missing or broken host, `xg doctor --fix`), and runs `xg doctor` again. If `dotnet --list-sdks` cannot run or returns an error, the `.NET SDKs Installed` section reports it and fails the run; a missing .NET 8 SDK is only a yellow warning. See [`xg doctor`](/cli/reference/doctor/) for what each check verifies.
+Without a license, an invitation to upgrade can follow that line: it is not an error and the exit code stays `0`. Exit code `1` means at least one check failed. The agent reads the failing section, fixes it (for a missing or broken host, `xg doctor --fix`), and runs `xg doctor` again. The `.NET SDKs (informational)` section never fails the run: the CLI does not need a .NET SDK, and a machine without one shows `not installed, not required`. See [`xg doctor`](/cli/reference/doctor/) for what each check verifies.
 
 ## The agent marker in `xg` telemetry
 
