@@ -1426,7 +1426,7 @@ XrmGhost Environment Doctor
 CLI Information:
 Core Library (XrmGhost.Core) Information:
 Platform Information:
-.NET SDKs Installed:
+.NET SDKs (informational):
 XrmGhost.Framework.Host.exe Status:
 Local Configuration Files:
 AKMS Connectivity:
@@ -1441,7 +1441,7 @@ The success signal is exit code `0` together with the line:
 All critical checks passed. Your environment looks good!
 ```
 
-Without a license, an invitation to upgrade can follow that line: it is not an error and the exit code stays `0`. Exit code `1` means at least one check failed. The agent reads the failing section, fixes it (for a missing or broken host, `xg doctor --fix`), and runs `xg doctor` again. If `dotnet --list-sdks` cannot run or returns an error, the `.NET SDKs Installed` section reports it and fails the run; a missing .NET 8 SDK is only a yellow warning. See [`xg doctor`](/cli/reference/doctor/) for what each check verifies.
+Without a license, an invitation to upgrade can follow that line: it is not an error and the exit code stays `0`. Exit code `1` means at least one check failed. The agent reads the failing section, fixes it (for a missing or broken host, `xg doctor --fix`), and runs `xg doctor` again. The `.NET SDKs (informational)` section never fails the run: the CLI does not need a .NET SDK, and a machine without one shows `not installed, not required`. See [`xg doctor`](/cli/reference/doctor/) for what each check verifies.
 
 ## The agent marker in `xg` telemetry
 
@@ -2184,18 +2184,18 @@ xg doctor [-v] [-f <FRAMEWORK_HOST_PATH>] [--fix] [--no-interactive]
 
 ## Description
 
-`xg doctor` walks through a fixed sequence of checks in order:
+`xg doctor` prints the title, then a line `Actor: <actor> (<source>)` showing who is running the CLI (informational only, it is not a check and cannot fail the run), then walks through a fixed sequence of checks in order. Each section is headed by the title shown in bold below:
 
 1. **CLI Information** — Reports the installed CLI version, the assembly location, and the unique machine Platform ID.
 2. **Core Library** — Reports the version and location of the bundled `XrmGhost.Core` assembly.
 3. **Platform Information** — Displays OS description, OS architecture, process architecture, .NET runtime version, and framework description.
-4. **.NET SDKs** — Lists the .NET SDK versions reported by `dotnet --list-sdks`. This probe is informational: if dotnet is absent, fails to start, or returns an error, that is information, not a problem, because the CLI does not require the SDK.
-5. **FrameworkHost** — Resolves the `XrmGhost.Framework.Host.exe` binary (the host bundled in the `bin\` folder next to `xg.exe` first, then the managed install root `%LOCALAPPDATA%\xrmghost\framework-host\current\`, then legacy beside-CLI locations) and reports its path, version and verdict. The verdict is the same one `xg run` acts on, so a host that `run` would stop on cannot pass here. Fails if the host is missing, corrupted or incompatible. With `--fix`, the repair runs first and the check reports the state after it.
-6. **Local Configuration Files** — Verifies that `bootstrap.lic` can be decrypted and that the AKMS API key is present and unexpired. Displays the license tier when the key is valid.
+4. **.NET SDKs (informational)** — Lists the .NET SDK versions reported by `dotnet --list-sdks`. The CLI ships its own runtime and does not need a .NET SDK, so this section never fails the run and never changes the exit code. When `dotnet` is not on the `PATH`, exits with an error, or lists no SDK, the section prints `not installed, not required`. If listing the SDKs raises an unexpected error, the section prints `Could not list .NET SDKs (not required): <message>` in yellow, and the run continues.
+5. **XrmGhost.Framework.Host.exe Status** — Resolves the `XrmGhost.Framework.Host.exe` binary (the host bundled in the `bin\` folder next to `xg.exe` first, then the managed install root `%LOCALAPPDATA%\xrmghost\framework-host\current\`, then legacy beside-CLI locations) and reports its path, version and verdict. The verdict is the same one `xg run` acts on, so a host that `run` would stop on cannot pass here. Fails if the host is missing, corrupted or incompatible. With `--fix`, the repair runs first and the check reports the state after it.
+6. **Local Configuration Files** — Reads `bootstrap.lic` and the AKMS API key. A missing file or key, or an expired key, is reported as a yellow warning or `Unlicensed` (not a failure); an error while reading or decrypting either one fails the check. Displays the license tier when the key is valid.
 7. **AKMS Connectivity** — Contacts the AKMS JWKS endpoint to confirm network reachability, then attempts a test JWT issuance if a valid local API key exists.
-8. **Subscription Claims Diagnostics** — Reads the current license status and displays subscription claims. In `--verbose` mode, also attempts a live JWT round-trip to validate claims parsing.
+8. **Subscription Claims Diagnostics** — Always printed. Reads the current license status and shows a short summary of the subscription claims. In `--verbose` mode, it adds the full claims detail and, when claims are present, a live JWT round-trip to validate claims parsing.
 
-Each check prints a pass/fail indicator. The final line summarises the overall result.
+Findings are listed under each heading, and a failing check is reported in red under its own section. The final line summarises the overall result. Without a license, an invitation to upgrade can follow the success line: it is not an error and the exit code stays `0`.
 
 :::tip
 Running `xg doctor --verbose` before reporting a bug gives you a complete diagnostic snapshot — including resolved paths, version strings, and subscription claims — that significantly speeds up support.
@@ -2232,8 +2232,42 @@ Running `xg doctor --verbose` before reporting a bug gives you a complete diagno
 
 | Code | Meaning |
 |---|---|
-| `0` | All critical checks passed. |
+| `0` | All critical checks passed. Also returned, with an upgrade invitation after the success line, when the only gap is a missing or expired license. |
 | `1` | One or more checks failed. Review the output for details. |
+
+## JSON output
+
+With the global `--format json` option, `doctor` writes a single JSON document to standard output; the section-by-section text goes to standard error. The `data` object carries the overall result and one boolean per check:
+
+```shell
+xg doctor --format json
+```
+
+```json
+{
+  "schema_version": 1,
+  "command": "doctor",
+  "result": "success",
+  "exit_code": 0,
+  "data": {
+    "healthy": true,
+    "unlicensed": false,
+    "checks": {
+      "cli_version": true,
+      "core_library": true,
+      "platform": true,
+      "dotnet_sdks": true,
+      "framework_host": true,
+      "local_config": true,
+      "akms_connectivity": true,
+      "subscription_claims": true
+    }
+  },
+  "notices": []
+}
+```
+
+`healthy` is `true` when every check except `dotnet_sdks` passed, and it matches the exit code: `0` when `healthy` is `true`, `1` otherwise. `dotnet_sdks` reports whether the SDK listing ran without an unexpected error. It is `true` when `dotnet` is missing or lists no SDK, `false` only when the listing itself raised an error, and it never changes `healthy` or the exit code. `unlicensed` is `true` when no license is in place (missing or expired key); on a healthy run the upgrade invitation then also appears in `notices`.
 
 ## Examples
 
@@ -2284,14 +2318,14 @@ The table below maps each check to the condition that makes it fail.
 | CLI Information | Assembly metadata cannot be read or Platform ID cannot be retrieved. |
 | Core Library | `XrmGhost.Core` assembly cannot be located or its metadata is unreadable. |
 | Platform Information | OS or .NET runtime metadata is inaccessible (rare; indicates a severely broken runtime). |
-| .NET SDKs | Never — informational. |
-| FrameworkHost | The executable cannot be resolved in the bundled `bin\` folder, the managed install root, legacy beside-CLI locations, or the path given with `--framework-host-path`; or the resolved host is corrupted or incompatible; or, with `--fix`, the install failed. |
-| Local Configuration Files | `bootstrap.lic` is missing or cannot be decrypted **and** the AKMS API key is missing or expired. |
+| .NET SDKs (informational) | Never. The section is informational and does not count toward the overall result. |
+| XrmGhost.Framework.Host.exe Status | The executable cannot be resolved in the bundled `bin\` folder, the managed install root, legacy beside-CLI locations, or the path given with `--framework-host-path`; or the resolved host is corrupted or incompatible; or, with `--fix`, the install failed. |
+| Local Configuration Files | Reading or decrypting `bootstrap.lic` throws, **or** loading the AKMS API key throws. A missing or expired license is not a failure: it reports `Unlicensed`. |
 | AKMS Connectivity | The JWKS endpoint is unreachable or returns no keys, **or** the test JWT issuance fails when a valid API key is present. |
 | Subscription Claims Diagnostics | An unhandled exception occurs while reading or displaying license claims. |
 
 :::note
-The `.NET SDKs` check does not affect the overall result or the exit code. A self-contained ZIP install on a machine without dotnet is healthy. `DotnetSdks` is `false` when the probe is missing or fails, and it does not contribute to `Healthy`.
+The `.NET SDKs (informational)` section does not affect the overall result or the exit code. A machine without `dotnet`, or with no SDK installed, is healthy: the section prints `not installed, not required`. There is no check for a specific SDK version.
 :::
 
 ## See Also
@@ -4511,7 +4545,7 @@ The command has two required arguments — the assembly path and the fully-quali
 | Value | Mode | `Retrieve` | `RetrieveMultiple` / `RetrieveMultipleRequest` |
 |---|---|---|---|
 | `mock` | MockOnly | Scenario mocks only. Dataverse is never contacted. | Scenario mocks only. Dataverse is never contacted. |
-| `live` | LiveOnly | Dataverse only; the mocks are never read. A Dataverse fault — *record does not exist* included — is raised to the plugin unchanged. Without a Pro license (`ProFeatureNotLicensedException`), without an active environment, or when live cannot answer, the call throws, with a warning. | Dataverse only; the mocks are never read. A Dataverse fault is raised to the plugin unchanged. Without a Pro license or an active environment, or when the live attempt fails, the result is an **empty collection with a warning**. |
+| `live` | LiveOnly | Dataverse only; the mocks are never read. A Dataverse fault — *record does not exist* included — is raised to the plugin unchanged. Without a Pro license (`ProFeatureNotLicensedException`), without an active environment, or when live cannot answer, the call throws, with a warning. `-c`/`--continue-on-unlicensed` does not change this: without a Pro license `Retrieve` still throws `ProFeatureNotLicensedException`; use `--data-source auto` or a Pro license instead. | Dataverse only; the mocks are never read. A Dataverse fault is raised to the plugin unchanged. Without a Pro license or an active environment, or when the live attempt fails, the result is an **empty collection with a warning**, whether or not `-c`/`--continue-on-unlicensed` is set. |
 | `auto` *(default)* | Auto | **Live first.** Falls back to the scenario mocks **only** when the record does not exist in Dataverse or live is unavailable (no Pro license, no active environment, or the live call fails), with a warning when live was attempted or expected. Any other Dataverse fault is raised to the plugin. | Live **only** with a Pro license and an active environment; otherwise the mocks answer. A live attempt that fails does **not** fall back to the mocks: the result is an empty collection with a warning stating that it is not mock data. A Dataverse fault is raised to the plugin. |
 
 `auto` is deliberately asymmetric. A `Retrieve` that finds nothing live may still be answered by a record the scenario mocks or the run created; a multiple-record query that was attempted live and failed is never silently replaced with mock rows, because mock rows in place of the live ones would be indistinguishable from an answer. The `Retrieve` fallback does not apply to `RetrieveMultiple`.
@@ -4537,7 +4571,7 @@ What a plugin gets from `IOrganizationServiceFactory.CreateOrganizationService(u
 | `-f`, `--framework-host-path` | `string` | — | Explicit path to `XrmGhost.Framework.Host.exe`. When omitted, the CLI uses the host bundled in the `bin\` folder next to `xg.exe` (Scoop, PowerShell, and ZIP installs), then its managed install root (where `xg init` installs the host for the .NET global tool), then legacy beside-the-CLI locations. |
 | `--no-interactive` | `bool` | `false` | Run without prompts, for CI. If the Framework Host is not installed, the command exits with a non-zero code instead of downloading it, and points to `xg init --no-interactive`. |
 | `-w`, `--debug-plugin-wait` | `bool` | `false` | Instructs FrameworkHost to pause before executing the plugin and wait for a debugger to attach. The CLI prints the host process ID and step-by-step attach instructions. |
-| `-c`, `--continue-on-unlicensed` | `bool` | `false` | When a Pro-tier feature is encountered without a valid license, execution continues with a mocked result and a warning instead of terminating with a non-zero exit code. |
+| `-c`, `--continue-on-unlicensed` | `bool` | `false` | When a Pro-tier feature is encountered without a valid license and a safe mock substitute exists, execution continues with that mocked result and a warning instead of terminating with a non-zero exit code. Does not apply to `--data-source live`: without a Pro license, `Retrieve` still fails with `ProFeatureNotLicensedException` and `RetrieveMultiple` returns an empty collection with a warning; use `--data-source auto` or a Pro license instead. |
 | `-n`, `--normal` | `bool` | `false` | Show plugin traces plus critical framework messages (errors and warnings). Expands the default output without the noise of full verbose mode. |
 | `-v`, `--verbose` | `bool` | `false` | Show plugin traces and all framework traces, ordered chronologically. |
 | `-d`, `--debug` | `bool` | `false` | Show all traces including timing analysis and performance metrics. Most detailed output level. |
@@ -4661,7 +4695,7 @@ xg run \
   -c
 ```
 
-With `-c`, any Pro-tier feature encountered (such as Final Entity States) returns a mocked result and prints a warning rather than terminating with exit code `1`.
+With `-c`, a Pro-tier feature that has a safe mock substitute (such as Final Entity States) returns a mocked result and prints a warning rather than terminating with exit code `1`. Does not apply to `--data-source live`: without a Pro license, `Retrieve` still fails with `ProFeatureNotLicensedException` and `RetrieveMultiple` returns an empty collection with a warning; use `--data-source auto` or a Pro license instead.
 
 ## See Also
 
