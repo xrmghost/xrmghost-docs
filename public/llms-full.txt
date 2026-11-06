@@ -4826,7 +4826,7 @@ one belongs to a different context, and each one answers a different question.
 
 Use each name only in its own context:
 
-- To install or upgrade with winget, use the PackageIdentifier `XrmGhost.Cli`.
+- For desktop installation or upgrades, use [Scoop, then PowerShell, then the manual signed ZIP](/getting-started/#1-install-the-cli), in that order of preference. All three install the same ZIP signed by **Agostini Lab Srl**. The winget submission is [still in review](https://github.com/microsoft/winget-pkgs/pull/444216); once approved, it will use the same package identity, `XrmGhost.Cli`.
 - To recognise the product in a listing, look for the brand `XrmGhost`.
 - To decide whether a binary is trusted — manually or through WDAC — look at the Authenticode
   publisher, `Agostini Lab Srl`, and at the certificate details read from the signed binary itself.
@@ -4908,7 +4908,7 @@ signed by the same publisher.
 
 ## Checklist
 
-- [ ] Install with the PackageIdentifier `XrmGhost.Cli`.
+- [ ] Install with Scoop, PowerShell, or the manual signed ZIP, in that order of preference.
 - [ ] The binary's signature is `Valid` and its publisher is `Agostini Lab Srl`.
 - [ ] Subject and issuing CA were copied from a signed binary, not typed from this
       page or from the company name.
