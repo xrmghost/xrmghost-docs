@@ -27,7 +27,7 @@ This page is written by the XrmGhost team. We describe the other two tools the w
 | **Who drives it** | A developer writing C# tests. | A developer writing C# tests, after running the metadata generator against an instance. | A developer at the terminal, or a coding agent through the [XrmGhost skills](/skills/). |
 | **Data the code reads** | What the test puts in the in-memory context. | What the test creates through the simulated service, on your real metadata. | What the scenario mocks. On Pro, read-only queries can resolve against a live environment. |
 | **One iteration** | Milliseconds: it is a unit test. | Seconds: it is a unit test with a full instance simulation behind it. | Seconds: build, then `xg run` with a scenario file. |
-| **Setup** | NuGet packages, then tests. | NuGet packages, metadata export from a target instance, then tests. | `winget install XrmGhost.Cli`, then `xg generate-scenario`. |
+| **Setup** | NuGet packages, then tests. | NuGet packages, metadata export from a target instance, then tests. | [Install the CLI](/getting-started/#1-install-the-cli), then `xg generate-scenario`. |
 | **Licence** | Triple-licensed: RPL 1.5, a modified Polyform Noncommercial licence, or a paid per-developer commercial licence. | MIT. | Two editions, Standard and Pro; see [Editions](/editions/) and [pricing](https://www.xrmghost.tech/#pricing). |
 | **Maturity** | Since the 1.x days; the current line is 3.x, still releasing in 2026. | Around 1,000 commits and regular releases in 2026. | First public release in 2026. |
 

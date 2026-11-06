@@ -1,0 +1,14 @@
+---
+import { desktopInstallMethods } from '../data/install-methods';
+---
+
+{desktopInstallMethods.map((method) => (
+	<section>
+		<h3 id={method.id}>{method.title}</h3>
+		<p><strong>Prerequisite:</strong> {method.prerequisite}</p>
+		<pre><code class={`language-${method.installLanguage}`}>{method.install}</code></pre>
+		<p set:html={method.details.replace(/`([^`]+)`/g, '<code>$1</code>')} />
+		<p><strong>Update:</strong> <Fragment set:html={method.update.replace(/`([^`]+)`/g, '<code>$1</code>')} /></p>
+		<p><strong>Uninstall:</strong> <Fragment set:html={method.uninstall.replace(/`([^`]+)`/g, '<code>$1</code>')} /></p>
+	</section>
+))}

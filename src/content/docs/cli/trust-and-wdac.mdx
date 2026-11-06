@@ -35,6 +35,10 @@ compromise** of the binary. What would be a warning sign is a missing signature,
 signature, or a signature whose publisher is anyone other than Agostini Lab Srl.
 :::
 
+## Desktop installation methods
+
+[Scoop, PowerShell, and the manual ZIP](/getting-started/#1-install-the-cli) all install the same signed `xrmghost-cli-<version>-full.zip`. The signer to verify for each method is **Agostini Lab Srl**. The ZIP is win-x64 and contains `xg.exe` and the host under `bin\`.
+
 ## Read the exact certificate subject from a signed binary
 
 A WDAC rule must match the certificate exactly as it appears in the signature. This page
