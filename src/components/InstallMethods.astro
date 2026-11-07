@@ -1,5 +1,14 @@
 ---
 import { desktopInstallMethods } from '../data/install-methods';
+
+const escapeHtml = (text: string) =>
+	text
+		.replace(/&/g, '&amp;')
+		.replace(/</g, '&lt;')
+		.replace(/>/g, '&gt;')
+		.replace(/"/g, '&quot;')
+		.replace(/'/g, '&#39;');
+const inlineCode = (text: string) => escapeHtml(text).replace(/`([^`]+)`/g, '<code>$1</code>');
 ---
 
 {desktopInstallMethods.map((method) => (
@@ -7,8 +16,8 @@ import { desktopInstallMethods } from '../data/install-methods';
 		<h3 id={method.id}>{method.title}</h3>
 		<p><strong>Prerequisite:</strong> {method.prerequisite}</p>
 		<pre><code class={`language-${method.installLanguage}`}>{method.install}</code></pre>
-		<p set:html={method.details.replace(/`([^`]+)`/g, '<code>$1</code>')} />
-		<p><strong>Update:</strong> <Fragment set:html={method.update.replace(/`([^`]+)`/g, '<code>$1</code>')} /></p>
-		<p><strong>Uninstall:</strong> <Fragment set:html={method.uninstall.replace(/`([^`]+)`/g, '<code>$1</code>')} /></p>
+		<p set:html={inlineCode(method.details)} />
+		<p><strong>Update:</strong> <Fragment set:html={inlineCode(method.update)} /></p>
+		<p><strong>Uninstall:</strong> <Fragment set:html={inlineCode(method.uninstall)} /></p>
 	</section>
 ))}
