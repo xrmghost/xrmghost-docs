@@ -14,8 +14,9 @@ export default defineConfig({
 			},
 			social: [
 				{ icon: 'github', label: 'GitHub', href: 'https://github.com/xrmghost/xrmghost' },
+				{ icon: 'youtube', label: 'YouTube', href: 'https://www.youtube.com/@xrmghostdev' },
+				{ icon: 'linkedin', label: 'LinkedIn', href: 'https://www.linkedin.com/company/xrmghost' },
 			],
-			routeMiddleware: './src/routeData.ts',
 			customCss: ['./src/styles/custom.css'],
 			components: {
 				// Adds the approved first-party backlink mesh to every docs page
@@ -23,6 +24,15 @@ export default defineConfig({
 				Footer: './src/components/Footer.astro',
 			},
 			head: [
+				{
+					tag: 'link',
+					attrs: {
+						rel: 'alternate',
+						type: 'application/rss+xml',
+						title: 'XrmGhost Docs — How-to guides',
+						href: '/rss.xml',
+					},
+				},
 				// Docs-level entity metadata (AB#1683). sameAs lists only
 				// first-party, public, non-gated XrmGhost surfaces —
 				// admin.xrmghost.tech is intentionally excluded.
@@ -49,6 +59,8 @@ export default defineConfig({
 								'https://www.nuget.org/packages/XrmGhost.Cli',
 								'https://www.nuget.org/packages/XrmGhost.Attributes',
 								'https://github.com/xrmghost/xrmghost-docs',
+								'https://www.youtube.com/@xrmghostdev',
+								'https://www.linkedin.com/company/xrmghost',
 							],
 						},
 					}),
