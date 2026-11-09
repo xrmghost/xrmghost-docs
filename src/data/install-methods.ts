@@ -38,7 +38,7 @@ export const desktopInstallMethods: InstallMethod[] = [
 		prerequisite: 'Windows x64. Download the ZIP manually from the release page.',
 		install: 'https://github.com/xrmghost/xrmghost/releases/latest',
 		installLanguage: 'text',
-		details: 'Download `xrmghost-cli-<version>-full.zip`, signed by Agostini Lab Srl. Extract the entire archive without moving `bin\\`, then add the folder containing `xg.exe`—not `bin\\`—to your user `PATH`. Open a new shell and run `xg --version`.',
+		details: 'Download the signed `xrmghost-cli-<version>-full.zip`. Extract the entire archive without moving `bin\\`, then add the folder containing `xg.exe`—not `bin\\`—to your user `PATH`. Open a new shell and run `xg --version`.',
 		update: 'Download a newer `xrmghost-cli-<version>-full.zip` and extract it over the same folder so `xg.exe` and `bin\\` move together.',
 		uninstall: 'Delete the extracted folder and remove it from your user `PATH`.',
 	},
