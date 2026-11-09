@@ -102,10 +102,12 @@ test('landing, feed, sitemap e alternate sul build con fixture datate', () => {
     );
     assert.deepEqual(landingOrder, expected, 'landing order');
 
-    const rss = read('how-to/rss.xml');
+    const rss = read('rss.xml');
+    assert.equal(read('how-to/rss.xml'), rss, 'legacy feed matches canonical feed');
     const items = rss.split('<item>').slice(1);
     const rssOrder = items.map((i) => i.match(/<link>[^<]*?\/how-to\/([^<]+?)\/<\/link>/)[1]);
-    assert.deepEqual(rssOrder, expected, 'rss order');
+    assert.deepEqual(rssOrder, expected.filter((id) => id !== 'windows-smart-app-control'), 'rss order');
+    assert.ok(!rss.includes('windows-smart-app-control'), 'excluded guide absent');
 
     // Per ogni item RSS: l'URL corrisponde alla data attesa
     for (const item of items) {
@@ -115,7 +117,8 @@ test('landing, feed, sitemap e alternate sul build con fixture datate', () => {
     }
 
     // Campi e link assoluti
-    assert.match(rss, /<title>XrmGhost how-to guides<\/title>/);
+    assert.match(rss, /<title>XrmGhost Docs — How-to guides<\/title>/);
+    assert.match(rss, /<link>https:\/\/docs\.xrmghost\.tech\/how-to\/<\/link>/);
     for (const item of items) {
       assert.match(item, /<title>[^<]+<\/title>/);
       assert.match(item, /<description>[^<]+<\/description>/);
@@ -130,7 +133,7 @@ test('landing, feed, sitemap e alternate sul build con fixture datate', () => {
 
     // La landing non e' una voce del feed
     assert.ok(!rssOrder.includes('index'));
-    assert.ok(!rss.includes(`<link>${SITE}/how-to/</link>`), 'landing excluded from feed');
+    assert.ok(items.every((item) => !item.includes(`<link>${SITE}/how-to/</link>`)), 'landing excluded from items');
 
     // Sitemap
     const sitemap = readdirSync(dist)
@@ -139,14 +142,19 @@ test('landing, feed, sitemap e alternate sul build con fixture datate', () => {
       .join('\n');
     assert.ok(sitemap.includes(`<loc>${SITE}/how-to/</loc>`), '/how-to/ in sitemap');
 
-    // Alternate: solo sulle rotte how-to, mai nel head globale
-    const alt = `<link rel="alternate" type="application/rss+xml" title="XrmGhost how-to guides" href="${SITE}/how-to/rss.xml"`;
+    // Canonical feed discovery on every docs page.
+    const alt = `<link rel="alternate" type="application/rss+xml" title="XrmGhost Docs — How-to guides" href="/rss.xml"`;
     const hasAlt = (html) => html.replace(/\s+/g, ' ').includes(alt) ||
-      (/rel="alternate"/.test(html) && html.includes(`href="${SITE}/how-to/rss.xml"`));
+      (/rel="alternate"/.test(html) && html.includes('href="/rss.xml"'));
     assert.ok(hasAlt(landing), 'alternate on /how-to/');
     assert.ok(hasAlt(read('how-to/first-plugin-local-run/index.html')), 'alternate on how-to/*');
-    assert.ok(!read('faq/index.html').includes('/how-to/rss.xml'), 'no alternate on /faq/');
-    assert.ok(!read('overview/index.html').includes('/how-to/rss.xml'), 'no alternate on /overview/');
+    assert.ok(hasAlt(read('faq/index.html')), 'alternate on /faq/');
+    assert.ok(hasAlt(read('overview/index.html')), 'alternate on /overview/');
+    for (const url of ['https://www.youtube.com/@xrmghostdev', 'https://www.linkedin.com/company/xrmghost']) {
+      assert.ok(landing.includes(`href="${url}"`), 'social link');
+      const jsonLd = JSON.parse(landing.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/)[1]);
+      assert.ok(jsonLd.isPartOf.sameAs.includes(url), 'social sameAs');
+    }
     assert.ok(!read('how-to/rss.xml').includes('rel="alternate"'));
     // Il head globale resta intatto
     assert.ok(landing.includes('application/ld+json'));
