@@ -3886,7 +3886,7 @@ xg init [--no-interactive]
 
 `xg init` does four things, in order, and stops at the first one that fails:
 
-1. **Reports the running CLI** — the path of the `xg` that is running and its channel: `self-contained (winget)` when `xg.exe` runs from the winget install folder, `self-contained (winget or ZIP)` for any other self-contained `xg.exe`, `dotnet tool` when the .NET global tool is running. Running from the global tool is a supported channel, not a warning. The only warning is a PATH conflict: when a self-contained `xg.exe` is running and a separate .NET global tool shim is also installed under `%USERPROFILE%\.dotnet\tools`, whichever of the two comes first on `PATH` is the one `xg` runs, so `init` warns that the two may answer with different versions. The warning never stops the command.
+1. **Reports the running CLI** — the path of the `xg` that is running and its channel: `self-contained (winget)` when `xg.exe` runs from the winget install folder, `self-contained (Scoop)` when it runs from the Scoop install folder, `self-contained (PowerShell or ZIP)` for any other self-contained `xg.exe`, `dotnet tool` when the .NET global tool is running. Running from the global tool is a supported channel, not a warning. The only warning is a PATH conflict: when a self-contained `xg.exe` is running and a separate .NET global tool shim is also installed under `%USERPROFILE%\.dotnet\tools`, whichever of the two comes first on `PATH` is the one `xg` runs, so `init` warns that the two may answer with different versions. The warning never stops the command.
 2. **Checks the prerequisites** — the machine must be Windows, and **.NET Framework 4.7.2** or later must be installed: the Framework Host is a .NET Framework 4.7.2 process.
 3. **Resolves and repairs the Framework Host** — it looks for the host in this order and uses the first one found:
    1. the host bundled in the `bin\` folder next to `xg.exe` (Scoop, PowerShell, and ZIP installs);
@@ -3901,7 +3901,7 @@ xg init [--no-interactive]
 :::note[Updating a Scoop, PowerShell, or ZIP install]
 `init` does not update the host bundled in `bin\`. For a desktop install, use the matching update steps in [Getting Started](/getting-started/#1-install-the-cli). With the .NET global tool in CI, update the CLI with `dotnet tool update --global XrmGhost.Cli`.
 
-An installation made with Scoop or PowerShell reports the CLI channel as `self-contained (winget or ZIP)`, exactly as the CLI emits it.
+An installation made with Scoop reports the CLI channel as `self-contained (Scoop)`, and an installation made with PowerShell or a ZIP reports it as `self-contained (PowerShell or ZIP)`, exactly as the CLI emits it.
 :::
 
 ## Options
@@ -3931,7 +3931,7 @@ Example output on a ZIP install with no license activated yet:
 XrmGhost Init
 
   Running xg: C:\Tools\XrmGhost\xg.exe
-  Channel: self-contained (winget or ZIP)
+  Channel: self-contained (PowerShell or ZIP)
   .NET Framework: 4.7.2 or later
   Framework Host: C:\Tools\XrmGhost\bin\...\XrmGhost.Framework.Host.exe (Bundled, <version>)
 
