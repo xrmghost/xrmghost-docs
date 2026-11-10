@@ -24,9 +24,9 @@ xg doctor [-v] [-f <FRAMEWORK_HOST_PATH>] [--fix] [--no-interactive]
 1. **CLI Information** — Reports the installed CLI version, the assembly location, and the unique machine Platform ID.
 2. **Core Library** — Reports the version and location of the bundled `XrmGhost.Core` assembly.
 3. **Platform Information** — Displays OS description, OS architecture, process architecture, .NET runtime version, and framework description.
-4. **.NET SDKs (informational)** — Lists the .NET SDK versions reported by `dotnet --list-sdks`. The CLI ships its own runtime and does not need a .NET SDK, so this section never fails the run and never changes the exit code. When `dotnet` is not on the `PATH`, exits with an error, or lists no SDK, the section prints `not installed, not required`. If listing the SDKs raises an unexpected error, the section prints `Could not list .NET SDKs (not required): <message>` in yellow, and the run continues.
+4. **.NET SDKs (informational)** — Lists the .NET SDK versions reported by `dotnet --list-sdks`. The CLI ships its own runtime and does not need a .NET SDK, so this section never fails the run and never changes the exit code. When `dotnet` is not on the `PATH` or lists no SDK, the section prints `not installed, not required`. When `dotnet` is found but `dotnet --list-sdks` exits with a non-zero code, the section prints `dotnet found, but 'dotnet --list-sdks' failed (exit code N); not required`, where `N` is the exit code. Both cases are informational and affect neither `healthy` nor the exit code. If listing the SDKs raises an unexpected error, the section prints `Could not list .NET SDKs (not required): <message>` in yellow, and the run continues.
 5. **XrmGhost.Framework.Host.exe Status** — Resolves the `XrmGhost.Framework.Host.exe` binary (the host bundled in the `bin\` folder next to `xg.exe` first, then the managed install root `%LOCALAPPDATA%\xrmghost\framework-host\current\`, then legacy beside-CLI locations) and reports its path, version and verdict. The verdict is the same one `xg run` acts on, so a host that `run` would stop on cannot pass here. Fails if the host is missing, corrupted or incompatible. With `--fix`, the repair runs first and the check reports the state after it.
-6. **Local Configuration Files** — Reads `bootstrap.lic` and the AKMS API key. A missing file or key, or an expired key, is reported as a yellow warning or `Unlicensed` (not a failure); an error while reading or decrypting either one fails the check. Displays the license tier when the key is valid.
+6. **Local Configuration Files** — Reads `bootstrap.lic` and the AKMS API key. A missing file or key, or an expired key, is reported as a yellow warning or `Unlicensed` (not a failure). A `bootstrap.lic` or AKMS API-key artifact that exists but cannot be read is shown as `Unreadable (<error type>)`, with a non-sensitive probable cause and the same `xg license activate` guidance; the state is `Unlicensed` and an otherwise healthy run does not fail. The underlying error is shown only with `--verbose`. Only an unexpected exception while reading either artifact fails the check. Displays the license tier when the key is valid.
 7. **AKMS Connectivity** — Contacts the AKMS JWKS endpoint to confirm network reachability, then attempts a test JWT issuance if a valid local API key exists.
 8. **Subscription Claims Diagnostics** — Always printed. Reads the current license status and shows a short summary of the subscription claims. In `--verbose` mode, it adds the full claims detail and, when claims are present, a live JWT round-trip to validate claims parsing.
 
@@ -67,7 +67,7 @@ Running `xg doctor --verbose` before reporting a bug gives you a complete diagno
 
 | Code | Meaning |
 |---|---|
-| `0` | All critical checks passed. Also returned, with an upgrade invitation after the success line, when the only gap is a missing or expired license. |
+| `0` | All critical checks passed. Also returned, with an upgrade invitation after the success line, when the only gap is a missing, expired or unreadable license. |
 | `1` | One or more checks failed. Review the output for details. |
 
 ## JSON output
@@ -102,7 +102,7 @@ xg doctor --format json
 }
 ```
 
-`healthy` is `true` when every check except `dotnet_sdks` passed, and it matches the exit code: `0` when `healthy` is `true`, `1` otherwise. `dotnet_sdks` reports whether the SDK listing ran without an unexpected error. It is `true` when `dotnet` is missing or lists no SDK, `false` only when the listing itself raised an error, and it never changes `healthy` or the exit code. `unlicensed` is `true` when no license is in place (missing or expired key); on a healthy run the upgrade invitation then also appears in `notices`.
+`healthy` is `true` when every check except `dotnet_sdks` passed, and it matches the exit code: `0` when `healthy` is `true`, `1` otherwise. `dotnet_sdks` reports whether the SDK listing ran without an unexpected error. It is `true` when `dotnet` is missing, lists no SDK or its `dotnet --list-sdks` exits non-zero, `false` only when the listing itself raised an error, and it never changes `healthy` or the exit code. `unlicensed` is `true` when no usable license is in place (missing, expired or unreadable `bootstrap.lic` or API key); the envelope shape and the meaning of `healthy` do not change, and on a healthy run the upgrade invitation then also appears in `notices`.
 
 ## Examples
 
@@ -155,12 +155,12 @@ The table below maps each check to the condition that makes it fail.
 | Platform Information | OS or .NET runtime metadata is inaccessible (rare; indicates a severely broken runtime). |
 | .NET SDKs (informational) | Never. The section is informational and does not count toward the overall result. |
 | XrmGhost.Framework.Host.exe Status | The executable cannot be resolved in the bundled `bin\` folder, the managed install root, legacy beside-CLI locations, or the path given with `--framework-host-path`; or the resolved host is corrupted or incompatible; or, with `--fix`, the install failed. |
-| Local Configuration Files | Reading or decrypting `bootstrap.lic` throws, **or** loading the AKMS API key throws. A missing or expired license is not a failure: it reports `Unlicensed`. |
+| Local Configuration Files | An unexpected exception is thrown while reading or decrypting `bootstrap.lic`, **or** while loading the AKMS API key. A missing, expired or unreadable license artifact is not a failure: it reports `Unlicensed` (unreadable ones as `Unreadable (<error type>)`, with `xg license activate` guidance). |
 | AKMS Connectivity | The JWKS endpoint is unreachable or returns no keys, **or** the test JWT issuance fails when a valid API key is present. |
 | Subscription Claims Diagnostics | An unhandled exception occurs while reading or displaying license claims. |
 
 :::note
-The `.NET SDKs (informational)` section does not affect the overall result or the exit code. A machine without `dotnet`, or with no SDK installed, is healthy: the section prints `not installed, not required`. There is no check for a specific SDK version.
+The `.NET SDKs (informational)` section does not affect the overall result or the exit code. A machine without `dotnet`, with no SDK installed, or where `dotnet --list-sdks` exits non-zero, is healthy: the section prints `not installed, not required` or `dotnet found, but 'dotnet --list-sdks' failed (exit code N); not required`. There is no check for a specific SDK version.
 :::
 
 ## See Also
