@@ -24,5 +24,5 @@ test('environment and PowerTools answers match the rendered FAQ structured data'
   }
   assert.match(faq.mainEntity[1].acceptedAnswer.text, /A Dataverse environment is still where you deploy/);
   assert.match(faq.mainEntity[2].acceptedAnswer.text, /replay that capture locally under the debugger without a live connection/);
-  assert.match(faq.mainEntity[2].acceptedAnswer.text, /Today, we do not generate a scenario from a trace log\./);
+  assert.match(faq.mainEntity[2].acceptedAnswer.text, /Today you or your coding agent write the scenario; we do not generate one from a trace log\./);
 });
