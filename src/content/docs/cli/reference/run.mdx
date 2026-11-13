@@ -31,6 +31,8 @@ The command has two required arguments — the assembly path and the fully-quali
 
 ### Data-source routing
 
+This contract requires Framework Host 1.1.0 or later. The CLI does not reject an older host of the same major version, so on an older host the behavior below is not guaranteed.
+
 | Value | Mode | `Retrieve` | `RetrieveMultiple` / `RetrieveMultipleRequest` |
 |---|---|---|---|
 | `mock` | MockOnly | Scenario mocks only. Dataverse is never contacted. | Scenario mocks only. Dataverse is never contacted. |
@@ -60,7 +62,7 @@ What a plugin gets from `IOrganizationServiceFactory.CreateOrganizationService(u
 | `-f`, `--framework-host-path` | `string` | — | Explicit path to `XrmGhost.Framework.Host.exe`. When omitted, the CLI uses the host bundled in the `bin\` folder next to `xg.exe` (Scoop, PowerShell, and ZIP installs), then its managed install root (where `xg init` installs the host for the .NET global tool), then legacy beside-the-CLI locations. |
 | `--no-interactive` | `bool` | `false` | Run without prompts, for CI. If the Framework Host is not installed, the command exits with a non-zero code instead of downloading it, and points to `xg init --no-interactive`. |
 | `-w`, `--debug-plugin-wait` | `bool` | `false` | Instructs FrameworkHost to pause before executing the plugin and wait for a debugger to attach. The CLI prints the host process ID and step-by-step attach instructions. |
-| `-c`, `--continue-on-unlicensed` | `bool` | `false` | When a Pro-tier feature is encountered without a valid license and a safe mock substitute exists, execution continues with that mocked result and a warning instead of terminating with a non-zero exit code. Does not apply to `--data-source live`: without a Pro license, `Retrieve` still fails with `ProFeatureNotLicensedException` and `RetrieveMultiple` returns an empty collection with a warning; use `--data-source auto` or a Pro license instead. |
+| `-c`, `--continue-on-unlicensed` | `bool` | `false` | When a Pro-tier feature is encountered without a valid license and a safe mock substitute exists, execution continues with that mocked result and a warning instead of terminating with a non-zero exit code. With `--data-source live` (Framework Host 1.1.0 or later), `-c` does not change reads: without a Pro license, `Retrieve` still fails with `ProFeatureNotLicensedException` and `RetrieveMultiple` returns an empty collection with a warning; use `--data-source auto` or a Pro license instead. Other Pro features with a safe mock substitute still follow `-c`. |
 | `-n`, `--normal` | `bool` | `false` | Show plugin traces plus critical framework messages (errors and warnings). Expands the default output without the noise of full verbose mode. |
 | `-v`, `--verbose` | `bool` | `false` | Show plugin traces and all framework traces, ordered chronologically. |
 | `-d`, `--debug` | `bool` | `false` | Show all traces including timing analysis and performance metrics. Most detailed output level. |
@@ -207,7 +209,7 @@ xg run \
   -c
 ```
 
-With `-c`, a Pro-tier feature that has a safe mock substitute (such as Final Entity States) returns a mocked result and prints a warning rather than terminating with exit code `1`. Does not apply to `--data-source live`: without a Pro license, `Retrieve` still fails with `ProFeatureNotLicensedException` and `RetrieveMultiple` returns an empty collection with a warning; use `--data-source auto` or a Pro license instead.
+With `-c`, a Pro-tier feature that has a safe mock substitute (such as Final Entity States) returns a mocked result and prints a warning rather than terminating with exit code `1`. With `--data-source live` (Framework Host 1.1.0 or later), `-c` does not change reads: without a Pro license, `Retrieve` still fails with `ProFeatureNotLicensedException` and `RetrieveMultiple` returns an empty collection with a warning; use `--data-source auto` or a Pro license instead. Other Pro features with a safe mock substitute still follow `-c`.
 
 ## See Also
 
