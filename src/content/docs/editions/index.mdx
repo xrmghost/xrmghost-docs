@@ -24,7 +24,7 @@ Use Standard when you want to develop, debug, and verify Dataverse plugins and C
 
 Pro includes everything in Standard, and adds live integration with real Dataverse environments.
 
-- **Read-only access to live Dataverse environments.** This is the defining Pro capability, and it is strictly **read-only**: XrmGhost reads from the environment only to satisfy the queries your code makes during a local run, and never writes anything back. Your live data is never modified.
+- **Read-only access to live Dataverse environments.** This is the defining Pro capability, and it is strictly **read-only**: XrmGhost reads from the environment only to satisfy the queries your code makes during a local run. The exact boundary is in [Live connection is read-only](/cli/reference/run/#live-connection-is-read-only).
 - **Environment and connection library.** Register, organize, and switch between multiple Dataverse environments and connections, so you can point a run at whichever environment you need.
 - **Use in a CI pipeline.** Running `xg` as part of a CI pipeline (as opposed to local, interactive or agent-driven automation) requires Pro.
 - **Live data instead of mocks.** You design your scenario, pass the real id of the specific record or user you care about, and run your code locally — but the plugin's reads (`Retrieve` / `RetrieveMultiple`) are answered by the environment, as the [`--data-source`](/cli/reference/run/#data-source-routing) you choose dictates: `auto` (the default) reads live first, `live` reads only live. You no longer have to mock the data the code reads; XrmGhost fetches it from the real environment as the run executes.

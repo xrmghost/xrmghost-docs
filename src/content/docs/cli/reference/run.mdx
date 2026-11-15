@@ -39,6 +39,20 @@ The command has two required arguments — the assembly path and the fully-quali
 
 `auto` is deliberately asymmetric. A `Retrieve` that finds nothing live may still be answered by a record the scenario mocks or the run created; a multiple-record query that was attempted live and failed is never silently replaced with mock rows, because mock rows in place of the live ones would be indistinguishable from an answer. The `Retrieve` fallback does not apply to `RetrieveMultiple`.
 
+### Live connection is read-only
+
+The live connection behind `--data-source live` and `auto` is read-only by construction. Only three requests reach Dataverse: `Retrieve`, `RetrieveMultiple` and `WhoAmI`. Everything else aimed at the live connection is rejected before any network access and fails the run: `Create`, `Update`, `Delete`, `Associate`, `Disassociate`, `ExecuteMultiple`, `ExecuteTransaction`, Custom APIs, actions, workflows, and any other request outside those three. The routing in the table above and the behavior of `-c`/`--continue-on-unlicensed` are not changed by this.
+
+Plugin writes and live-connection calls are different things. When your plugin writes through the `IOrganizationService` it receives from the run, the write is handled by the simulated run service and stays inside the run; nothing is sent to Dataverse. The block applies to a call aimed at the live connection itself.
+
+A blocked request fails the run with this message, where the text between the quotes is the name of the refused request (for example `Create`), shown here as an empty placeholder:
+
+```text
+Live connection is read-only: '' is not allowed (only Retrieve, RetrieveMultiple and WhoAmI reach Dataverse).
+```
+
+A blocked request is a defect in the plugin or code to fix, not something to bypass. For safe use of customer data, see [Use live data from a customer org safely](/how-to/use-live-data-from-a-customer-org-safely/).
+
 ### Caller identity
 
 What a plugin gets from `IOrganizationServiceFactory.CreateOrganizationService(userId)` is a new service bound to that caller, in every data-source mode. Services created for different callers share the run — mocks, records created during the run, live connection and cache, warnings — but never each other's caller.

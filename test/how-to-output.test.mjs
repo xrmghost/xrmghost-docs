@@ -72,7 +72,7 @@ after(() => removeFixtures());
 
 test('landing, feed, sitemap e alternate sul build con fixture datate', () => {
   try {
-    writeFixture(NEWEST, '2026-10-28');
+    writeFixture(NEWEST, '2026-12-31');
     writeFixture(OLDEST, '2026-01-01');
     writeFixture(NESTED, '2026-10-20');
     const r = build();
@@ -80,7 +80,7 @@ test('landing, feed, sitemap e alternate sul build con fixture datate', () => {
 
     const entries = [
       ...existingEntries(),
-      { id: NEWEST, date: '2026-10-28' },
+      { id: NEWEST, date: '2026-12-31' },
       { id: OLDEST, date: '2026-01-01' },
       { id: NESTED, date: '2026-10-20' },
     ];
@@ -125,7 +125,7 @@ test('landing, feed, sitemap e alternate sul build con fixture datate', () => {
       assert.match(item, /<pubDate>[^<]+<\/pubDate>/);
       assert.match(item, new RegExp(`<link>${SITE}/how-to/[^<]+/</link>`));
     }
-    assert.equal(new Date(items[0].match(/<pubDate>([^<]+)</)[1]).toISOString().slice(0, 10), '2026-10-28');
+    assert.equal(new Date(items[0].match(/<pubDate>([^<]+)</)[1]).toISOString().slice(0, 10), '2026-12-31');
     assert.equal(
       new Date(items.at(-1).match(/<pubDate>([^<]+)</)[1]).toISOString().slice(0, 10),
       '2026-01-01',

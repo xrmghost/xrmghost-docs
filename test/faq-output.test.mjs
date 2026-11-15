@@ -26,3 +26,20 @@ test('environment and PowerTools answers match the rendered FAQ structured data'
   assert.match(faq.mainEntity[2].acceptedAnswer.text, /replay that capture locally under the debugger without a live connection/);
   assert.match(faq.mainEntity[2].acceptedAnswer.text, /Today you or your coding agent write the scenario; we do not generate one from a trace log\./);
 });
+
+test('the live customer org answer appears once and matches the rendered FAQ', () => {
+  const html = readFileSync(new URL('../dist/faq/index.html', import.meta.url), 'utf8');
+  const schemas = [...html.matchAll(/<script[^>]*type="application\/ld\+json"[^>]*>([\s\S]*?)<\/script>/g)]
+    .map((match) => JSON.parse(match[1]));
+  const faq = schemas.find((schema) => schema['@type'] === 'FAQPage');
+  assert.ok(faq);
+  const question = 'Can a live customer org be changed by a run?';
+  const entries = faq.mainEntity.filter((item) => item.name === question);
+  assert.equal(entries.length, 1);
+  assert.equal(faq.mainEntity.at(-1).name, question);
+  const answer = entries[0].acceptedAnswer.text;
+  assert.doesNotMatch(answer, /[`"<&]|\]\(/);
+  assert.ok(html.includes('<p>' + answer + '</p>'));
+  assert.ok(html.includes('<a href="/how-to/use-live-data-from-a-customer-org-safely/">Use live data from a customer org safely</a>'));
+  assert.ok(html.includes('id="can-a-live-customer-org-be-changed-by-a-run"'));
+});
