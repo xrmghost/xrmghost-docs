@@ -44,14 +44,16 @@ test('the live customer org answer appears once and matches the rendered FAQ', (
   assert.ok(html.includes('id="can-a-live-customer-org-be-changed-by-a-run"'));
 });
 
-test('the live customer org answer carries the block message and explains the quoted diagnostic', () => {
+test('the live customer org answer carries the block message and reports blocks as XrmGhost bugs', () => {
   const html = readFileSync(new URL('../dist/faq/index.html', import.meta.url), 'utf8');
   const schemas = [...html.matchAll(/<script[^>]*type="application\/ld\+json"[^>]*>([\s\S]*?)<\/script>/g)]
     .map((match) => JSON.parse(match[1]));
   const faq = schemas.find((schema) => schema['@type'] === 'FAQPage');
   const answer = faq.mainEntity.find((item) => item.name === 'Can a live customer org be changed by a run?').acceptedAnswer.text;
   assert.match(answer, /Live connection is read-only: .* is not allowed \(only Retrieve, RetrieveMultiple and WhoAmI reach Dataverse\)/);
-  assert.match(answer, /quotes hold the diagnostic of the refused operation/);
-  assert.match(answer, /never a value that is always empty/);
+  assert.match(answer, /the quoted name is the refused operation/);
+  assert.match(answer, /it is a bug in XrmGhost, not in your plugin/);
+  assert.match(answer, /first Framework Host release that includes ADO-5437/);
+  assert.doesNotMatch(answer, /''|never a value that is always empty|defect in the plugin/);
   assert.equal(html.split('Live connection is read-only:').length - 1 >= 2, true);
 });

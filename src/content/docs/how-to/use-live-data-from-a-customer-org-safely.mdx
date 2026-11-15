@@ -10,11 +10,15 @@ sidebar:
 
 Reproducing a customer's problem is easier with the customer's own records. With `--data-source live` a local `xg run` reads them from the org instead of from mocks. This how-to explains what that does and does not touch.
 
+Live data requires a Pro license and an active environment for the customer org: register it with [`xg env add`](/cli/reference/env-add/) and make it the active one with [`xg env activate`](/cli/reference/env-activate/). The read-only live connection is available from the first Framework Host release that includes ADO-5437 onwards.
+
 ## 1. Know what the live connection can do
 
 The live connection is read-only by construction. Only `Retrieve`, `RetrieveMultiple` and `WhoAmI` reach Dataverse. Any other request aimed at it, such as `Create`, `Update`, `Delete`, `Associate`, `Disassociate`, `ExecuteMultiple`, `ExecuteTransaction`, a Custom API, an action or a workflow, is rejected before any network access, and the run fails. The full list is in [Live connection is read-only](/cli/reference/run/#live-connection-is-read-only).
 
 ## 2. Run against the customer org
+
+The run reads from the active environment, so check with [`xg env status`](/cli/reference/env-status/) that it is the customer org before you start.
 
 ```shell
 xg run \
@@ -26,18 +30,18 @@ xg run \
 
 The routing rules, including what happens without a Pro license, are unchanged and described in [Data-source routing](/cli/reference/run/#data-source-routing).
 
-## 3. Expect audit attribution to the configured identity
+## 3. Know which identity reads
 
-Reads performed through the live connection are made by the identity of the configured connection, and that is who the customer org's audit trail attributes them to. Use a connection whose identity the customer expects to see, and tell them when you run. If your plugin asks for a service for an explicit user, the read is impersonated as that user; see [Caller identity](/cli/reference/run/#caller-identity).
+Reads performed through the live connection are made with the identity configured in the environment. Use a connection whose identity the customer expects to see, and tell them when you run. When the scenario or the plugin names a user, the read is impersonated as that user; see [Caller identity](/cli/reference/run/#caller-identity).
 
 ## 4. Understand writes
 
-A write your plugin makes through the service the run gives it is handled by the simulated run service and stays inside the run. A call aimed at the live connection is a different case: it is blocked and the run fails with a message of this form, where the quoted text is the name of the refused request:
+A write your plugin makes through the service the run gives it always goes to the simulated run service and stays inside the run, and the run sends only `Retrieve`, `RetrieveMultiple` and `WhoAmI` to the live connection. The read-only connection is a second guarantee on top of that: if anything else reaches it, the request is blocked and the run fails with this message, where `<operation>` names the refused operation (for example `Create`, or `Execute:<request>` for a request sent through `Execute`):
 
 ```text
-Live connection is read-only: '' is not allowed (only Retrieve, RetrieveMultiple and WhoAmI reach Dataverse).
+Live connection is read-only: '<operation>' is not allowed (only Retrieve, RetrieveMultiple and WhoAmI reach Dataverse).
 ```
 
-## 5. Fix a blocked operation, do not bypass it
+## 5. Report a blocked operation, do not bypass it
 
-A blocked operation is a defect in the plugin or code to fix, not something to bypass. If the plugin must write, keep that write on the simulated run service and assert the outcome in the scenario. Never look for a way to push it to the customer org: the read-only boundary is what makes it safe to use their data.
+A blocked operation is a defect in XrmGhost, not in your plugin. Do not change the plugin to avoid the block and never look for a way to push the request to the customer org: the read-only boundary is what makes it safe to use their data. [Report a bug](/community/report-a-bug/) with the full message.

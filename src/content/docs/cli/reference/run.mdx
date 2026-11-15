@@ -41,17 +41,21 @@ The command has two required arguments — the assembly path and the fully-quali
 
 ### Live connection is read-only
 
+The read-only live connection is available from the first Framework Host release that includes ADO-5437 onwards.
+
 The live connection behind `--data-source live` and `auto` is read-only by construction. Only three requests reach Dataverse: `Retrieve`, `RetrieveMultiple` and `WhoAmI`. Everything else aimed at the live connection is rejected before any network access and fails the run: `Create`, `Update`, `Delete`, `Associate`, `Disassociate`, `ExecuteMultiple`, `ExecuteTransaction`, Custom APIs, actions, workflows, and any other request outside those three. The routing in the table above and the behavior of `-c`/`--continue-on-unlicensed` are not changed by this.
 
-Plugin writes and live-connection calls are different things. When your plugin writes through the `IOrganizationService` it receives from the run, the write is handled by the simulated run service and stays inside the run; nothing is sent to Dataverse. The block applies to a call aimed at the live connection itself.
+Plugin writes and live-connection calls are different things. When your plugin writes through the `IOrganizationService` it receives from the run, the write is handled by the simulated run service and stays inside the run; nothing is sent to Dataverse. The block guards the live connection itself.
 
-A blocked request fails the run with this message, where the text between the quotes is the name of the refused request (for example `Create`), shown here as an empty placeholder:
+A blocked request fails the run with this message:
 
 ```text
-Live connection is read-only: '' is not allowed (only Retrieve, RetrieveMultiple and WhoAmI reach Dataverse).
+Live connection is read-only: '<operation>' is not allowed (only Retrieve, RetrieveMultiple and WhoAmI reach Dataverse).
 ```
 
-A blocked request is a defect in the plugin or code to fix, not something to bypass. For safe use of customer data, see [Use live data from a customer org safely](/how-to/use-live-data-from-a-customer-org-safely/).
+`<operation>` names the refused operation: for example `Create`, `Update` or `Delete`, or `Execute:<request>` for a request sent through `Execute`, such as `Execute:ExecuteMultiple` (`Execute:unrecognized request` when the request type is not a known one).
+
+The read-only connection is a second guarantee. Your plugin's writes always go to the simulated run service, and the run sends only `Retrieve`, `RetrieveMultiple` and `WhoAmI` to the live connection, so a plugin cannot trigger this block by what it does. If the block appears, it is a defect in XrmGhost, not in your plugin: do not change the plugin to avoid it or look for a way around it, and [report a bug](/community/report-a-bug/) with the full message. For safe use of customer data, see [Use live data from a customer org safely](/how-to/use-live-data-from-a-customer-org-safely/).
 
 ### Caller identity
 
