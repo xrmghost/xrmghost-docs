@@ -76,7 +76,7 @@ The command accepts two JSON shapes:
 }
 ```
 
-> **Client secret handling:** The `ClientSecret` field is deliberately excluded from files produced by `xg env export` (it is marked `[JsonIgnore]` during export). If the import file does not contain a `ClientSecret` and the environment uses `ClientSecret` authentication, the command will interactively prompt you to enter it. To automate imports, pre-populate the field in the JSON before running the command in a non-interactive context.
+> **Secrets and sessions are never exported.** Files produced by `xg env export` and `xg env template` contain no token, refresh token, account, client secret or certificate (PFX) password, and the sign-in cache of an environment is not part of a file. If the environment uses `ClientSecret` authentication and the file does not contain the secret, the command interactively prompts you to enter it. The other methods store no secret: you sign in on first use, in an interactive terminal, or run `xg env refresh` there.
 
 ### Tenant (`TenantId`)
 

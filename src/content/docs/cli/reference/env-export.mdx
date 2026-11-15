@@ -1,6 +1,6 @@
 ---
 title: "xg env export"
-description: Export one or all registered Dataverse environment configurations to a JSON file. Client secrets are never included in the export.
+description: Export one or all registered Dataverse environment configurations to a JSON file. Client secrets, certificate passwords, tokens and account details are never included in the export.
 ---
 
 # `xg env export`
@@ -19,7 +19,7 @@ xg env export [FRIENDLY_NAME] [options]
 
 When called without arguments, `env export` serialises the **entire environment store** — every configured Dataverse environment — to a single JSON file. Pass a `FRIENDLY_NAME` to export only that specific environment.
 
-The output format is always **indented JSON**. The file contains the environment's connection metadata (URL, tenant ID, client ID, etc.) but **never the client secret**: the `ClientSecret` field is unconditionally excluded from all exports at the model level.
+The output format is always **indented JSON**. The file contains the environment's connection metadata (URL, authentication method, client ID, etc.) but **never a secret or a session**: the client secret and the certificate password are unconditionally excluded from all exports at the model level, and no token, refresh token or signed-in account is written either.
 
 If the target output path does not exist, the command creates the necessary directory structure before writing.
 
@@ -103,7 +103,7 @@ The export produces a JSON file whose shape mirrors the internal `D365Environmen
 }
 ```
 
-> **Note:** `ClientSecret` is always absent from exported files regardless of what is stored locally. When importing on another machine, you will be required to supply the secret again.
+> **Note:** The client secret, the certificate password, tokens, refresh tokens and the account are always absent from exported files regardless of what is stored locally. When importing on another machine, you supply the secret again where the method needs one, and sign in again on that machine: the sign-in cache of an environment is never exported.
 
 ## See Also
 
