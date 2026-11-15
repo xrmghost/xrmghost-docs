@@ -31,6 +31,8 @@ The registration itself (friendly name, URL, authentication method) is not delet
 
 If the sign-in cache of the environment is shared with another environment, it is **not deleted**: the command says so and names the other environment, so no other environment loses its session.
 
+A certificate password that the environment needs is removed too: enter it again with [`xg env edit`](/cli/reference/env-edit/) before the next use.
+
 If there was nothing to remove, the command says there was no session to sign out of and exits with `0`.
 
 ## Arguments

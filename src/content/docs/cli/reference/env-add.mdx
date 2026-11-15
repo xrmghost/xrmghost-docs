@@ -25,7 +25,7 @@ The wizard offers five ways to sign in. Delegated sign-in is available from the 
 | **Browser sign-in (my own app registration, ClientId required)** | The Application (client) ID of your own app registration. |
 | **Device code (XrmGhost app)** | Nothing to register. You enter a code on a Microsoft page, from any device. |
 | **Device code (my own app registration, ClientId required)** | The Application (client) ID of your own app registration. |
-| **Certificate (app registration, ClientId required)** | The Application (client) ID, and either a `.pfx` file path (with its password, if it has one) or a thumbprint from the certificate store. |
+| **Certificate (app registration, ClientId required)** | The Application (client) ID, and either a `.pfx` file path (with its password, if it has one; works on every supported platform) or, on Windows only, a thumbprint from the `CurrentUser` or `LocalMachine` certificate store. |
 | **Azure CLI (uses 'az login')** | An `az login` for the environment's tenant. Nothing is stored by XrmGhost. |
 | **Client secret (app registration, ClientId required)** | The Application (client) ID and a client secret created for that app registration. |
 
@@ -37,16 +37,16 @@ The wizard prompts you for the following details in sequence:
 2. **Environment URL** — the full HTTPS URL of your Dynamics 365 / Dataverse organisation (e.g. `https://myorg.crm.dynamics.com`). Must be a valid absolute HTTP/HTTPS URL.
 3. **Authentication method** — one of the choices in the table above. The first one, browser sign-in with the XrmGhost app, is the default.
 4. **Client ID** — asked only for the choices that say "ClientId required". It must be a GUID. The other choices use the XrmGhost application, and Azure CLI needs none.
-5. **Method-specific material** — a client secret (input masked, must not be empty) for **Client secret**; a certificate path or thumbprint, and the certificate password if any (masked), for **Certificate**. Browser, device code and Azure CLI ask for nothing here and store no secret.
+5. **Method-specific material** — a client secret (input masked, must not be empty) for **Client secret**; a `.pfx` path (any supported platform) or a Windows-only store thumbprint, and the certificate password if any (masked), for **Certificate**. Browser, device code and Azure CLI ask for nothing here and store no secret.
 6. **Metadata cache lifecycle** — how long XrmGhost keeps Dataverse metadata cached for this environment. Choose from a preset list or enter a custom duration.
 
-After the wizard completes, the environment configuration is saved. A client secret or a certificate password, when the method has one, is stored separately from the configuration, in the platform credential store (Windows Credential Manager on Windows, or an equivalent secure store on other platforms). Tokens, refresh tokens and the signed-in account are never written to the environment configuration.
+After the wizard completes, the environment configuration is saved. A client secret or a certificate password, when the method has one, is stored separately from the configuration, each in a file encrypted by the same service; Windows Credential Manager is not used. Tokens, refresh tokens and the signed-in account are never written to the environment configuration.
 
 ### Sign-in and per-environment sessions
 
 The wizard registers the environment; it does not sign you in. The CLI signs in the first time it needs a token, for example on `xg env refresh` or `xg env activate`.
 
-- **One session per environment.** Each environment has its own sign-in cache, so two environments, even in the same tenant, never share a session and you can use different accounts for different environments. To remove one, use [`xg env logout`](/cli/reference/env-logout/).
+- **Isolation per tenant and organisation pair.** Environments for different organisations do not share a session, so you can use different accounts for them. Aliases of the same organisation in the same tenant can share the cache and do not guarantee independent accounts. To sign out, use [`xg env logout`](/cli/reference/env-logout/).
 - **The cache comes first.** A sign-in first tries the cached session. A prompt (browser, WAM or device code) appears only when the cache cannot supply a token, and only in an interactive terminal.
 - **The cache is encrypted by the operating system** (DPAPI on Windows, Keychain on macOS, libsecret on Linux). On Linux without libsecret the cache stays **in memory only**: no refresh token is written to disk, so the session ends with the process.
 

@@ -81,6 +81,9 @@ test('the MFA, cache and agents answer appears once, in the same place in the bo
   assert.match(answer, /one method among them, not the only one/);
   assert.match(answer, /sign in once yourself in a terminal/);
   assert.match(answer, /Linux without libsecret the cache stays in memory only and no refresh token is written to disk/);
+  assert.match(answer, /isolated per tenant and organisation pair/);
+  assert.match(answer, /aliases of the same organisation in the same tenant can share a cache/);
+  assert.match(answer, /xg env activate, then run xg env refresh with no argument/);
   assert.match(answer, /Workload identity and managed identity are not supported/);
   assert.doesNotMatch(answer, /(token|secret|password)\s*[:=]/i);
   const headings = [...html.matchAll(/<h2 id="([^"]+)"/g)].map((match) => match[1]);

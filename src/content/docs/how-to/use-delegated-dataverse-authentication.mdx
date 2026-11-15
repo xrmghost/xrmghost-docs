@@ -33,14 +33,17 @@ Choose **Browser sign-in (XrmGhost app)**. The first time the CLI needs a token,
 
 ```shell
 xg env add
-xg env refresh "My Dev Org"
+xg env activate "My Dev Org" --no-cache
+xg env refresh
 ```
+
+`xg env activate` selects the environment (`--no-cache` skips the metadata fetch at activation, so the sign-in happens at the refresh). `xg env refresh` takes no name: it acts only on the **active** environment and never selects one. Check which one is active with `xg env status` before you refresh.
 
 If you cannot open a browser on that machine, choose **Device code**: the CLI prints a code and a Microsoft address, and you enter the code from any device.
 
 ## 3. Use a certificate
 
-Choose **Certificate**. The wizard asks for the Application (client) ID of your app registration, then either the path of a `.pfx` file, with its password if it has one, or the thumbprint of a certificate in the store. The certificate password is kept apart from the environment configuration, in the platform credential store. The application needs access to the environment in Dataverse, as an application user with a suitable security role.
+Choose **Certificate**. The wizard asks for the Application (client) ID of your app registration, then either the path of a `.pfx` file, with its password if it has one, or the thumbprint of a certificate in the store. A store thumbprint is available on Windows only (`CurrentUser` or `LocalMachine` store); a `.pfx` file path works on every supported platform. The certificate password is kept apart from the environment configuration, in a file encrypted with the same service that protects the client secret; it is not placed in Windows Credential Manager. The application needs access to the environment in Dataverse, as an application user with a suitable security role.
 
 ## 4. Use Azure CLI
 
@@ -56,7 +59,7 @@ A coding agent runs `xg` without a terminal, so it cannot answer a browser or de
 
 Instead, sign in once yourself, and let the agent reuse the session:
 
-1. In your own interactive terminal, run `xg env refresh "My Dev Org"` and complete the sign-in.
+1. In your own interactive terminal, select the environment with `xg env activate "My Dev Org" --no-cache`, then run `xg env refresh` (no name: it acts on the active environment) and complete the sign-in. Run `xg env status` to confirm the active environment is the one the agent will use.
 2. Start the agent. When it runs `xg run` or another command on that environment, the CLI tries the cached session first and gets its token from there, with no prompt.
 3. When the session expires and the CLI cannot renew it, the agent's command fails with the same instruction. Repeat step 1.
 
@@ -64,7 +67,7 @@ The same applies to CI and to any pipe: a sign-in has to happen in a terminal, b
 
 ## 7. Work with several accounts
 
-Each environment has its own sign-in session, so you can use a different account for each one, even within one tenant. Sessions are never shared: signing in to one environment does not sign you in to another, and signing out of one does not affect the others.
+Sign-in sessions are isolated per **tenant and organisation pair**. Environments for different organisations do not share a session, so you can use a different account for each. Two aliases of the **same organisation in the same tenant** can share the cache, so they do not guarantee independent accounts; use different organisations when you need that.
 
 To sign out of one environment:
 
@@ -72,7 +75,7 @@ To sign out of one environment:
 xg env logout "My Dev Org"
 ```
 
-This removes that environment's sign-in cache and its stored secret and certificate password, and leaves the registration in place. See [`xg env logout`](/cli/reference/env-logout/). To see every environment's method, redacted account, expiry and cache location, run [`xg doctor`](/cli/reference/doctor/); it never prints a token.
+This removes that environment's sign-in cache and its stored secret and certificate password, and leaves the registration in place. When another alias shares the cache, logout keeps that shared partition and says so. A PFX password you need must be entered again with `xg env edit` before the next use. See [`xg env logout`](/cli/reference/env-logout/). To see every environment's method, redacted account, expiry and cache location, run [`xg doctor`](/cli/reference/doctor/); it never prints a token.
 
 ## 8. Know where the session is kept
 

@@ -76,7 +76,12 @@ The command accepts two JSON shapes:
 }
 ```
 
-> **Secrets and sessions are never exported.** Files produced by `xg env export` and `xg env template` contain no token, refresh token, account, client secret or certificate (PFX) password, and the sign-in cache of an environment is not part of a file. If the environment uses `ClientSecret` authentication and the file does not contain the secret, the command interactively prompts you to enter it. The other methods store no secret: you sign in on first use, in an interactive terminal, or run `xg env refresh` there.
+> **Configuration is imported; sessions are not.** Files produced by `xg env export` and `xg env template` contain no token, refresh token, account, client secret or certificate (PFX) password, and the sign-in cache of an environment is not part of a file.
+>
+> - **`ClientSecret`**: the client secret is imported only when `AuthenticationMethod` is `ClientSecret`. If the file does not contain it, the command prompts for it. For every other method the secret is skipped.
+> - **`Certificate`**: the configuration carries `CertificatePath` or `CertificateThumbprint` (the thumbprint works on Windows only). The PFX password is **not** imported; when the certificate needs one, set it afterwards with [`xg env edit`](/cli/reference/env-edit/).
+> - **Browser and device code**: nothing is stored; sign in on first use in an interactive terminal (select the environment with `xg env activate`, then `xg env refresh`).
+> - **Azure CLI**: nothing is stored; sign in with `az login` for the environment's tenant.
 
 ### Tenant (`TenantId`)
 
