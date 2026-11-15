@@ -41,7 +41,7 @@ The command has two required arguments — the assembly path and the fully-quali
 
 ### Live connection is read-only
 
-The read-only live connection is available from the first Framework Host release that includes ADO-5437 onwards.
+The read-only live connection is available from the next stable XrmGhost release onwards.
 
 The live connection behind `--data-source live` and `auto` is read-only by construction. Only three requests reach Dataverse: `Retrieve`, `RetrieveMultiple` and `WhoAmI`. Everything else aimed at the live connection is rejected before any network access and fails the run: `Create`, `Update`, `Delete`, `Associate`, `Disassociate`, `ExecuteMultiple`, `ExecuteTransaction`, Custom APIs, actions, workflows, and any other request outside those three. The routing in the table above and the behavior of `-c`/`--continue-on-unlicensed` are not changed by this.
 

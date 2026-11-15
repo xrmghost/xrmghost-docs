@@ -53,7 +53,8 @@ test('the live customer org answer carries the block message and reports blocks 
   assert.match(answer, /Live connection is read-only: .* is not allowed \(only Retrieve, RetrieveMultiple and WhoAmI reach Dataverse\)/);
   assert.match(answer, /the quoted name is the refused operation/);
   assert.match(answer, /it is a bug in XrmGhost, not in your plugin/);
-  assert.match(answer, /first Framework Host release that includes ADO-5437/);
+  assert.match(answer, /next stable XrmGhost release/);
+  assert.doesNotMatch(answer, /ADO-\d+/);
   assert.doesNotMatch(answer, /''|never a value that is always empty|defect in the plugin/);
   assert.equal(html.split('Live connection is read-only:').length - 1 >= 2, true);
 });
