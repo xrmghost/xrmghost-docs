@@ -116,7 +116,7 @@ Accept every prompt with its current value (press Enter) until you reach the met
 
 `env edit` always launches an interactive wizard — it cannot be driven entirely from CLI flags in the current version. To automate environment management, consider exporting the configuration with [`env export`](/cli/reference/env-export/), editing the JSON file, and re-importing it with [`env import`](/cli/reference/env-import/).
 
-Without a terminal (a CI pipeline, a pipe, a coding agent without a terminal) or with `--no-interactive`, the command is refused before any prompt and exits with code `1`, naming the command to re-run in an interactive terminal. Use scripted `env import` workflows for non-interactive environments.
+Without a terminal (a pipe), when started by a coding agent or in a CI pipeline, or with `--no-interactive`, the command is refused before any prompt and exits with code `1`, naming the command to re-run in an interactive terminal. Use scripted `env import` workflows for non-interactive environments.
 
 ## See Also
 

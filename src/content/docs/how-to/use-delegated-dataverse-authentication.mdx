@@ -39,15 +39,17 @@ xg env refresh
 
 `xg env activate` selects the environment (`--no-cache` skips the metadata fetch at activation, so the sign-in happens at the refresh). `xg env refresh` takes no name: it acts only on the **active** environment and never selects one. Check which one is active with `xg env status` before you refresh.
 
+The first sign-in with the XrmGhost application can show its publisher as unverified until Microsoft publisher verification is complete. If your tenant does not let users consent to such an application, ask an administrator to grant consent, or use your own app registration (section 5).
+
 If you cannot open a browser on that machine, choose **Device code**: the CLI prints a code and a Microsoft address, and you enter the code from any device.
 
 ## 3. Use a certificate
 
-Choose **Certificate**. The wizard asks for the Application (client) ID of your app registration, then either the path of a `.pfx` file, with its password if it has one, or the thumbprint of a certificate in the store. A store thumbprint is available on Windows only (`CurrentUser` or `LocalMachine` store); a `.pfx` file path works on every supported platform. The certificate password is kept apart from the environment configuration, in a file encrypted with the same service that protects the client secret; it is not placed in Windows Credential Manager. The application needs access to the environment in Dataverse, as an application user with a suitable security role.
+Choose **Certificate**. The wizard asks for the Application (client) ID of your app registration, then either the path of a `.pfx` file, with its password if it has one, or the thumbprint of a certificate in the store. A store thumbprint is available on Windows only (`CurrentUser` or `LocalMachine` store); a `.pfx` file path works on every supported platform. The certificate password is kept apart from the environment configuration, in the same kind of file as the client secret: on Windows it is encrypted with DPAPI for your user account; on Linux and macOS it is stored in plain text in your user profile, exactly like the client secret, and the CLI prints a warning when it writes it. It is not placed in Windows Credential Manager. On Linux and macOS, keep your user profile readable only by you, or use a certificate from the Windows store on Windows. The application needs access to the environment in Dataverse, as an application user with a suitable security role.
 
 ## 4. Use Azure CLI
 
-Choose **Azure CLI**. Nothing is stored by XrmGhost: sign in with `az login` for the environment's tenant, then run your `xg` command. The wizard stores no secret for this method.
+Choose **Azure CLI**. Nothing is stored by XrmGhost: sign in with `az login` for the environment's tenant, then run your `xg` command. The wizard stores no secret for this method. If Azure CLI is signed in to another tenant, or cannot give a token, the command tells you to run `az login --tenant <tenant>` with the tenant the environment needs.
 
 ## 5. Use your own ClientId
 
@@ -55,7 +57,7 @@ Browser and device code use the XrmGhost application by default. If your tenant 
 
 ## 6. Sign in once for a coding agent
 
-A coding agent runs `xg` without a terminal, so it cannot answer a browser or device code prompt. The CLI does not try: with no terminal, or with `--no-interactive`, a command that needs a new sign-in stops with a non-zero exit and tells you to run `xg env refresh` in a terminal. Do not paste credentials into the agent's process to get around it.
+A coding agent cannot answer a browser, WAM or device code prompt, even when it runs `xg` in a terminal of its own, such as an editor's integrated terminal. The CLI does not try: when the command is started by a coding agent or in CI, with no terminal, or with `--no-interactive`, a command that needs a new sign-in stops at once with a non-zero exit and tells you to run `xg env activate <name>` and then `xg env refresh` in your own terminal. Do not paste credentials into the agent's process to get around it.
 
 Instead, sign in once yourself, and let the agent reuse the session:
 
@@ -75,7 +77,7 @@ To sign out of one environment:
 xg env logout "My Dev Org"
 ```
 
-This removes that environment's sign-in cache and its stored secret and certificate password, and leaves the registration in place. When another alias shares the cache, logout keeps that shared partition and says so. A PFX password you need must be entered again with `xg env edit` before the next use. See [`xg env logout`](/cli/reference/env-logout/). To see every environment's method, redacted account, expiry and cache location, run [`xg doctor`](/cli/reference/doctor/); it never prints a token.
+This removes that environment's sign-in cache and its stored secret and certificate password, and leaves the registration in place. On Windows, when the sign-in went through WAM, it also signs the account out of WAM for that application, so other environments that use the same account and application ask you to sign in again. When another alias shares the cache, logout keeps that shared partition and says so. A PFX password you need must be entered again with `xg env edit` before the next use. See [`xg env logout`](/cli/reference/env-logout/). To see every environment's method, redacted account, expiry and cache location, run [`xg doctor`](/cli/reference/doctor/); it never prints a token.
 
 ## 8. Know where the session is kept
 

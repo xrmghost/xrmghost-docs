@@ -40,7 +40,7 @@ The wizard prompts you for the following details in sequence:
 5. **Method-specific material** — a client secret (input masked, must not be empty) for **Client secret**; a `.pfx` path (any supported platform) or a Windows-only store thumbprint, and the certificate password if any (masked), for **Certificate**. Browser, device code and Azure CLI ask for nothing here and store no secret.
 6. **Metadata cache lifecycle** — how long XrmGhost keeps Dataverse metadata cached for this environment. Choose from a preset list or enter a custom duration.
 
-After the wizard completes, the environment configuration is saved. A client secret or a certificate password, when the method has one, is stored separately from the configuration, each in a file encrypted by the same service; Windows Credential Manager is not used. Tokens, refresh tokens and the signed-in account are never written to the environment configuration.
+After the wizard completes, the environment configuration is saved. A client secret or a certificate password, when the method has one, is stored separately from the configuration, each in its own file: encrypted with DPAPI on Windows, in plain text in your user profile on Linux and macOS (the CLI prints a warning when it writes one). Windows Credential Manager is not used. Tokens, refresh tokens and the signed-in account are never written to the environment configuration.
 
 ### Sign-in and per-environment sessions
 
@@ -52,7 +52,7 @@ The wizard registers the environment; it does not sign you in. The CLI signs in 
 
 ### Without a terminal
 
-A prompt needs a person at a terminal. In CI, in a pipe, or in a process driven by a coding agent without a terminal, the CLI cannot show one. If the cache cannot supply a token, the command fails with a message that names the command to re-run; run it in an interactive terminal, then run the original command again. Do not pass credentials to the host process to get around it. See [Use delegated Dataverse authentication](/how-to/use-delegated-dataverse-authentication/).
+A prompt needs a person at a terminal. In CI, in a pipe, or in a command started by a coding agent, even one with a terminal of its own, the CLI does not show one. If the cache cannot supply a token, the command fails at once with a message that names the commands to run (`xg env activate <name>`, then `xg env refresh`); run them in your own interactive terminal, then run the original command again. Do not pass credentials to the host process to get around it. See [Use delegated Dataverse authentication](/how-to/use-delegated-dataverse-authentication/).
 
 > **Not supported.** Workload identity and managed identity are not authentication methods of the CLI.
 
@@ -70,7 +70,7 @@ The resolution needs the environment URL to be reachable over HTTP, but it does 
 
 ### Interactive-only mode
 
-`xg env add` is fully interactive — there is no flag to pre-fill values. All inputs must be entered at the terminal prompt. `--no-interactive` exists only so that a script gets a clear refusal: the command exits with `1` and tells you to run `xg env add` in an interactive terminal. The same refusal applies when there is no terminal (a pipe, CI, an agent without a terminal). To register environments from a script, use [`xg env import`](/cli/reference/env-import/).
+`xg env add` is fully interactive — there is no flag to pre-fill values. All inputs must be entered at the terminal prompt. `--no-interactive` exists only so that a script gets a clear refusal: the command exits with `1` and tells you to run `xg env add` in an interactive terminal. The same refusal applies when there is no terminal (a pipe) and when the command is started by a coding agent or in CI. To register environments from a script, use [`xg env import`](/cli/reference/env-import/).
 
 ### Metadata cache lifecycle presets
 
