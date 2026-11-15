@@ -78,7 +78,7 @@ The command accepts two JSON shapes:
 
 > **Configuration is imported; sessions are not.** Files produced by `xg env export` and `xg env template` contain no token, refresh token, account, client secret or certificate (PFX) password, and the sign-in cache of an environment is not part of a file.
 >
-> - **`ClientSecret`**: the client secret is imported only when `AuthenticationMethod` is `ClientSecret`. If the file does not contain it, the command prompts for it. For every other method the secret is skipped.
+> - **`ClientSecret`**: the client secret is imported only when `AuthenticationMethod` is `ClientSecret`. If the file does not contain it, the command prompts for it. For every other method, an entry that contains a client secret is skipped entirely: the environment is not imported, and the command reports that a client secret is only accepted with the `ClientSecret` method. Remove the secret from that entry in the file and import again. Likewise, a `Certificate` entry with neither `CertificatePath` nor `CertificateThumbprint` is skipped.
 > - **`Certificate`**: the configuration carries `CertificatePath` or `CertificateThumbprint` (the thumbprint works on Windows only). The PFX password is **not** imported; when the certificate needs one, set it afterwards with [`xg env edit`](/cli/reference/env-edit/).
 > - **Browser and device code**: nothing is stored; sign in on first use in an interactive terminal (select the environment with `xg env activate`, then `xg env refresh`).
 > - **Azure CLI**: nothing is stored; sign in with `az login` for the environment's tenant.
