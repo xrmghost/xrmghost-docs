@@ -22,11 +22,13 @@ The `xrmghost` CLI surface is organised into the following top-level command gro
 | `init` | Prepare or repair the installation: prerequisites, Framework Host, next step |
 | `run` | Execute a Dataverse plugin via FrameworkHost |
 | `generate-scenario` | Generate a template JSON scenario file for a plugin |
-| `doctor` | Diagnose configuration and connectivity; `--fix` repairs the managed Framework Host |
+| `doctor` | Diagnose configuration and connectivity, and show each environment's sign-in method, redacted account, expiry and cache; `--fix` repairs the managed Framework Host |
 | `privacy` | Display data-collection and privacy information |
 | `license` | Manage license status and activation |
-| `env` | Manage Dataverse environment configurations |
+| `env` | Manage Dataverse environment configurations and their sign-in: browser with MFA, device code, certificate, client secret or Azure CLI, one session per environment, `env logout` to sign out of one |
 | `setup` | Advanced: install or update the Framework Host in the managed install root |
+
+Delegated sign-in methods and per-environment sessions are available from the next stable XrmGhost release onwards; the workflow is in [Use delegated Dataverse authentication](/how-to/use-delegated-dataverse-authentication/). Workload identity and managed identity are not supported.
 
 First setup is `xg init`, not `xg setup host`. The CLI resolves the Framework Host in the order bundle `bin\` > managed install root > legacy locations; when none is found, the host-dependent commands point to `xg init` (`xg init --no-interactive` in CI). `setup host` only manages the managed install root, which a ZIP's bundled host takes precedence over.
 

@@ -5,7 +5,7 @@ description: Run environment and configuration health checks to diagnose connect
 
 # xg doctor
 
-Runs a set of diagnostic checks against your local environment, verifying that all prerequisite components are reachable and correctly configured. The command exits with code `0` if every critical check passes, or `1` if any check fails.
+Runs a set of diagnostic checks against your local environment, verifying that all prerequisite components are reachable and correctly configured, and reporting the sign-in state of each registered environment. The command exits with code `0` if every critical check passes, or `1` if any check fails.
 
 Without `--fix`, `doctor` is **read-only**: it reports and changes nothing. With `--fix`, it also repairs the Framework Host where the CLI owns it — see [Repairing the host with `--fix`](#repairing-the-host-with---fix).
 
@@ -29,6 +29,21 @@ xg doctor [-v] [-f <FRAMEWORK_HOST_PATH>] [--fix] [--no-interactive]
 6. **Local Configuration Files** — Reads `bootstrap.lic` and the AKMS API key. A missing file or key, or an expired key, is reported as a yellow warning or `Unlicensed` (not a failure); an error while reading or decrypting either one fails the check. Displays the license tier when the key is valid.
 7. **AKMS Connectivity** — Contacts the AKMS JWKS endpoint to confirm network reachability, then attempts a test JWT issuance if a valid local API key exists.
 8. **Subscription Claims Diagnostics** — Always printed. Reads the current license status and shows a short summary of the subscription claims. In `--verbose` mode, it adds the full claims detail and, when claims are present, a live JWT round-trip to validate claims parsing.
+
+After these checks, `doctor` prints an **Environments** section, one line per registered environment, so you can see which sign-in each one uses without opening a token:
+
+```text
+  <friendly name>: method=<method>, account=<account>, expires=<expiry>, cache=<platform cache>
+```
+
+| Field | Meaning |
+|---|---|
+| `method` | The authentication method of the environment (for example browser, device code, certificate, client secret or Azure CLI). |
+| `account` | The signed-in account, **redacted**; `none` when there is no session. |
+| `expires` | When the cached token expires, in UTC; `n/a` when there is none. |
+| `cache` | Where the environment's sign-in cache lives on this platform: the operating system's protected store, or memory only (for example on Linux without libsecret); `none` when there is no cache. |
+
+This section is informational: it reports and never fails the run. It never prints a token, a refresh token, a client secret or a certificate password, and it never reads one; it only shows the reduced session summary above. If the sessions cannot be read, it prints `Could not read environment sessions` with the error type only. When no environment is registered it says so.
 
 Findings are listed under each heading, and a failing check is reported in red under its own section. The final line summarises the overall result. Without a license, an invitation to upgrade can follow the success line: it is not an error and the exit code stays `0`.
 

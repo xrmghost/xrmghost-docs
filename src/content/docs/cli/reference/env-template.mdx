@@ -24,8 +24,9 @@ xg env template --output <FILE_PATH>
 `xg env template` produces a JSON scaffold that mirrors the structure expected by [`xg env import`](/cli/reference/env-import/). The generated file contains:
 
 - A single `Environments` array with one placeholder entry.
-- Key fields (`FriendlyName`, `EnvironmentUrl`, `AuthenticationMethod`, `ClientId`, `MetadataCacheLifecycle`) set to sensible default values.
-- `ClientSecret` is intentionally **omitted** from the output (the field is `[JsonIgnore]`-decorated in the CLI source). Supply the secret interactively when running `xg env import`, or add it to the JSON manually before importing in a secure, non-version-controlled location.
+- Key fields (`FriendlyName`, `EnvironmentUrl`, `AuthenticationMethod`, `MetadataCacheLifecycle`) set to sensible default values.
+- The template shows the default delegated method, browser sign-in with the XrmGhost app, so no `ClientId` is written: set one only to use your own app registration (it is required for the certificate and client secret methods).
+- The template contains **no token, refresh token, account, client secret or certificate (PFX) password**. Secrets are never part of a template: for a client secret environment, `xg env import` prompts for the secret interactively.
 - `ActiveEnvironmentFriendlyName` set to `null` — activate an environment after import with [`xg env activate`](/cli/reference/env-activate/) or via the interactive `xg env add` wizard.
 
 If the parent directory of the output path does not exist, the CLI creates it automatically.
@@ -42,8 +43,7 @@ Example of generated content:
     {
       "FriendlyName": "MY-ENV-NAME",
       "EnvironmentUrl": "https://myorg.crm.dynamics.com",
-      "AuthenticationMethod": "ClientSecret",
-      "ClientId": "YOUR_CLIENT_ID_GUID",
+      "AuthenticationMethod": "InteractiveBrowser",
       "MetadataCacheLifecycle": "7.00:00:00"
     }
   ]
@@ -90,9 +90,9 @@ xg env template --output ~/.config/xrmghost/environments/template.json
 xg env template --output ./my-envs.json
 
 # 2. Edit my-envs.json: replace placeholder values with your real environment details
-#    (FriendlyName, EnvironmentUrl, ClientId, etc.)
+#    (FriendlyName, EnvironmentUrl, and ClientId if you use your own app registration)
 
-# 3. Import the edited file — the CLI will prompt for ClientSecret interactively
+# 3. Import the edited file — a client secret environment is prompted for its secret interactively
 xg env import ./my-envs.json
 ```
 

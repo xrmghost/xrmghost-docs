@@ -30,8 +30,8 @@ If no environments are registered yet, the command prints an informational messa
 | **Active** | `*` (green) for the currently active environment; empty otherwise |
 | **Friendly Name** | Human-readable label assigned when the environment was added |
 | **Environment URL** | The Dynamics 365 / Dataverse organisation URL (e.g., `https://myorg.crm.dynamics.com`) |
-| **Auth Method** | Authentication method configured for this environment (currently `ClientSecret`) |
-| **Client ID** | Azure AD application (client) ID used to authenticate |
+| **Auth Method** | Authentication method configured for this environment: `InteractiveBrowser` (browser with MFA, or WAM on Windows), `DeviceCode`, `Certificate`, `AzureCli` or `ClientSecret`. An environment saved before delegated sign-in existed shows `ClientSecret`. |
+| **Client ID** | Application (client) ID used to authenticate: the XrmGhost application, or your own app registration. It can be empty for `AzureCli`. |
 | **Cache Lifecycle** | How long the local Dataverse metadata cache is considered valid before a refresh is triggered |
 
 ## Options
@@ -47,18 +47,19 @@ This command has no options or flags.
 
 ## Examples
 
-### List all environments (two environments registered, one active)
+### List all environments (three environments registered, one active)
 
 ```
 $ xg env list
 
                  Registered Dynamics 365 Environments
- ┌────────┬──────────────────┬─────────────────────────────────────────┬───────────────┬──────────────────────────────────────┬─────────────────┐
- │ Active │ Friendly Name    │ Environment URL                         │ Auth Method   │ Client ID                            │ Cache Lifecycle │
- ├────────┼──────────────────┼─────────────────────────────────────────┼───────────────┼──────────────────────────────────────┼─────────────────┤
- │      * │ Production       │ https://contoso.crm.dynamics.com        │ ClientSecret  │ a1b2c3d4-0000-0000-0000-111122223333  │ 7 day(s)        │
- │        │ UAT              │ https://contoso-uat.crm.dynamics.com    │ ClientSecret  │ a1b2c3d4-0000-0000-0000-444455556666  │ 1 day(s)        │
- └────────┴──────────────────┴─────────────────────────────────────────┴───────────────┴──────────────────────────────────────┴─────────────────┘
+ ┌────────┬───────────────┬──────────────────────────────────────┬────────────────────┬──────────────────────────────────────┬─────────────────┐
+ │ Active │ Friendly Name │ Environment URL                      │ Auth Method        │ Client ID                            │ Cache Lifecycle │
+ ├────────┼───────────────┼──────────────────────────────────────┼────────────────────┼──────────────────────────────────────┼─────────────────┤
+ │      * │ Production    │ https://contoso.crm.dynamics.com     │ Certificate        │ a1b2c3d4-0000-0000-0000-111122223333 │ 7 day(s)        │
+ │        │ UAT           │ https://contoso-uat.crm.dynamics.com │ InteractiveBrowser │ <XrmGhost application ID>            │ 1 day(s)        │
+ │        │ Sandbox       │ https://contoso-sbx.crm.dynamics.com │ AzureCli           │                                      │ 1 day(s)        │
+ └────────┴───────────────┴──────────────────────────────────────┴────────────────────┴──────────────────────────────────────┴─────────────────┘
 
 * Indicates the currently active environment: Production
 ```
@@ -78,11 +79,11 @@ You can add one using the 'XrmGhost env add' command.
 $ xg env list
 
                  Registered Dynamics 365 Environments
- ┌────────┬──────────────────┬─────────────────────────────────────────┬───────────────┬──────────────────────────────────────┬─────────────────┐
- │ Active │ Friendly Name    │ Environment URL                         │ Auth Method   │ Client ID                            │ Cache Lifecycle │
- ├────────┼──────────────────┼─────────────────────────────────────────┼───────────────┼──────────────────────────────────────┼─────────────────┤
- │        │ Dev              │ https://contoso-dev.crm.dynamics.com    │ ClientSecret  │ a1b2c3d4-0000-0000-0000-777788889999  │ 1 hour(s)       │
- └────────┴──────────────────┴─────────────────────────────────────────┴───────────────┴──────────────────────────────────────┴─────────────────┘
+ ┌────────┬───────────────┬──────────────────────────────────────┬──────────────┬──────────────────────────────────────┬─────────────────┐
+ │ Active │ Friendly Name │ Environment URL                      │ Auth Method  │ Client ID                            │ Cache Lifecycle │
+ ├────────┼───────────────┼──────────────────────────────────────┼──────────────┼──────────────────────────────────────┼─────────────────┤
+ │        │ Dev           │ https://contoso-dev.crm.dynamics.com │ ClientSecret │ a1b2c3d4-0000-0000-0000-777788889999 │ 1 hour(s)       │
+ └────────┴───────────────┴──────────────────────────────────────┴──────────────┴──────────────────────────────────────┴─────────────────┘
 
 No environment is currently active.
 You can activate one using 'XrmGhost env activate <FRIENDLY_NAME>'.
