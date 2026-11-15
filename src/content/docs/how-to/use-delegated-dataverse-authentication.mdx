@@ -1,0 +1,91 @@
+---
+title: "Use delegated Dataverse authentication"
+description: "Sign the CLI in to a Dataverse environment with MFA, a certificate or Azure CLI, keep one session per environment, and let a coding agent reuse a sign-in you made once."
+date: 2026-11-15
+sidebar:
+  label: "Delegated authentication"
+---
+
+# Use delegated Dataverse authentication
+
+An environment registered with `xg env add` does not have to sign in with a client secret. You can sign in as yourself, with multi-factor authentication, or with a certificate, or reuse an `az login`. This how-to shows how to choose, how the sessions are kept, and how to work when no one can answer a prompt. Delegated sign-in is available from the next stable XrmGhost release onwards.
+
+It needs a Pro license, like every `xg env` command; check it with [`xg license status`](/cli/reference/license-status/).
+
+## 1. Choose a method
+
+`xg env add` asks for the method. The first choice is the default.
+
+| You want | Choose |
+|---|---|
+| Your own account, with MFA, with nothing to register | **Browser sign-in (XrmGhost app)** |
+| The same, from a machine with no browser, or over SSH | **Device code (XrmGhost app)** |
+| The tenant to see your own application, not ours | **Browser** or **Device code**, in the "my own app registration" form |
+| An unattended identity, with a certificate | **Certificate** |
+| To reuse the account you already use with `az` | **Azure CLI** |
+| An app registration with a secret | **Client secret** |
+
+Client secret is one method among the others, not the only one. Workload identity and managed identity are **not** supported: there is no choice for them in the wizard, and no setting turns them on.
+
+## 2. Sign in with MFA
+
+Choose **Browser sign-in (XrmGhost app)**. The first time the CLI needs a token, for example on `xg env refresh`, it opens a browser, where Microsoft Entra asks for your multi-factor step as your tenant requires. On Windows the sign-in can go through Windows Web Account Manager (WAM). Do this from an interactive terminal.
+
+```shell
+xg env add
+xg env activate "My Dev Org" --no-cache
+xg env refresh
+```
+
+`xg env activate` selects the environment (`--no-cache` skips the metadata fetch at activation, so the sign-in happens at the refresh). `xg env refresh` takes no name: it acts only on the **active** environment and never selects one. Check which one is active with `xg env status` before you refresh.
+
+If you cannot open a browser on that machine, choose **Device code**: the CLI prints a code and a Microsoft address, and you enter the code from any device.
+
+## 3. Use a certificate
+
+Choose **Certificate**. The wizard asks for the Application (client) ID of your app registration, then either the path of a `.pfx` file, with its password if it has one, or the thumbprint of a certificate in the store. A store thumbprint is available on Windows only (`CurrentUser` or `LocalMachine` store); a `.pfx` file path works on every supported platform. The certificate password is kept apart from the environment configuration, in a file encrypted with the same service that protects the client secret; it is not placed in Windows Credential Manager. The application needs access to the environment in Dataverse, as an application user with a suitable security role.
+
+## 4. Use Azure CLI
+
+Choose **Azure CLI**. Nothing is stored by XrmGhost: sign in with `az login` for the environment's tenant, then run your `xg` command. The wizard stores no secret for this method.
+
+## 5. Use your own ClientId
+
+Browser and device code use the XrmGhost application by default. If your tenant requires its own app registration, choose the "my own app registration, ClientId required" form of either method and enter the Application (client) ID, a GUID. Certificate and client secret always ask for it. XrmGhost never sends this ClientId, or your tenant, in telemetry: see [what XrmGhost collects](/cli/privacy/).
+
+## 6. Sign in once for a coding agent
+
+A coding agent runs `xg` without a terminal, so it cannot answer a browser or device code prompt. The CLI does not try: with no terminal, or with `--no-interactive`, a command that needs a new sign-in stops with a non-zero exit and tells you to run `xg env refresh` in a terminal. Do not paste credentials into the agent's process to get around it.
+
+Instead, sign in once yourself, and let the agent reuse the session:
+
+1. In your own interactive terminal, select the environment with `xg env activate "My Dev Org" --no-cache`, then run `xg env refresh` (no name: it acts on the active environment) and complete the sign-in. Run `xg env status` to confirm the active environment is the one the agent will use.
+2. Start the agent. When it runs `xg run` or another command on that environment, the CLI tries the cached session first and gets its token from there, with no prompt.
+3. When the session expires and the CLI cannot renew it, the agent's command fails with the same instruction. Repeat step 1.
+
+The same applies to CI and to any pipe: a sign-in has to happen in a terminal, before the unattended command runs.
+
+## 7. Work with several accounts
+
+Sign-in sessions are isolated per **tenant and organisation pair**. Environments for different organisations do not share a session, so you can use a different account for each. Two aliases of the **same organisation in the same tenant** can share the cache, so they do not guarantee independent accounts; use different organisations when you need that.
+
+To sign out of one environment:
+
+```shell
+xg env logout "My Dev Org"
+```
+
+This removes that environment's sign-in cache and its stored secret and certificate password, and leaves the registration in place. When another alias shares the cache, logout keeps that shared partition and says so. A PFX password you need must be entered again with `xg env edit` before the next use. See [`xg env logout`](/cli/reference/env-logout/). To see every environment's method, redacted account, expiry and cache location, run [`xg doctor`](/cli/reference/doctor/); it never prints a token.
+
+## 8. Know where the session is kept
+
+The cache is encrypted by the operating system: DPAPI on Windows, Keychain on macOS, libsecret on Linux. It is never written in clear. On Linux without libsecret, XrmGhost keeps the cache **in memory only**: no refresh token is written to disk, so the session ends with the process and the next command signs in again. Install libsecret, or sign in in the same process that needs the token.
+
+`xg env export` and `xg env template` never include a token, a refresh token, an account, a client secret or a certificate password.
+
+## See also
+
+- [`xg env add`](/cli/reference/env-add/) — the wizard and its choices
+- [`xg env logout`](/cli/reference/env-logout/) — sign out of one environment
+- [Use live data from a customer org safely](/how-to/use-live-data-from-a-customer-org-safely/)
+- [What XrmGhost collects](/cli/privacy/)

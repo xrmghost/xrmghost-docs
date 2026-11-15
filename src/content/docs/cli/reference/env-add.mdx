@@ -1,6 +1,6 @@
 ---
 title: "xg env add"
-description: Launch the interactive wizard to register a new Dataverse environment configuration in XrmGhost.
+description: Launch the interactive wizard to register a new Dataverse environment configuration in XrmGhost, choosing how the environment signs in - browser with MFA, device code, certificate, client secret or Azure CLI.
 ---
 
 # `xg env add`
@@ -8,33 +8,53 @@ description: Launch the interactive wizard to register a new Dataverse environme
 ## Synopsis
 
 ```shell
-xg env add
+xg env add [--no-interactive]
 ```
 
 ## Description
 
 `xg env add` opens an interactive wizard that collects all the information needed to register a new Dataverse environment with XrmGhost.
 
-### Prerequisite: a Microsoft Entra client application
+### Prerequisite: choose how the environment signs in
 
-Before running the wizard, you need a **client application registered in Microsoft Entra ID** that can sign in to your Dataverse environment with a client secret:
+The wizard offers five ways to sign in. Delegated sign-in is available from the next stable XrmGhost release onwards. **Client Secret is one method among them, not the only one.** Only the certificate and client secret methods, and the "my own app registration" variants of browser and device code, need a client application registered in Microsoft Entra ID; the wizard does not create the app registration for you.
 
-- the app registration's **Application (client) ID**;
-- a **client secret** created for that app registration;
-- access for that application to the target environment — in Dataverse, an application user bound to the app registration, with a security role that covers what your plugins read.
+| Wizard choice | What you need |
+|---|---|
+| **Browser sign-in (XrmGhost app)** — the default | Nothing to register. You sign in with your own account in a browser, with multi-factor authentication (MFA) when your tenant requires it; on Windows the sign-in can go through Windows Web Account Manager (WAM). |
+| **Browser sign-in (my own app registration, ClientId required)** | The Application (client) ID of your own app registration. |
+| **Device code (XrmGhost app)** | Nothing to register. You enter a code on a Microsoft page, from any device. |
+| **Device code (my own app registration, ClientId required)** | The Application (client) ID of your own app registration. |
+| **Certificate (app registration, ClientId required)** | The Application (client) ID, and either a `.pfx` file path (with its password, if it has one; works on every supported platform) or, on Windows only, a thumbprint from the `CurrentUser` or `LocalMachine` certificate store. |
+| **Azure CLI (uses 'az login')** | An `az login` for the environment's tenant. Nothing is stored by XrmGhost. |
+| **Client secret (app registration, ClientId required)** | The Application (client) ID and a client secret created for that app registration. |
 
-The wizard asks for the client ID and secret; it does not create the app registration for you.
+The signed-in account, or the application user bound to the app registration, needs access to the target environment — in Dataverse, a security role that covers what your plugins read.
 
 The wizard prompts you for the following details in sequence:
 
 1. **Friendly name** — a short, unique label used to reference this environment in other `xg env` commands (e.g. `activate`, `delete`, `refresh`). Must not be empty; uniqueness is enforced by the service layer.
 2. **Environment URL** — the full HTTPS URL of your Dynamics 365 / Dataverse organisation (e.g. `https://myorg.crm.dynamics.com`). Must be a valid absolute HTTP/HTTPS URL.
-3. **Authentication method** — currently fixed to **Client Secret** (the only supported method). Displayed for informational purposes.
-4. **Client ID** — the Application (client) ID of the Microsoft Entra app registration used for authentication.
-5. **Client Secret** — the client secret for the Microsoft Entra app registration. Input is masked. Must not be empty.
+3. **Authentication method** — one of the choices in the table above. The first one, browser sign-in with the XrmGhost app, is the default.
+4. **Client ID** — asked only for the choices that say "ClientId required". It must be a GUID. The other choices use the XrmGhost application, and Azure CLI needs none.
+5. **Method-specific material** — a client secret (input masked, must not be empty) for **Client secret**; a `.pfx` path (any supported platform) or a Windows-only store thumbprint, and the certificate password if any (masked), for **Certificate**. Browser, device code and Azure CLI ask for nothing here and store no secret.
 6. **Metadata cache lifecycle** — how long XrmGhost keeps Dataverse metadata cached for this environment. Choose from a preset list or enter a custom duration.
 
-After the wizard completes, the environment configuration is saved and the client secret is stored securely in the platform credential store (Windows Credential Manager on Windows, or an equivalent secure store on other platforms).
+After the wizard completes, the environment configuration is saved. A client secret or a certificate password, when the method has one, is stored separately from the configuration, each in a file encrypted by the same service; Windows Credential Manager is not used. Tokens, refresh tokens and the signed-in account are never written to the environment configuration.
+
+### Sign-in and per-environment sessions
+
+The wizard registers the environment; it does not sign you in. The CLI signs in the first time it needs a token, for example on `xg env refresh` or `xg env activate`.
+
+- **Isolation per tenant and organisation pair.** Environments for different organisations do not share a session, so you can use different accounts for them. Aliases of the same organisation in the same tenant can share the cache and do not guarantee independent accounts. To sign out, use [`xg env logout`](/cli/reference/env-logout/).
+- **The cache comes first.** A sign-in first tries the cached session. A prompt (browser, WAM or device code) appears only when the cache cannot supply a token, and only in an interactive terminal.
+- **The cache is encrypted by the operating system** (DPAPI on Windows, Keychain on macOS, libsecret on Linux). On Linux without libsecret the cache stays **in memory only**: no refresh token is written to disk, so the session ends with the process.
+
+### Without a terminal
+
+A prompt needs a person at a terminal. In CI, in a pipe, or in a process driven by a coding agent without a terminal, the CLI cannot show one. If the cache cannot supply a token, the command fails with a message that names the command to re-run; run it in an interactive terminal, then run the original command again. Do not pass credentials to the host process to get around it. See [Use delegated Dataverse authentication](/how-to/use-delegated-dataverse-authentication/).
+
+> **Not supported.** Workload identity and managed identity are not authentication methods of the CLI.
 
 ### Tenant resolution (`TenantId`)
 
@@ -50,7 +70,7 @@ The resolution needs the environment URL to be reachable over HTTP, but it does 
 
 ### Interactive-only mode
 
-`xg env add` is fully interactive — there are no non-interactive flags to pre-fill values. All inputs must be entered at the terminal prompt. Scripted or CI usage is not supported for this command.
+`xg env add` is fully interactive — there is no flag to pre-fill values. All inputs must be entered at the terminal prompt. `--no-interactive` exists only so that a script gets a clear refusal: the command exits with `1` and tells you to run `xg env add` in an interactive terminal. The same refusal applies when there is no terminal (a pipe, CI, an agent without a terminal). To register environments from a script, use [`xg env import`](/cli/reference/env-import/).
 
 ### Metadata cache lifecycle presets
 
@@ -70,18 +90,18 @@ The wizard offers the following preset durations. Select **Custom** to enter a v
 
 ## Options
 
-`xg env add` accepts no command-line flags or arguments. The entire configuration is gathered through the interactive wizard.
+`xg env add` takes no arguments. The entire configuration is gathered through the interactive wizard.
 
-| Flag | Type | Description |
-|---|---|---|
-| *(none)* | — | This command has no flags. All input is interactive. |
+| Flag | Type | Default | Description |
+|---|---|---|---|
+| `--no-interactive` | flag | `false` | Refuse to run: adding an environment needs a terminal. |
 
 ## Exit Codes
 
 | Code | Meaning |
 |---|---|
 | `0` | Environment added successfully. |
-| `1` | Wizard cancelled, required information was missing, or a duplicate friendly name was supplied. |
+| `1` | Wizard cancelled, required information was missing, a duplicate friendly name was supplied, or there is no terminal (or `--no-interactive` was given). |
 | `-1` | License tier check failed (Pro license required). |
 
 ## Examples
@@ -109,4 +129,6 @@ Run `xg env add` to register the environment, then run `xg env list` to confirm 
 - [`xg env list`](/cli/reference/env-list/) — list all registered Dataverse environments
 - [`xg env edit`](/cli/reference/env-edit/) — update the configuration of an existing environment
 - [`xg env delete`](/cli/reference/env-delete/) — remove a registered environment
+- [`xg env logout`](/cli/reference/env-logout/) — sign out of one environment
+- [Use delegated Dataverse authentication](/how-to/use-delegated-dataverse-authentication/) — MFA, certificates, Azure CLI and coding agents
 - [CLI Overview](/cli/)

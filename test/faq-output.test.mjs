@@ -58,3 +58,39 @@ test('the live customer org answer carries the block message and reports blocks 
   assert.doesNotMatch(answer, /''|never a value that is always empty|defect in the plugin/);
   assert.equal(html.split('Live connection is read-only:').length - 1 >= 2, true);
 });
+
+test('the MFA, cache and agents answer appears once, in the same place in the body and in the structured data', () => {
+  const html = readFileSync(new URL('../dist/faq/index.html', import.meta.url), 'utf8');
+  const schemas = [...html.matchAll(/<script[^>]*type="application\/ld\+json"[^>]*>([\s\S]*?)<\/script>/g)]
+    .map((match) => JSON.parse(match[1]));
+  const faqs = schemas.filter((schema) => schema['@type'] === 'FAQPage');
+  assert.equal(faqs.length, 1);
+  const faq = faqs[0];
+  const question = 'Does it work with MFA and can a coding agent reuse my sign-in?';
+  const names = faq.mainEntity.map((item) => item.name);
+  assert.equal(new Set(names).size, names.length);
+  assert.equal(names.filter((name) => name === question).length, 1);
+  assert.equal(names[3], question);
+  assert.equal(names[2], 'How is XrmGhost different from Dataverse PowerTools replay?');
+  assert.equal(names.at(-1), 'Can a live customer org be changed by a run?');
+  const answer = faq.mainEntity[3].acceptedAnswer.text;
+  assert.equal(html.split('<p>' + answer + '</p>').length - 1, 1);
+  assert.doesNotMatch(answer, /[`"<&]|\]\(|--/);
+  assert.doesNotMatch(answer, /\d+\.\d+|\bv\d|ADO-\d+/);
+  assert.match(answer, /multi-factor authentication/);
+  assert.match(answer, /one method among them, not the only one/);
+  assert.match(answer, /sign in once yourself in a terminal/);
+  assert.match(answer, /Linux without libsecret the cache stays in memory only and no refresh token is written to disk/);
+  assert.match(answer, /isolated per tenant and organisation pair/);
+  assert.match(answer, /aliases of the same organisation in the same tenant can share a cache/);
+  assert.match(answer, /xg env activate, then run xg env refresh with no argument/);
+  assert.match(answer, /Workload identity and managed identity are not supported/);
+  assert.doesNotMatch(answer, /(token|secret|password)\s*[:=]/i);
+  const headings = [...html.matchAll(/<h2 id="([^"]+)"/g)].map((match) => match[1]);
+  const anchor = 'does-it-work-with-mfa-and-can-a-coding-agent-reuse-my-sign-in';
+  assert.equal(headings.filter((id) => id === anchor).length, 1);
+  const thirdAnchor = 'how-is-xrmghost-different-from-dataverse-powertools-replay';
+  assert.equal(headings.indexOf(anchor), headings.indexOf(thirdAnchor) + 1);
+  assert.equal(headings.indexOf('does-it-run-the-real-plugin-or-a-mock'), headings.indexOf(anchor) + 1);
+  assert.ok(html.includes('<a href="/how-to/use-delegated-dataverse-authentication/">Use delegated Dataverse authentication</a>'));
+});
