@@ -20,6 +20,7 @@ Two words we use carefully:
 |---|---|
 | Can I turn off telemetry? | Yes: `XRMGHOST_TELEMETRY=0`. See [Turning it off](#turning-it-off). |
 | Does XrmGhost read my plugin code or my Dataverse data? | No. Your plugins run locally; no plugin code, no plugin output and no Dataverse records are sent to us. The diagnostics of a run are limited to the fixed list in [Run diagnostics](#3-run-diagnostics-xg-run-only). |
+| Are my Dataverse sign-in, tenant or app registration sent? | No. The only sign-in detail in a usage record is the **authentication method** of the environment the command used, one value from a fixed list. No token, no tenant and no ClientId of yours is sent. See [Usage telemetry](#2-usage-telemetry-on-by-default-can-be-turned-off). |
 | Is my username or machine name sent? | Not in clear. A one-way hash of each is sent at registration (see the note on hashing below). |
 | Is my IP address stored? | Not in our tables. Our servers see it on every connection, use it to rate-limit requests, and write it to service logs only when a rate limit triggers. Those logs are kept 30 days. |
 | What changes when an AI agent runs `xg`? | Each telemetry record says whether a person, an agent or a CI pipeline ran the command, and which agent. Nothing else. See [Agents and `XRMGHOST_ACTOR`](#agents-and-xrmghost_actor). |
@@ -68,8 +69,11 @@ After each command, `xg` writes one small record and sends it. The fields are fi
 | Actor | `human`, `agent`, `ci`, `unknown` | Measure who runs the CLI. See [Agents and `XRMGHOST_ACTOR`](#agents-and-xrmghost_actor) | 24 months |
 | Agent name | `claude-code`, `codex`, `other`, … (only when actor is `agent`) | same | 24 months |
 | Is CI | `true` / `false` | same | 24 months |
+| Authentication method (only for commands that use an environment) | `InteractiveBrowser`, `DeviceCode`, `Certificate`, `AzureCli`, `ClientSecret` | Know which sign-in methods are used. One value from this closed list; anything else is dropped before the record is written | 24 months |
 
 Records are deleted from our storage 24 months after they are received.
+
+**What the sign-in adds, and what it does not.** The authentication method is the only sign-in field in a usage record. We never receive an access token, a refresh token, a client secret, a certificate or its password, the account you signed in with, the Microsoft Entra tenant of your Dataverse environment, or the Client ID of your own app registration. Those stay on your machine (section 4). The authentication method is available from the next stable XrmGhost release onwards.
 
 ## 3. Run diagnostics (`xg run` only)
 
@@ -105,7 +109,8 @@ These files are written locally and are not sent to us, except as described abov
 | `telemetry\telemetry-YYYY-MM-DD.json` | same | the full local trace of each command and run, including the fields of section 3 that are never sent; readable by you | 20 days |
 | `telemetry\outbox\` | same | records waiting to be sent (sections 2 and 3, already filtered) | until sent; after 8 failed attempts an item moves to `outbox\dead-letter\`, capped at 200 items |
 | `akms_api.key`, `bootstrap.lic` | same | your API key and the bootstrap key used to activate it | until it expires or you delete it |
-| `d365_environments.json`, `environments_secure\` | same | your environment URLs and client secrets | until you remove the environment |
+| `d365_environments.json`, `environments_secure\` | same | your environment URLs, tenant and Client IDs, and the client secrets and certificate passwords you stored | until you remove the environment |
+| `msal\` | `%LOCALAPPDATA%\xrmghost\` | one encrypted sign-in cache per environment, named by a hash, so the file name carries no account, Client ID or token. Protected by the operating system (DPAPI, Keychain or libsecret). Where the system cannot protect it (Linux without libsecret) the cache lives in memory only and nothing is written | until you run `xg env logout` for that environment |
 
 The key and secret files are encrypted with your Windows account (DPAPI, current user): another user on the same machine cannot read them.
 

@@ -55,7 +55,7 @@ This page maps each `xrmghost` CLI command group to its purpose, known sub-comma
 
 ## `doctor`
 
-**Reader-facing purpose:** Diagnose CLI configuration, FrameworkHost connectivity, AKMS reachability, and license validity. Verbose mode includes JWT subscription claims diagnostics. Read-only unless `--fix`, which installs a missing host and repairs or updates the managed install, never a bundled or explicit host.
+**Reader-facing purpose:** Diagnose CLI configuration, FrameworkHost connectivity, AKMS reachability, and license validity, and show for each registered environment its sign-in method, redacted account, token expiry and cache platform, never a token. Verbose mode includes JWT subscription claims diagnostics. Read-only unless `--fix`, which installs a missing host and repairs or updates the managed install, never a bundled or explicit host.
 
 **Group type:** Top-level command (no sub-commands).
 
@@ -108,7 +108,7 @@ This page maps each `xrmghost` CLI command group to its purpose, known sub-comma
 
 ## `env`
 
-**Reader-facing purpose:** Manage Dataverse environment configurations — add, edit, delete, list, switch, and refresh environment metadata.
+**Reader-facing purpose:** Manage Dataverse environment configurations — add, edit, delete, list, switch, refresh environment metadata, and sign out of one environment. Each environment signs in with one method (browser with MFA or WAM, device code, certificate, client secret or Azure CLI) and keeps its own session.
 
 **Group type:** Command group with sub-commands.
 
@@ -127,9 +127,10 @@ This page maps each `xrmghost` CLI command group to its purpose, known sub-comma
 | `env export` | Export environment configurations to a JSON file |
 | `env template` | Output a blank environment configuration template |
 | `env refresh` | Refresh the Dataverse metadata cache for an environment |
+| `env logout` | Sign out of one environment: removes its sign-in cache, stored secret and certificate password |
 
 **Intended reference-page shape (per sub-command):**
-- Paths: `docs/cli/reference/env-list.mdx`, `docs/cli/reference/env-add.mdx`, `docs/cli/reference/env-edit.mdx`, `docs/cli/reference/env-delete.mdx`, `docs/cli/reference/env-activate.mdx`, `docs/cli/reference/env-deactivate.mdx`, `docs/cli/reference/env-status.mdx`, `docs/cli/reference/env-import.mdx`, `docs/cli/reference/env-export.mdx`, `docs/cli/reference/env-template.mdx`, `docs/cli/reference/env-refresh.mdx`
+- Paths: `docs/cli/reference/env-list.mdx`, `docs/cli/reference/env-add.mdx`, `docs/cli/reference/env-edit.mdx`, `docs/cli/reference/env-delete.mdx`, `docs/cli/reference/env-activate.mdx`, `docs/cli/reference/env-deactivate.mdx`, `docs/cli/reference/env-status.mdx`, `docs/cli/reference/env-import.mdx`, `docs/cli/reference/env-export.mdx`, `docs/cli/reference/env-template.mdx`, `docs/cli/reference/env-refresh.mdx`, `docs/cli/reference/env-logout.mdx`
 - Sections per page: Synopsis, Description, Options, Examples
 - Generated from: `xrmghost env <sub-command> --help` or structured command manifest in `xrmghost-cli`
 
