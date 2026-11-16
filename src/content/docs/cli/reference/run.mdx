@@ -108,7 +108,9 @@ If the plugin type exposes none of the three shapes, `xg run` fails before `Exec
 | Code | Meaning |
 |---|---|
 | `0` | Plugin executed successfully — either it completed without throwing, or it threw the exception the scenario declared in `expectedException` and that expectation was satisfied — and every entry of the scenario's `expectedTraceLog`, if any, was found in the plugin's traces. |
-| `1` | Plugin execution failed, an `expectedTraceLog` entry was not found in the plugin's traces or is blank (`Error Type: XrmGhost.ExpectedTraceLogAssertion`), scenario file not found, the scenario's root-level `entities` seed is malformed, assembly not found, FrameworkHost missing (with `--no-interactive`) or failed to start or become healthy, or an unexpected error occurred. |
+| `1` | Plugin execution failed, an `expectedTraceLog` entry was not found in the plugin's traces or is blank (`Error Type: XrmGhost.ExpectedTraceLogAssertion`), scenario file not found, the scenario's root-level `entities` seed is malformed, assembly not found, FrameworkHost missing (with `--no-interactive`) or failed to start or become healthy, the live connection could not be created with `--data-source live` (`Error Type: XrmGhost.LiveConnectionUnavailable`), or an unexpected error occurred. |
+
+With `--data-source live` there is no mock fallback: when the live connection to Dataverse cannot be created (the CLI cannot get a token for the active environment, or Dataverse cannot be reached), the run is reported as `Execution Failed!` with `Error Type: XrmGhost.LiveConnectionUnavailable` and the next step, and exits `1`, even if the plugin itself completed. `auto` keeps the fallback described in [Data-source routing](#data-source-routing).
 
 A malformed `entities` seed — a value that cannot be parsed, or a record or attribute value that
 cannot be converted — fails the run before the plugin executes: the plugin is never run against a
