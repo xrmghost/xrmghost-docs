@@ -77,6 +77,8 @@ On subsequent activations, the CLI checks whether the cached metadata is still w
 | `0` | Environment activated successfully |
 | `1` | Activation failed — environment not found, empty friendly name, or Dataverse connection error |
 
+When the metadata cache update fails (for example the Dataverse connection or the sign-in does not work), the environment **stays active**, but the command does not report a successful activation: it prints the reason and the next step (for Azure CLI and certificate environments, the method's own fix such as `az login --tenant <tenant>`), and exits `1`. Fix the cause, then run [`xg env refresh`](/cli/reference/env-refresh/).
+
 ## Examples
 
 ### Activate an environment (with metadata cache update)
