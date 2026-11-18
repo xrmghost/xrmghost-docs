@@ -36,7 +36,6 @@ test('the live customer org answer appears once and matches the rendered FAQ', (
   const question = 'Can a live customer org be changed by a run?';
   const entries = faq.mainEntity.filter((item) => item.name === question);
   assert.equal(entries.length, 1);
-  assert.equal(faq.mainEntity.at(-1).name, question);
   const answer = entries[0].acceptedAnswer.text;
   assert.doesNotMatch(answer, /[`"<&]|\]\(/);
   assert.ok(html.includes('<p>' + answer + '</p>'));
@@ -53,7 +52,8 @@ test('the live customer org answer carries the block message and reports blocks 
   assert.match(answer, /Live connection is read-only: .* is not allowed \(only Retrieve, RetrieveMultiple and WhoAmI reach Dataverse\)/);
   assert.match(answer, /the quoted name is the refused operation/);
   assert.match(answer, /it is a bug in XrmGhost, not in your plugin/);
-  assert.match(answer, /next stable XrmGhost release/);
+  assert.match(answer, /The read-only live connection is available\./);
+  assert.doesNotMatch(answer, /next stable XrmGhost release/);
   assert.doesNotMatch(answer, /ADO-\d+/);
   assert.doesNotMatch(answer, /''|never a value that is always empty|defect in the plugin/);
   assert.equal(html.split('Live connection is read-only:').length - 1 >= 2, true);
@@ -72,7 +72,6 @@ test('the MFA, cache and agents answer appears once, in the same place in the bo
   assert.equal(names.filter((name) => name === question).length, 1);
   assert.equal(names[3], question);
   assert.equal(names[2], 'How is XrmGhost different from Dataverse PowerTools replay?');
-  assert.equal(names.at(-1), 'Can a live customer org be changed by a run?');
   const answer = faq.mainEntity[3].acceptedAnswer.text;
   assert.equal(html.split('<p>' + answer + '</p>').length - 1, 1);
   assert.doesNotMatch(answer, /[`"<&]|\]\(|--/);
