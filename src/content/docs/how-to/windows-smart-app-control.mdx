@@ -44,7 +44,7 @@ If you had the global tool before and now use a desktop method, keep only one `x
 From the folder where you extracted the ZIP:
 
 ```powershell
-Get-AuthenticodeSignature .\xg.exe, .\bin\XrmGhost.Framework.Host.exe | Format-List Status, SignerCertificate
+Get-AuthenticodeSignature .\xg.exe, .\bin\net472\win-x86\XrmGhost.Framework.Host.exe | Format-List Status, SignerCertificate
 ```
 
 `Status` must be `Valid` for both files (Explorer shows the same under *Properties → Digital Signatures*). `NotSigned` means the file is not from a signed stable release: check `xg --version` and the asset you downloaded.
