@@ -183,3 +183,17 @@ test('nessuna fixture resta nel contenuto', () => {
   removeFixtures();
   for (const id of [NEWEST, OLDEST, NODATE]) assert.ok(!existsSync(fixtureFile(id)), id);
 });
+
+test('il comando Smart App Control firma l host al path desktop canonico in MDX e llms-full', () => {
+  const canonical = '.\\bin\\net472\\win-x86\\XrmGhost.Framework.Host.exe';
+  const obsolete = '.\\bin\\XrmGhost.Framework.Host.exe';
+  const sources = [
+    join(howToDir, 'windows-smart-app-control.mdx'),
+    join(root, 'public/llms-full.txt'),
+  ];
+  for (const file of sources) {
+    const text = readFileSync(file, 'utf8');
+    assert.ok(text.includes(`Get-AuthenticodeSignature .\\xg.exe, ${canonical} | Format-List`), `${file}: path canonico`);
+    assert.ok(!text.includes(obsolete), `${file}: path obsoleto`);
+  }
+});
