@@ -1,6 +1,6 @@
 # XrmGhost Documentation — Full Text
 
-> XrmGhost runs your Power Platform plugins locally — your AI agent writes them, and they work before they ship. Built for Microsoft Dataverse and Dynamics 365 plugin teams, it closes the deploy-test loop in seconds instead of minutes. This file concatenates the product documentation (Overview, How It Works, Editions, Getting Started, CLI, Attributes, Skills) as a single markdown document for LLM and coding-agent ingestion. Canonical HTML lives at https://docs.xrmghost.tech/. The structured index is at https://docs.xrmghost.tech/llms.txt.
+> XrmGhost runs your real, compiled Dataverse plugins locally so you — or your coding agent — can iterate in seconds instead of deploying to read trace logs. Built for Microsoft Dataverse and Dynamics 365 plugin teams, it closes the deploy-test loop in seconds instead of minutes. This file concatenates the product documentation (Overview, How It Works, Editions, Getting Started, CLI, Attributes, Skills) as a single markdown document for LLM and coding-agent ingestion. Canonical HTML lives at https://docs.xrmghost.tech/. The structured index is at https://docs.xrmghost.tech/llms.txt.
 
 
 
@@ -33,7 +33,7 @@
   />
 </p>
 
-**XrmGhost runs your Power Platform plugins locally — your AI agent writes them, and they work before they ship.**
+**XrmGhost runs your real, compiled Dataverse plugins locally so you — or your coding agent — can iterate in seconds instead of deploying to read trace logs.**
 
 The Dynamics development loop is broken. You write code, you deploy, you wait, you test against the cloud, you find the bug, you do it again. XrmGhost runs your plugins and your tests on your machine, so the loop closes in seconds instead of minutes.
 
@@ -81,7 +81,7 @@ Need to report a problem, request a capability, or discuss an idea? → **[Commu
 
 # Overview
 
-XrmGhost runs your Power Platform plugins locally — your AI agent writes them, and they work before they ship. It is built for Microsoft Dataverse and Dynamics 365 plugin teams: it helps you reproduce scenarios quickly and shorten the feedback loop between a code change and a verified result.
+XrmGhost runs your real, compiled Dataverse plugins locally so you — or your coding agent — can iterate in seconds instead of deploying to read trace logs. It is built for Microsoft Dataverse and Dynamics 365 plugin teams: it helps you reproduce scenarios quickly and shorten the feedback loop between a code change and a verified result.
 
 ## What XrmGhost is
 
