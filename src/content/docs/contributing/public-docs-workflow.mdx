@@ -60,6 +60,12 @@ description: A one-sentence summary of what this page covers.
 
 The build will reject any `.mdx` file that is missing `title` or `description`.
 
+### How-to dates
+
+For pages under `how-to/`, the `date` frontmatter field is the **first publication date**. It is
+**mandatory** for every `how-to/*` page (a missing date fails the build with an error that names the file or its id) and it is **never
+recalculated**: do not change it when you edit the page later.
+
 ## 5. Write Honest Content
 
 - If the content is not ready, use an explicit TODO marker rather than inventing placeholder content:

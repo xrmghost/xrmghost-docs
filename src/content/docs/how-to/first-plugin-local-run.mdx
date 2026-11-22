@@ -1,6 +1,7 @@
 ---
 title: "From zero to a locally tested Dataverse plugin in 10 minutes"
 description: "Install the XrmGhost CLI, generate a scenario from your plugin's attributes, run the compiled plugin on your machine, and catch a data-dependent bug with a local exception and trace — no deployment, no trace-log wait."
+date: 2026-10-08
 sidebar:
   label: "First local run"
 ---
@@ -19,13 +20,7 @@ Ten minutes assumes a Windows machine with a plugin project that builds. Everyth
 
 ## 1. Install the CLI and check it
 
-On a desktop, install with winget:
-
-```powershell
-winget install XrmGhost.Cli
-```
-
-This puts `xg.exe` and the host on your machine and on your `PATH`. If you prefer not to use winget, the signed ZIP on the [release page](https://github.com/xrmghost/xrmghost/releases) (asset `xrmghost-cli-<version>-full.zip`, which carries `xg.exe` and the host in `bin\`) is the same build; the [Getting Started](/getting-started/) page covers unpacking it and adding it to `PATH`. In CI or automation, `dotnet tool install -g XrmGhost.Cli` from NuGet is the right channel.
+On a desktop, install with [Scoop, PowerShell, or the signed ZIP](/getting-started/#1-install-the-cli). The three methods install the same signed `xg.exe` and host. In CI or automation, `dotnet tool install -g XrmGhost.Cli` from NuGet is the right channel.
 
 Then confirm the CLI sees its host:
 

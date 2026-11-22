@@ -1,0 +1,78 @@
+---
+title: "xg env logout"
+description: Sign out of one Dataverse environment, removing that environment's sign-in cache, stored client secret and certificate password without touching any other environment.
+---
+
+# `xg env logout`
+
+Sign out of **one** registered Dataverse environment. The command removes that environment's sign-in cache, its stored client secret and its stored certificate password. The environment itself stays registered, and every other environment keeps its own session.
+
+> **License requirement:** `env logout` requires a **Pro** license tier. Run [`xg license status`](/cli/reference/license-status/) to verify your tier.
+
+Delegated sign-in is available.
+
+## Synopsis
+
+```shell
+xg env logout [FRIENDLY_NAME]
+```
+
+## Description
+
+Each environment has its own sign-in session, so signing out is per environment: the command never signs out of "all of them". With no argument it acts on the **active** environment; if none is active and none was named, it prints a message and exits with `1`.
+
+What is removed is limited to the environment you name:
+
+- the environment's sign-in cache (tokens and the signed-in account);
+- the client secret stored for that environment, if any;
+- the certificate password stored for that environment, if any;
+- on Windows, when the sign-in went through Windows Web Account Manager (WAM), the account's WAM sign-in for the environment's application. WAM keeps that sign-in per application and account, not per environment, so other environments that use the same account and application ask you to sign in again; the command says so. If the account cannot be signed out of WAM, the command reports the sign-out as incomplete and exits with `1`.
+
+The registration itself (friendly name, URL, authentication method) is not deleted: use [`xg env delete`](/cli/reference/env-delete/) for that. After a logout, the next command that needs a token signs in again, from the cache if it can and with a prompt in an interactive terminal otherwise. For a client secret environment, run [`xg env edit`](/cli/reference/env-edit/) to enter a new secret.
+
+If the sign-in cache of the environment is shared with another environment, it is **not deleted**: the command says so and names the other environment, so no other environment loses its session.
+
+A certificate password that the environment needs is removed too: enter it again with [`xg env edit`](/cli/reference/env-edit/) before the next use.
+
+If there was nothing to remove, the command says there was no session to sign out of and exits with `0`.
+
+## Arguments
+
+| Argument | Required | Description |
+|---|---|---|
+| `[FRIENDLY_NAME]` | No | The environment to sign out of. Defaults to the active environment. |
+
+## Options
+
+`env logout` has no options beyond the optional argument.
+
+## Exit codes
+
+| Code | Meaning |
+|---|---|
+| `0` | Signed out, or there was no session to sign out of. |
+| `1` | No environment was named and none is active, or the named environment was not found. |
+
+## Examples
+
+### Sign out of the active environment
+
+```shell
+xg env logout
+```
+
+### Sign out of a named environment
+
+```shell
+xg env logout "My Dev Org"
+```
+
+Only `My Dev Org` loses its session; every other registered environment is unchanged.
+
+## See Also
+
+- [`xg env add`](/cli/reference/env-add/) — register an environment and choose how it signs in
+- [`xg env refresh`](/cli/reference/env-refresh/) — sign in again and refresh the metadata cache
+- [`xg env delete`](/cli/reference/env-delete/) — remove a registered environment
+- [Use delegated Dataverse authentication](/how-to/use-delegated-dataverse-authentication/)
+- [CLI Overview](/cli/)

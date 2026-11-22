@@ -1,8 +1,11 @@
 name: Deploy docs to GitHub Pages
 
+# Si pubblica solo da `main`, e `main` lo mergia solo una persona (forma (a), ADO O2):
+# `dev` e' il ramo di integrazione e un push su `dev` non cambia il sito pubblico.
+# La verifica che il sito compili su `dev` sta in build-check.yml, senza deploy.
 on:
   push:
-    branches: [dev]
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -31,6 +34,8 @@ jobs:
 
   deploy:
     needs: build
+    # Seconda cintura: un workflow_dispatch lanciato da un altro ramo non pubblica.
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment:
       name: github-pages

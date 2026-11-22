@@ -20,7 +20,7 @@ one belongs to a different context, and each one answers a different question.
 
 Use each name only in its own context:
 
-- To install or upgrade with winget, use the PackageIdentifier `XrmGhost.Cli`.
+- For desktop installation or upgrades, use [Scoop, then PowerShell, then the manual signed ZIP](/getting-started/#1-install-the-cli), in that order of preference. All three install the same ZIP signed by **Agostini Lab Srl**. The winget submission is [still in review](https://github.com/microsoft/winget-pkgs/pull/444216); once approved, it will use the same package identity, `XrmGhost.Cli`.
 - To recognise the product in a listing, look for the brand `XrmGhost`.
 - To decide whether a binary is trusted — manually or through WDAC — look at the Authenticode
   publisher, `Agostini Lab Srl`, and at the certificate details read from the signed binary itself.
@@ -34,6 +34,10 @@ This difference is **expected and intentional**. It is **not an indicator of tam
 compromise** of the binary. What would be a warning sign is a missing signature, an invalid
 signature, or a signature whose publisher is anyone other than Agostini Lab Srl.
 :::
+
+## Desktop installation methods
+
+[Scoop, PowerShell, and the manual ZIP](/getting-started/#1-install-the-cli) all install the same signed `xrmghost-cli-<version>-full.zip`. The signer to verify for each method is **Agostini Lab Srl**. The ZIP is win-x64 and contains `xg.exe` and the host under `bin\`.
 
 ## Read the exact certificate subject from a signed binary
 
@@ -98,7 +102,7 @@ signed by the same publisher.
 
 ## Checklist
 
-- [ ] Install with the PackageIdentifier `XrmGhost.Cli`.
+- [ ] Install with Scoop, PowerShell, or the manual signed ZIP, in that order of preference.
 - [ ] The binary's signature is `Valid` and its publisher is `Agostini Lab Srl`.
 - [ ] Subject and issuing CA were copied from a signed binary, not typed from this
       page or from the company name.

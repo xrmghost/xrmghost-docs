@@ -1,0 +1,26 @@
+{
+  "scenarioName": "Business account without VAT must be rejected",
+  "pluginAssemblyName": "Contoso.HowTo.dll",
+  "pluginTypeName": "Contoso.HowTo.VatRequiredPlugin",
+  "executionContext": {
+    "messageName": "Create",
+    "primaryEntityName": "account",
+    "primaryEntityId": "00000000-0000-0000-0000-000000000001",
+    "stage": 20,
+    "mode": 0,
+    "inputParameters": {
+      "Target": {
+        "logicalName": "account",
+        "id": "00000000-0000-0000-0000-000000000001",
+        "attributes": {
+          "name": "Contoso Ltd",
+          "new_accounttype": { "value": 505480000 }
+        }
+      }
+    }
+  },
+  "expectedException": {
+    "typeName": "Microsoft.Xrm.Sdk.InvalidPluginExecutionException",
+    "messageContains": "VAT number is required and must be valid for business accounts."
+  }
+}

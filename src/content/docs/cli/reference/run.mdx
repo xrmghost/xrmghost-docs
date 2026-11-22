@@ -23,7 +23,7 @@ The command has two required arguments — the assembly path and the fully-quali
 
 **Verbosity flags** (`-n`, `-v`, `-d`) are mutually exclusive in practice: use the lowest level that gives you the information you need. The default (no verbosity flag) shows only plugin traces, which keeps the output clean in CI.
 
-**Framework Host resolution.** Before executing, `run` resolves the host in this order and uses the first one found: the host bundled in the `bin\` folder next to `xg.exe` (winget and ZIP installs), then the managed install root `%LOCALAPPDATA%\xrmghost\framework-host\current\`, then legacy locations beside the CLI. A path passed with `--framework-host-path` replaces the search. If no usable host is found, the first setup step was skipped: run [`xg init`](/cli/reference/init/). In an interactive session `run` installs a missing host into the managed root before executing; with `--no-interactive` it never downloads, exits with a non-zero code and tells you to run `xg init --no-interactive`.
+**Framework Host resolution.** Before executing, `run` resolves the host in this order and uses the first one found: the host bundled in the `bin\` folder next to `xg.exe` (Scoop, PowerShell, and ZIP installs), then the managed install root `%LOCALAPPDATA%\xrmghost\framework-host\current\`, then legacy locations beside the CLI. A path passed with `--framework-host-path` replaces the search. If no usable host is found, the first setup step was skipped: run [`xg init`](/cli/reference/init/). In an interactive session `run` installs a missing host into the managed root before executing; with `--no-interactive` it never downloads, exits with a non-zero code and tells you to run `xg init --no-interactive`.
 
 **Data-source routing** (`--data-source`) controls where the plugin's reads are answered inside the simulated `IOrganizationService`: `Retrieve`, `RetrieveMultiple`, and `Execute(RetrieveMultipleRequest)` — which is handed to `RetrieveMultiple` and follows exactly the same routing. `QueryByAttribute` is a multiple-record retrieval like any other query: sent to Dataverse as it is when the read goes live, and evaluated by the mock query engine when it does not. `auto` is the default. The full contract is in [Data-source routing](#data-source-routing) below.
 
@@ -34,10 +34,28 @@ The command has two required arguments — the assembly path and the fully-quali
 | Value | Mode | `Retrieve` | `RetrieveMultiple` / `RetrieveMultipleRequest` |
 |---|---|---|---|
 | `mock` | MockOnly | Scenario mocks only. Dataverse is never contacted. | Scenario mocks only. Dataverse is never contacted. |
-| `live` | LiveOnly | Dataverse only; the mocks are never read. A Dataverse fault — *record does not exist* included — is raised to the plugin unchanged. Without a Pro license (`ProFeatureNotLicensedException`), without an active environment, or when live cannot answer, the call throws, with a warning. | Dataverse only; the mocks are never read. A Dataverse fault is raised to the plugin unchanged. Without a Pro license or an active environment, or when the live attempt fails, the result is an **empty collection with a warning**. |
+| `live` | LiveOnly | Dataverse only; the mocks are never read. A Dataverse fault — *record does not exist* included — is raised to the plugin unchanged. Without a Pro license (`ProFeatureNotLicensedException`), without an active environment, or when live cannot answer, the call throws, with a warning. `-c`/`--continue-on-unlicensed` does not change this: without a Pro license `Retrieve` still throws `ProFeatureNotLicensedException`; use `--data-source auto` or a Pro license instead. | Dataverse only; the mocks are never read. A Dataverse fault is raised to the plugin unchanged. Without a Pro license or an active environment, or when the live attempt fails, the result is an **empty collection with a warning**, whether or not `-c`/`--continue-on-unlicensed` is set. |
 | `auto` *(default)* | Auto | **Live first.** Falls back to the scenario mocks **only** when the record does not exist in Dataverse or live is unavailable (no Pro license, no active environment, or the live call fails), with a warning when live was attempted or expected. Any other Dataverse fault is raised to the plugin. | Live **only** with a Pro license and an active environment; otherwise the mocks answer. A live attempt that fails does **not** fall back to the mocks: the result is an empty collection with a warning stating that it is not mock data. A Dataverse fault is raised to the plugin. |
 
 `auto` is deliberately asymmetric. A `Retrieve` that finds nothing live may still be answered by a record the scenario mocks or the run created; a multiple-record query that was attempted live and failed is never silently replaced with mock rows, because mock rows in place of the live ones would be indistinguishable from an answer. The `Retrieve` fallback does not apply to `RetrieveMultiple`.
+
+### Live connection is read-only
+
+The read-only live connection is available.
+
+The live connection behind `--data-source live` and `auto` is read-only by construction. Only three requests reach Dataverse: `Retrieve`, `RetrieveMultiple` and `WhoAmI`. Everything else aimed at the live connection is rejected before any network access and fails the run: `Create`, `Update`, `Delete`, `Associate`, `Disassociate`, `ExecuteMultiple`, `ExecuteTransaction`, Custom APIs, actions, workflows, and any other request outside those three. The routing in the table above and the behavior of `-c`/`--continue-on-unlicensed` are not changed by this.
+
+Plugin writes and live-connection calls are different things. When your plugin writes through the `IOrganizationService` it receives from the run, the write is handled by the simulated run service and stays inside the run; nothing is sent to Dataverse. The block guards the live connection itself.
+
+A blocked request fails the run with this message:
+
+```text
+Live connection is read-only: '<operation>' is not allowed (only Retrieve, RetrieveMultiple and WhoAmI reach Dataverse).
+```
+
+`<operation>` names the refused operation: for example `Create`, `Update` or `Delete`, or `Execute:<request>` for a request sent through `Execute`, such as `Execute:ExecuteMultiple` (`Execute:unrecognized request` when the request type is not a known one).
+
+The read-only connection is a second guarantee. Your plugin's writes always go to the simulated run service, and the run sends only `Retrieve`, `RetrieveMultiple` and `WhoAmI` to the live connection, so a plugin cannot trigger this block by what it does. If the block appears, it is a defect in XrmGhost, not in your plugin: do not change the plugin to avoid it or look for a way around it, and [report a bug](/community/report-a-bug/) with the full message. For safe use of customer data, see [Use live data from a customer org safely](/how-to/use-live-data-from-a-customer-org-safely/).
 
 ### Caller identity
 
@@ -57,10 +75,10 @@ What a plugin gets from `IOrganizationServiceFactory.CreateOrganizationService(u
 | `-a`, `--assembly-path` | `string` | *(required)* | Path to the plugin assembly DLL. The file must exist at the time the command is invoked. |
 | `-t`, `--plugin-type` | `string` | *(required)* | Fully-qualified name of the plugin type to execute (e.g., `MyPlugins.MyPluginClass`). |
 | `-s`, `--scenario` | `string` | — | Path to a JSON scenario file. When provided, the file is deserialised into a `ScenarioDefinition` that supplies the execution context, input parameters, entity images, mock data, and expected outcomes. See [Scenario Files](/cli/scenarios/) for the document's full anatomy. |
-| `-f`, `--framework-host-path` | `string` | — | Explicit path to `XrmGhost.Framework.Host.exe`. When omitted, the CLI uses the host bundled in the `bin\` folder next to `xg.exe` (winget and ZIP installs), then its managed install root (where `xg init` installs the host for the .NET global tool), then legacy beside-the-CLI locations. |
+| `-f`, `--framework-host-path` | `string` | — | Explicit path to `XrmGhost.Framework.Host.exe`. When omitted, the CLI uses the host bundled in the `bin\` folder next to `xg.exe` (Scoop, PowerShell, and ZIP installs), then its managed install root (where `xg init` installs the host for the .NET global tool), then legacy beside-the-CLI locations. |
 | `--no-interactive` | `bool` | `false` | Run without prompts, for CI. If the Framework Host is not installed, the command exits with a non-zero code instead of downloading it, and points to `xg init --no-interactive`. |
 | `-w`, `--debug-plugin-wait` | `bool` | `false` | Instructs FrameworkHost to pause before executing the plugin and wait for a debugger to attach. The CLI prints the host process ID and step-by-step attach instructions. |
-| `-c`, `--continue-on-unlicensed` | `bool` | `false` | When a Pro-tier feature is encountered without a valid license, execution continues with a mocked result and a warning instead of terminating with a non-zero exit code. |
+| `-c`, `--continue-on-unlicensed` | `bool` | `false` | When a Pro-tier feature is encountered without a valid license and a safe mock substitute exists, execution continues with that mocked result and a warning instead of terminating with a non-zero exit code. Does not apply to `--data-source live`: without a Pro license, `Retrieve` still fails with `ProFeatureNotLicensedException` and `RetrieveMultiple` returns an empty collection with a warning; use `--data-source auto` or a Pro license instead. |
 | `-n`, `--normal` | `bool` | `false` | Show plugin traces plus critical framework messages (errors and warnings). Expands the default output without the noise of full verbose mode. |
 | `-v`, `--verbose` | `bool` | `false` | Show plugin traces and all framework traces, ordered chronologically. |
 | `-d`, `--debug` | `bool` | `false` | Show all traces including timing analysis and performance metrics. Most detailed output level. |
@@ -90,7 +108,9 @@ If the plugin type exposes none of the three shapes, `xg run` fails before `Exec
 | Code | Meaning |
 |---|---|
 | `0` | Plugin executed successfully — either it completed without throwing, or it threw the exception the scenario declared in `expectedException` and that expectation was satisfied — and every entry of the scenario's `expectedTraceLog`, if any, was found in the plugin's traces. |
-| `1` | Plugin execution failed, an `expectedTraceLog` entry was not found in the plugin's traces or is blank (`Error Type: XrmGhost.ExpectedTraceLogAssertion`), scenario file not found, the scenario's root-level `entities` seed is malformed, assembly not found, FrameworkHost missing (with `--no-interactive`) or failed to start or become healthy, or an unexpected error occurred. |
+| `1` | Plugin execution failed, an `expectedTraceLog` entry was not found in the plugin's traces or is blank (`Error Type: XrmGhost.ExpectedTraceLogAssertion`), scenario file not found, the scenario's root-level `entities` seed is malformed, assembly not found, FrameworkHost missing (with `--no-interactive`) or failed to start or become healthy, the live connection could not be created with `--data-source live` (`Error Type: XrmGhost.LiveConnectionUnavailable`), or an unexpected error occurred. |
+
+With `--data-source live` there is no mock fallback: when the live connection to Dataverse cannot be created (the CLI cannot get a token for the active environment, or Dataverse cannot be reached), the run is reported as `Execution Failed!` with `Error Type: XrmGhost.LiveConnectionUnavailable` and the next step, and exits `1`, even if the plugin itself completed. `auto` keeps the fallback described in [Data-source routing](#data-source-routing).
 
 A malformed `entities` seed — a value that cannot be parsed, or a record or attribute value that
 cannot be converted — fails the run before the plugin executes: the plugin is never run against a
@@ -113,6 +133,29 @@ expected exception is captured: an entry that no plugin trace contains turns the
 `Error Type: XrmGhost.ExpectedTraceLogAssertion` and exit code `1`. Its semantics, and how to migrate
 scenarios that still carry the old generated placeholder, are documented in
 [Scenario Files](/cli/scenarios/#expecting-traces).
+
+### FrameworkHost startup diagnostics
+
+When FrameworkHost does not become healthy during startup, `xg run` exits `1` and keeps the reason code `host_unhealthy` and its existing remediation text unchanged. The CLI now adds a diagnostic block after the error that tells the two failure shapes apart:
+
+| Case | What the block shows |
+|---|---|
+| **Early exit** — the host process ended before it passed the health check | `FrameworkHost (PID: <pid>) exited with code <decimal> / 0x<hex>.` — for example `-532462766 / 0xE0434352` — followed by the captured output tail, when available. |
+| **Timeout with the host still alive** — the health check did not succeed within the startup timeout | `FrameworkHost (PID: <pid>) process still running.` followed by the captured output tail, when available. |
+
+The host's exit code is a diagnostic detail, not a CLI exit code: the CLI itself still exits `1`. An early exit can carry host exit code `0`, so a non-zero host exit code is not a precondition for this diagnosis.
+
+The captured output tail is the combined standard output and standard error of the host, with standard error lines prefixed `[stderr]`. It is bounded as a whole, not per stream: at most the last 20 lines and 4096 characters in total, with each line truncated to 500 characters. It is a tail, not the complete output.
+
+The tail is **not available** when the host's output is not captured:
+
+- with `--debug-mode`, which shows the host window instead of redirecting its output;
+- with `-w`/`--debug-plugin-wait`, so that the host can be attached to with a debugger;
+- when the CLI falls back to starting the host through the shell (`UseShellExecute=true`) after a failed direct start.
+
+In those modes the exit code (early exit) or the PID and `process still running` line (timeout) are still shown. To see the tail, run again without those flags. `-d`/`--debug` is unrelated: it only controls trace verbosity and does not change capture.
+
+FrameworkHost startup diagnostics are available from the first CLI release that includes ADO-4286 onwards.
 
 ## Examples
 
@@ -184,7 +227,7 @@ xg run \
   -c
 ```
 
-With `-c`, any Pro-tier feature encountered (such as Final Entity States) returns a mocked result and prints a warning rather than terminating with exit code `1`.
+With `-c`, a Pro-tier feature that has a safe mock substitute (such as Final Entity States) returns a mocked result and prints a warning rather than terminating with exit code `1`. Does not apply to `--data-source live`: without a Pro license, `Retrieve` still fails with `ProFeatureNotLicensedException` and `RetrieveMultiple` returns an empty collection with a warning; use `--data-source auto` or a Pro license instead.
 
 ## See Also
 

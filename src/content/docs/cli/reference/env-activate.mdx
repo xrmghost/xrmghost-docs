@@ -12,7 +12,11 @@ By default, `env activate` also triggers a background metadata cache update so t
 ## Requirements
 
 - The environment must already be registered. Use [`xg env add`](/cli/reference/env-add/) to register a new environment before activating it.
-- The environment must have a valid Client ID and Client Secret stored. Authentication is required for the metadata cache update that runs at activation time (unless `--no-cache` is passed).
+- The environment must be able to sign in with its configured method. Authentication is required for the metadata cache update that runs at activation time (unless `--no-cache` is passed):
+  - **Browser** and **device code** need a session: the cached one, or a sign-in in an interactive terminal (browser with MFA, WAM on Windows, or a device code). Without a terminal the CLI cannot prompt; run [`xg env refresh`](/cli/reference/env-refresh/) in an interactive terminal first, then activate again.
+  - **Certificate** needs the Client ID and the certificate (a `.pfx` and its stored password, or a store thumbprint).
+  - **Client secret** needs the Client ID and the stored client secret.
+  - **Azure CLI** needs an `az login` for the environment's tenant.
 - License tier: **Pro** or higher. Attempting to run this command with a lower tier will produce a feature-gated error.
 
 ## Synopsis
@@ -45,7 +49,7 @@ The active environment selection is stored in the XrmGhost local configuration f
 
 The file stores an `ActiveEnvironmentFriendlyName` field that points to the currently active environment. Only one environment can be active at a time. To clear the active selection without switching to another environment, use [`xg env deactivate`](/cli/reference/env-deactivate/).
 
-> **Risk note:** If you activate an environment on a machine that stores credentials locally, any process with access to the application data directory can identify which environment is currently selected. Credentials (client secrets) are stored separately in encrypted form under `environments_secure/` in the same base path.
+> **Risk note:** If you activate an environment on a machine that stores credentials locally, any process with access to the application data directory can identify which environment is currently selected. Credentials (client secrets and certificate passwords) are stored separately in encrypted form under `environments_secure/` in the same base path. Sign-in sessions are kept per environment in an operating-system-protected cache, and in memory only where the OS cannot protect one (Linux without libsecret); sign out with [`xg env logout`](/cli/reference/env-logout/).
 
 ## Tenant Backfill
 
@@ -58,7 +62,7 @@ The probe requires HTTP reachability but no credentials. It runs **also with `--
 
 ## Metadata Cache
 
-Unless `--no-cache` is passed, `env activate` connects to Dataverse using the stored Client ID and Client Secret and fetches full entity metadata (entities, attributes, relationships, and privileges) via a `RetrieveAllEntities` request. The result is serialised to:
+Unless `--no-cache` is passed, `env activate` connects to Dataverse using the environment's configured authentication method and fetches full entity metadata (entities, attributes, relationships, and privileges) via a `RetrieveAllEntities` request. The result is serialised to:
 
 ```
 <app-data-path>/metadata_cache/<FRIENDLY_NAME>/metadata.json
@@ -72,6 +76,8 @@ On subsequent activations, the CLI checks whether the cached metadata is still w
 |---|---|
 | `0` | Environment activated successfully |
 | `1` | Activation failed — environment not found, empty friendly name, or Dataverse connection error |
+
+When the metadata cache update fails (for example the Dataverse connection or the sign-in does not work), the environment **stays active**, but the command does not report a successful activation: it prints the reason and the next step (for Azure CLI and certificate environments, the method's own fix such as `az login --tenant <tenant>`), and exits `1`. Fix the cause, then run [`xg env refresh`](/cli/reference/env-refresh/).
 
 ## Examples
 
@@ -104,5 +110,6 @@ Activates `staging-eu` and then prints the current active environment status to 
 
 - [`xg env list`](/cli/reference/env-list/) — List all registered Dataverse environments
 - [`xg env deactivate`](/cli/reference/env-deactivate/) — Deactivate the currently active environment
+- [`xg env logout`](/cli/reference/env-logout/) — Sign out of one environment
 - [`xg env status`](/cli/reference/env-status/) — Show the active environment and connection status
 - [CLI Overview](/cli/) — Introduction to the XrmGhost CLI and command groups

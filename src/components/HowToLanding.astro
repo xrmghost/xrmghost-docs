@@ -1,0 +1,16 @@
+---
+import { getHowTos } from '../lib/how-to';
+
+const howTos = await getHowTos();
+---
+
+<ul>
+  {
+    howTos.map((howTo) => (
+      <li>
+        <a href={howTo.url}>{howTo.title}</a>
+        {howTo.description && <p>{howTo.description}</p>}
+      </li>
+    ))
+  }
+</ul>
