@@ -281,7 +281,7 @@ Scoop installs the signed, self-contained `xg.exe` and its host. Open a new shel
 irm https://github.com/xrmghost/xrmghost/releases/latest/download/install.ps1 | iex
 ```
 
-The script installs for the current user in `%LOCALAPPDATA%\Programs\XrmGhost\cli` and changes only the user `PATH`. Open a new shell, then run `xg --version`. To select a specific version, set `$env:XG_VERSION` before running the command.
+The script installs for the current user in `%LOCALAPPDATA%\Programs\XrmGhost\cli` and changes only the user `PATH`. Open a new shell, then run `xg --version`. To select a specific version, run `& ([scriptblock]::Create((irm https://github.com/xrmghost/xrmghost/releases/latest/download/install.ps1))) -Version <version>`.
 
 **Update:** Run the same command again.
 
@@ -506,7 +506,7 @@ Scoop installs the signed, self-contained `xg.exe` and its host. Open a new shel
 irm https://github.com/xrmghost/xrmghost/releases/latest/download/install.ps1 | iex
 ```
 
-The script installs for the current user in `%LOCALAPPDATA%\Programs\XrmGhost\cli` and changes only the user `PATH`. Open a new shell, then run `xg --version`. To select a specific version, set `$env:XG_VERSION` before running the command.
+The script installs for the current user in `%LOCALAPPDATA%\Programs\XrmGhost\cli` and changes only the user `PATH`. Open a new shell, then run `xg --version`. To select a specific version, run `& ([scriptblock]::Create((irm https://github.com/xrmghost/xrmghost/releases/latest/download/install.ps1))) -Version <version>`.
 
 **Update:** Run the same command again.
 

@@ -28,7 +28,7 @@ export const desktopInstallMethods: InstallMethod[] = [
 		prerequisite: 'Windows PowerShell 5.1 or PowerShell 7. No .NET SDK is required.',
 		install: 'irm https://github.com/xrmghost/xrmghost/releases/latest/download/install.ps1 | iex',
 		installLanguage: 'powershell',
-		details: 'The script installs for the current user in `%LOCALAPPDATA%\\Programs\\XrmGhost\\cli` and changes only the user `PATH`. Open a new shell, then run `xg --version`. To select a specific version, set `$env:XG_VERSION` before running the command.',
+		details: 'The script installs for the current user in `%LOCALAPPDATA%\\Programs\\XrmGhost\\cli` and changes only the user `PATH`. Open a new shell, then run `xg --version`. To select a specific version, run `& ([scriptblock]::Create((irm https://github.com/xrmghost/xrmghost/releases/latest/download/install.ps1))) -Version <version>`.',
 		update: 'Run the same command again.',
 		uninstall: 'Delete `%LOCALAPPDATA%\\Programs\\XrmGhost\\cli` and remove that entry from your user `PATH`.',
 	},
