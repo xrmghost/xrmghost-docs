@@ -1,6 +1,6 @@
 # XrmGhost Documentation
 
-> XrmGhost runs your Power Platform plugins locally — your AI agent writes them, and they work before they ship. Built for Microsoft Dataverse and Dynamics 365 plugin teams, it closes the deploy-test loop in seconds instead of minutes. The suite spans a CLI (the primary tool), an Attributes library, and agent Skills.
+> XrmGhost runs your real, compiled Dataverse plugins locally so you — or your coding agent — can iterate in seconds instead of deploying to read trace logs. Built for Microsoft Dataverse and Dynamics 365 plugin teams, it closes the deploy-test loop in seconds instead of minutes. The suite spans a CLI (the primary tool), an Attributes library, and agent Skills.
 
 ## Start here
 - [Overview](https://docs.xrmghost.tech/overview/): what XrmGhost is, who it's for, and why teams adopt it.
