@@ -1441,7 +1441,7 @@ The success signal is exit code `0` together with the line:
 All critical checks passed. Your environment looks good!
 ```
 
-Without a license, an invitation to upgrade can follow that line: it is not an error and the exit code stays `0`. Exit code `1` means at least one check failed. The agent reads the failing section, fixes it (for a missing or broken host, `xg doctor --fix`), and runs `xg doctor` again. The `.NET SDKs (informational)` section never fails the run: the CLI does not need a .NET SDK, and a machine without one shows `not installed, not required`. See [`xg doctor`](/cli/reference/doctor/) for what each check verifies.
+Without a license, an invitation to upgrade can follow that line: it is not an error and the exit code stays `0`. Exit code `1` means at least one check failed. The agent reads the failing section, fixes it (for a missing or broken host, `xg doctor --fix`), and runs `xg doctor` again. The `.NET SDKs (informational)` section never fails the run: the CLI does not need a .NET SDK, and a machine without one, or where the SDK listing fails or times out, still passes: the section only prints a `not required` line. See [`xg doctor`](/cli/reference/doctor/) for what each check verifies.
 
 ## The agent marker in `xg` telemetry
 
@@ -2189,7 +2189,13 @@ xg doctor [-v] [-f <FRAMEWORK_HOST_PATH>] [--fix] [--no-interactive]
 1. **CLI Information** — Reports the installed CLI version, the assembly location, and the unique machine Platform ID.
 2. **Core Library** — Reports the version and location of the bundled `XrmGhost.Core` assembly.
 3. **Platform Information** — Displays OS description, OS architecture, process architecture, .NET runtime version, and framework description.
-4. **.NET SDKs (informational)** — Lists the .NET SDK versions reported by `dotnet --list-sdks`. The CLI ships its own runtime and does not need a .NET SDK, so this section never fails the run and never changes the exit code. When `dotnet` is not on the `PATH`, exits with an error, or lists no SDK, the section prints `not installed, not required`. If listing the SDKs raises an unexpected error, the section prints `Could not list .NET SDKs (not required): <message>` in yellow, and the run continues.
+4. **.NET SDKs (informational)** — Lists the .NET SDK versions reported by `dotnet --list-sdks`. The CLI ships its own runtime and does not need a .NET SDK, so this section never fails the run and never changes the exit code. The section tells five outcomes apart, and none of them fails the run:
+
+   - `dotnet` is not on the `PATH`, or it lists no SDK: the section prints `not installed, not required`.
+   - `dotnet --list-sdks` exits with a non-zero code `N`: `dotnet` is found, so it is not reported as uninstalled; the section prints `dotnet found, but 'dotnet --list-sdks' failed (exit code N); not required`.
+   - `dotnet --list-sdks` does not answer within 10 seconds: the section prints `dotnet did not respond to 'dotnet --list-sdks' within 10 s; not required`.
+   - Listing the SDKs raises an unexpected error: the section prints `Could not list .NET SDKs (not required): <message>` in yellow.
+   - `dotnet` lists at least one SDK: the section prints each version.
 5. **XrmGhost.Framework.Host.exe Status** — Resolves the `XrmGhost.Framework.Host.exe` binary (the host bundled in the `bin\` folder next to `xg.exe` first, then the managed install root `%LOCALAPPDATA%\xrmghost\framework-host\current\`, then legacy beside-CLI locations) and reports its path, version and verdict. The verdict is the same one `xg run` acts on, so a host that `run` would stop on cannot pass here. Fails if the host is missing, corrupted or incompatible. With `--fix`, the repair runs first and the check reports the state after it.
 6. **Local Configuration Files** — Reads `bootstrap.lic` and the AKMS API key. A missing file or key, or an expired key, is reported as a yellow warning or `Unlicensed` (not a failure); an error while reading or decrypting either one fails the check. Displays the license tier when the key is valid.
 7. **AKMS Connectivity** — Contacts the AKMS JWKS endpoint to confirm network reachability, then attempts a test JWT issuance if a valid local API key exists.
@@ -2267,7 +2273,7 @@ xg doctor --format json
 }
 ```
 
-`healthy` is `true` when every check except `dotnet_sdks` passed, and it matches the exit code: `0` when `healthy` is `true`, `1` otherwise. `dotnet_sdks` reports whether the SDK listing ran without an unexpected error. It is `true` when `dotnet` is missing or lists no SDK, `false` only when the listing itself raised an error, and it never changes `healthy` or the exit code. `unlicensed` is `true` when no license is in place (missing or expired key); on a healthy run the upgrade invitation then also appears in `notices`.
+`healthy` is `true` when every check except `dotnet_sdks` passed, and it matches the exit code: `0` when `healthy` is `true`, `1` otherwise. `dotnet_sdks` reports whether the SDK probe completed. It is `true` when `dotnet` is missing, lists no SDK, or `dotnet --list-sdks` exits with a non-zero code; it is `false` only when the probe times out or an unexpected error is raised while listing the SDKs. It never changes `healthy` or the exit code. `unlicensed` is `true` when no license is in place (missing or expired key); on a healthy run the upgrade invitation then also appears in `notices`.
 
 ## Examples
 
@@ -2325,7 +2331,7 @@ The table below maps each check to the condition that makes it fail.
 | Subscription Claims Diagnostics | An unhandled exception occurs while reading or displaying license claims. |
 
 :::note
-The `.NET SDKs (informational)` section does not affect the overall result or the exit code. A machine without `dotnet`, or with no SDK installed, is healthy: the section prints `not installed, not required`. There is no check for a specific SDK version.
+The `.NET SDKs (informational)` section does not affect the overall result or the exit code. A machine without `dotnet`, with no SDK installed, with a `dotnet --list-sdks` that exits with a non-zero code or times out, or where listing raises an unexpected error, is still healthy: the section prints `not installed, not required`, `dotnet found, but 'dotnet --list-sdks' failed (exit code N); not required`, `dotnet did not respond to 'dotnet --list-sdks' within 10 s; not required` or `Could not list .NET SDKs (not required): <message>` respectively. There is no check for a specific SDK version.
 :::
 
 ## See Also
