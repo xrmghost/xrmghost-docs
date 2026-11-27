@@ -90,6 +90,10 @@ export default defineConfig({
 				{ label: 'Getting Started', slug: 'getting-started' },
 				{ label: 'FAQ', slug: 'faq' },
 				{
+					label: 'Billing',
+					items: [{ label: 'Billing and pricing', slug: 'billing' }],
+				},
+				{
 					label: 'How-to',
 					collapsed: true,
 					// /how-to/ is the group landing; index.mdx is hidden from the
